@@ -22,3 +22,20 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+#ignore binaries
+cli/hilbertspace_openbsd_amd64
+cli/hilbertspace_linux_386
+cli/hilbertspace_darwin_386
+cli/hilbertspace_linux_amd64
+cli/hilbertspace_linux_arm64
+cli/hilbertspace_linux_arm
+cli/hilbertspace_linux_ppc64
+cli/hilbertspace_linux_ppc64le
+cli/hilbertspace_darwin_amd64
+cli/hilbertspace_windows_amd64.exe
+cli/hilbertspace_windows_386.exe
+cli/hilbertspace_openbsd_386
+
+#ingore node
+public/node_modules/

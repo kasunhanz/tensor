@@ -1,0 +1,902 @@
+swagger: '2.0'
+info:
+  title: HILBERT SPACE
+  description: Hilbert SPACE API
+  version: "2.0.2"
+
+host: localhost:3000
+
+tags:
+  - name: authentication
+    description: Authentication, Logout & API Tokens
+  - name: project
+    description: Everything related to a project
+  - name: user
+    description: User-related API
+
+schemes:
+  - http
+  - https
+
+basePath: /api
+produces:
+  - application/json
+
+definitions:
+  Login:
+    type: object
+    required:
+      - auth
+      - password
+    properties:
+      auth:
+        type: string
+        description: Username/Email address
+      password:
+        type: string
+        format: password
+        description: Password
+  PONG:
+    type: string
+    format: PONG
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      username:
+        type: string
+      email:
+        type: string
+      created:
+        type: string
+        format: date-time
+  APIToken:
+    type: object
+    properties:
+      id:
+        type: string
+      created:
+        type: string
+        format: date-time
+      expired:
+        type: boolean
+      user_id:
+        type: integer
+  Project:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      created:
+        type: string
+        format: date-time
+  AccessKey:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+      project_id:
+        type: integer
+      key:
+        type: string
+      secret:
+        type: string
+  Environment:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      password:
+        type: string
+      json:
+        type: string
+  Inventory:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      inventory:
+        type: string
+      key_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      type:
+        type: string
+  Repository:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      git_url:
+        type: string
+      ssh_key_id:
+        type: integer
+  Task:
+    type: object
+    properties:
+      id:
+        type: integer
+      template_id:
+        type: integer
+      status:
+        type: string
+      debug:
+        type: boolean
+      playbook:
+        type: string
+      environment:
+        type: string
+  Task:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      task:
+        type: string
+      time:
+        type: string
+        format: date-time
+      output:
+        type: string
+  Template:
+    type: object
+    properties:
+      id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      project_id:
+        type: integer
+      inventory_id:
+        type: integer
+      repository_id:
+        type: integer
+      environment_id:
+        type: integer
+      playbook:
+        type: string
+      arguments:
+        type: string
+      override_args:
+        type: boolean
+  Event:
+    type: object
+    properties:
+      project_id:
+        type: integer
+      object_id:
+        type: integer
+      object_type:
+        type: string
+      description:
+        type: string
+  InfoType:
+    type: object
+    properties:
+      version:
+        type: string
+      updateBody:
+        type: string
+      update:
+        type: object
+        properties:
+          tag_name:
+            type: string
+
+# securityDefinitions:
+#   cookie:
+#     type: apiKey
+#     name: Cookie
+#     in: header
+#   bearer:
+#     type: apiKey
+#     name: Authorization
+#     in: header
+
+parameters:
+  project_id:
+    name: project_id
+    description: Project ID
+    in: path
+    type: integer
+    required: true
+  user_id:
+    name: user_id
+    description: User ID
+    in: path
+    type: integer
+    required: true
+  key_id:
+    name: key_id
+    description: key ID
+    in: path
+    type: integer
+    required: true
+  repository_id:
+    name: repository_id
+    description: repository ID
+    in: path
+    type: integer
+    required: true
+  inventory_id:
+    name: inventory_id
+    description: inventory ID
+    in: path
+    type: integer
+    required: true
+  environment_id:
+    name: environment_id
+    description: environment ID
+    in: path
+    type: integer
+    required: true
+  template_id:
+    name: template_id
+    description: template ID
+    in: path
+    type: integer
+    required: true
+  task_id:
+    name: task_id
+    description: task ID
+    in: path
+    type: integer
+    required: true
+
+paths:
+  /ping:
+    get:
+      summary: PING test
+      responses:
+        200:
+          description: Successful "PONG" reply
+          schema:
+            $ref: "#/definitions/PONG"
+
+  /ws:
+    get:
+      summary: Websocket handler
+      schemes:
+        - ws
+        - wss
+      responses:
+        200:
+          description: OK
+      # security:
+      #   - cookie: []
+      #   - bearer: []
+  /info:
+    get:
+      summary: Fetches information about hilbertspace
+      description: you must be authenticated to use this
+      responses:
+        200:
+          description: ok
+          schema:
+            $ref: "#/definitions/InfoType"
+
+  /upgrade:
+    get:
+      summary: Check if new updates available and fetch /info
+      responses:
+        204:
+          description: no update
+        200:
+          description: ok
+          schema:
+            $ref: "#/definitions/InfoType"
+    post:
+      summary: Upgrade the server
+      responses:
+        200:
+          description: Server binary was replaced by new version, server has shut down.
+
+  # Authentication
+  /auth/login:
+    post:
+      tags:
+        - authentication
+      summary: Performs Login
+      description: |
+        Upon success you will be logged in
+      parameters:
+        - name: Login Body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Login'
+      responses:
+        204:
+          description: You are logged in
+        400:
+          description: something in body is missing / is invalid
+  /auth/logout:
+    post:
+      tags:
+        - authentication
+      summary: Destroys current session
+      responses:
+        204:
+          description: Your session was successfully nuked
+
+  # User stuff
+  /user:
+    get:
+      tags:
+        - user
+      summary: Fetch logged in user
+      responses:
+        200:
+          description: User
+          schema:
+            $ref: "#/definitions/User"
+
+  /user/tokens:
+    get:
+      tags:
+        - authentication
+        - user
+      summary: Fetch API tokens for user
+      responses:
+        200:
+          description: API Tokens
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/APIToken"
+    post:
+      tags:
+        - authentication
+        - user
+      summary: Create an API token
+      responses:
+        201:
+          description: API Token
+          schema:
+            $ref: "#/definitions/APIToken"
+  /user/tokens/{api_token_id}:
+    parameters:
+      - name: api_token_id
+        in: path
+        type: string
+        required: true
+    delete:
+      tags:
+        - authentication
+        - user
+      summary: Expires API token
+      responses:
+        204:
+          description: Expired API Token
+
+  # Projects
+  /projects:
+    get:
+      tags:
+        - projects
+      summary: Get projects
+      responses:
+        200:
+          description: List of projects
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Project"
+    post:
+      tags:
+        - projects
+      summary: Create a new project
+      parameters:
+        - name: Project
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Project'
+      responses:
+        200:
+          description: Created project
+  /events:
+    get:
+      summary: Get Events related to Hilbertspace and projects you are part of
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
+
+  /project/{project_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Fetch project
+      responses:
+        200:
+          description: Project
+          schema:
+            $ref: "#/definitions/Project"
+
+  /project/{project_id}/events:
+    parameters:
+      - $ref: '#/parameters/project_id'
+    get:
+      tags:
+        - project
+      summary: Get Events related to this project
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
+
+  # User management
+  /project/{project_id}/users:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get users linked to project
+      responses:
+        200:
+          description: Users
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+    post:
+      tags:
+        - project
+      summary: Link user to project
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                format: userID
+              admin:
+                type: boolean
+      responses:
+        204:
+          description: User added
+  /project/{project_id}/users/{user_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/user_id"
+    delete:
+      tags:
+        - project
+      summary: Removes user from project
+      responses:
+        204:
+          description: User removed
+  /project/{project_id}/users/{user_id}/admin:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - project
+      summary: Makes user admin
+      responses:
+        204:
+          description: User made administrator
+    delete:
+      tags:
+        - project
+      summary: Revoke admin privileges
+      responses:
+        204:
+          description: User admin privileges revoked
+
+  # project access keys
+  /project/{project_id}/keys:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get access keys linked to project
+      parameters:
+        - name: Key type
+          in: query
+          required: false
+          type: string
+          format: ssh/aws/gcloud/do
+          description: Filter by key type
+      responses:
+        200:
+          description: Access Keys
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AccessKey"
+    post:
+      tags:
+        - project
+      summary: Add access key
+      parameters:
+        - name: Access Key
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AccessKey"
+      responses:
+        204:
+          description: Access Key created
+        400:
+          description: Bad type
+  /project/{project_id}/keys/{key_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/key_id"
+    put:
+      tags:
+        - project
+      summary: Updates access key
+      parameters:
+        - name: Access Key
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AccessKey"
+      responses:
+        204:
+          description: Key updated
+        400:
+          description: Bad type
+    delete:
+      tags:
+        - project
+      summary: Removes access key
+      responses:
+        204:
+          description: access key removed
+
+  # project repositories
+  /project/{project_id}/repositories:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get repositories
+      responses:
+        200:
+          description: repositories
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Repository"
+    post:
+      tags:
+        - project
+      summary: Add repository
+      parameters:
+        - name: Repository
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Repository"
+      responses:
+        204:
+          description: Repository created
+  /project/{project_id}/repositories/{repository_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/repository_id"
+    delete:
+      tags:
+        - project
+      summary: Removes repository
+      responses:
+        204:
+          description: repository removed
+
+  # project inventory
+  /project/{project_id}/inventory:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get inventory
+      responses:
+        200:
+          description: inventory
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Inventory"
+    post:
+      tags:
+        - project
+      summary: create inventory
+      parameters:
+        - name: Inventory
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Inventory"
+      responses:
+        204:
+          description: inventory created
+  /project/{project_id}/inventory/{inventory_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - project
+      summary: Updates inventory
+      parameters:
+        - name: Inventory
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Inventory"
+      responses:
+        204:
+          description: Inventory updated
+    delete:
+      tags:
+        - project
+      summary: Removes inventory
+      responses:
+        204:
+          description: inventory removed
+
+  # project environment
+  /project/{project_id}/environment:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get environment
+      responses:
+        200:
+          description: environment
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Environment"
+    post:
+      tags:
+        - project
+      summary: Add environment
+      parameters:
+        - name: environment
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Environment"
+      responses:
+        204:
+          description: Environment created
+  /project/{project_id}/environment/{environment_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/environment_id"
+    put:
+      tags:
+        - project
+      summary: Update environment
+      parameters:
+        - name: environment
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Environment"
+      responses:
+        204:
+          description: Environment Updated
+    delete:
+      tags:
+        - project
+      summary: Removes environment
+      responses:
+        204:
+          description: environment removed
+
+  # project templates
+  /project/{project_id}/template:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get template
+      responses:
+        200:
+          description: template
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Template"
+    post:
+      tags:
+        - project
+      summary: create template
+      parameters:
+        - name: template
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Template"
+      responses:
+        201:
+          description: template created
+          schema:
+            $ref: "#/definitions/Template"
+  /project/{project_id}/template/{template_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    put:
+      tags:
+        - project
+      summary: Updates template
+      parameters:
+        - name: template
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Template"
+      responses:
+        204:
+          description: template updated
+    delete:
+      tags:
+        - project
+      summary: Removes template
+      responses:
+        204:
+          description: template removed
+
+  # tasks
+  /project/{project_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - project
+      summary: Starts a job
+      parameters:
+        - name: job
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Task"
+      responses:
+        201:
+          description: Task queued
+          schema:
+            $ref: "#/definitions/Task"
+  /project/{project_id}/tasks/{task_id}/output:
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/task_id'
+    get:
+      tags:
+        - project
+      summary: Get task output
+      responses:
+        200:
+          description: output
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TaskOutput"
+
+  # users
+  /users:
+    get:
+      tags:
+        - user
+      summary: Fetches all users
+      responses:
+        200:
+          description: Users
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+    post:
+      tags:
+        - user
+      summary: Creates a user
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+      responses:
+        201:
+          description: User created
+          schema:
+            $ref: "#/definitions/User"
+  /users/{user_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Fetches a user profile
+      responses:
+        200:
+          description: User profile
+          schema:
+            $ref: "#/definitions/User"
+    put:
+      tags:
+        - user
+      summary: Updates user details
+      parameters:
+        - name: User
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+      responses:
+        204:
+          description: User Updated
+    delete:
+      tags:
+        - user
+      summary: Deletes user
+      responses:
+        204:
+          description: User deleted
+  /users/{user_id}/password:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - user
+      summary: Updates user password
+      parameters:
+        - name: Password
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              password:
+                type: string
+                format: password
+      responses:
+        204:
+          description: Password updated
