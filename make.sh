@@ -19,39 +19,24 @@ if [ "$1" == "ci_test" ]; then
 		"host": "127.0.0.1:3306",
 		"user": "hilbert",
 		"pass": "hilbert",
-		"name": "circle_test"
+		"name": "hilbertspace"
 	},
 	"session_db": "127.0.0.1:6379",
 	"port": ":8010"
 }
 EOF
 
-	cd public
-	lessc css/hilbertspace.less > css/hilbertspace.css
-	jade html/*.jade html/*/*.jade html/*/*/*.jade &
-	cd -
 fi
-
-cd public
-node ./bundler.js
-cd -
 
 echo "Adding bindata"
 
-go-bindata $BINDATA_ARGS config.json db/migrations/ $(find ./public -type d -print)
+go-bindata $BINDATA_ARGS config.json db/migrations/
 
 if [ "$1" == "ci_test" ]; then
 	exit 0
 fi
 
 if [ "$1" == "watch" ]; then
-	cd public
-
-	nodemon -w js -i bundle.js -e js bundler.js &
-	nodemon -w css -e less --exec "lessc css/hilbertspace.less > css/hilbertspace.css" &
-	jade -w -P html/*.jade html/*/*.jade html/*/*/*.jade &
-
-	cd ../
 	reflex -r '\.go$' -s -d none -- sh -c 'go run cli/main.go'
 	exit 0
 fi

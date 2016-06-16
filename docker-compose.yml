@@ -22,6 +22,18 @@ services:
       hilbertnet:
         aliases:
           - redis
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - '8080:80'
+    environment:
+      PMA_HOST: 'database'
+    networks:
+      hilbertnet:
+        aliases:
+          - phpmyadmin
+
 networks:
   hilbertnet:
     driver: bridge

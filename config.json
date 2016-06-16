@@ -3,7 +3,7 @@
 		"host": "127.0.0.1:3306",
 		"user": "hilbert",
 		"pass": "hilbert",
-		"name": "circle_test"
+		"name": "hilbertspace"
 	},
 	"session_db": "127.0.0.1:6379",
 	"port": ":8010"

@@ -37,5 +37,5 @@ cli/hilbertspace_windows_amd64.exe
 cli/hilbertspace_windows_386.exe
 cli/hilbertspace_openbsd_386
 
-#ingore node
-public/node_modules/
+#ignore project vs code
+.vscode/
