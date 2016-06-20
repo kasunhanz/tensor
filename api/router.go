@@ -1,6 +1,9 @@
 package api
 
 import (
+	"time"
+
+	"github.com/gamunu/hilbertspace/api/cors"
 	"github.com/gamunu/hilbertspace/api/projects"
 	"github.com/gamunu/hilbertspace/api/sockets"
 	"github.com/gamunu/hilbertspace/api/tasks"
@@ -11,6 +14,18 @@ import (
 
 // Route declare all routes
 func Route(r *gin.Engine) {
+
+	// Apply the middleware to the router (works with groups too)
+	r.Use(cors.Middleware(cors.Config{
+		Origins:         "*",
+		Methods:         "GET, PUT, POST, DELETE",
+		RequestHeaders:  "Origin, Authorization, Content-Type",
+		ExposedHeaders:  "",
+		MaxAge:          50 * time.Second,
+		Credentials:     true,
+		ValidateHeaders: false,
+	}))
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(200, "PONG")
 	})
