@@ -8,8 +8,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/bugsnag/bugsnag-go"
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,8 +27,7 @@ type mySQLConfig struct {
 type configType struct {
 	MySQL mySQLConfig `json:"mysql"`
 	// Format `:port_num` eg, :3000
-	Port       string `json:"port"`
-	BugsnagKey string `json:"bugsnag_key"`
+	Port string `json:"port"`
 
 	// HilbertSpace stores projects here
 	TmpPath string `json:"tmp_path"`
@@ -129,20 +126,6 @@ func init() {
 	}
 
 	Cookie = securecookie.New(hash, encryption)
-
-	stage := ""
-	if gin.Mode() == "release" {
-		stage = "production"
-	} else {
-		stage = "development"
-	}
-	bugsnag.Configure(bugsnag.Configuration{
-		APIKey:              Config.BugsnagKey,
-		ReleaseStage:        stage,
-		NotifyReleaseStages: []string{"production"},
-		AppVersion:          Version,
-		ProjectPackages:     []string{"github.com/gamunu/hilbertspace/**"},
-	})
 }
 
 func (conf *configType) GenerateCookieSecrets() {

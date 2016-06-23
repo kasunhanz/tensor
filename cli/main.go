@@ -16,7 +16,6 @@ import (
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
-	"github.com/bugsnag/bugsnag-go"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -68,7 +67,7 @@ func main() {
 }
 
 func recovery(c *gin.Context) {
-	defer bugsnag.AutoNotify()
+	//report to bug nofiy system
 	c.Next()
 }
 
