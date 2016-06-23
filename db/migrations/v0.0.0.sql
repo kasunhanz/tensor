@@ -1,6 +1,6 @@
 create table user (
 	`id` int(11) not null auto_increment primary key,
-	`created` datetime not null,
+	`created` datetime not null default current_timestamp,
 	`username` varchar(255) not null comment "Username, unique",
 	`name` varchar(255) not null comment "Full name",
 	`email` varchar(255) not null comment "Email, unique",
@@ -10,9 +10,18 @@ create table user (
 	unique key `email` (`email`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
+create table `user__token` (
+	`id` varchar(32) not null primary key,
+	`created` datetime not null,
+	`expired` tinyint(1) not null default 0,
+	`user_id` int(11) not null,
+
+	foreign key (`user_id`) references user(`id`) on delete cascade
+) ENGINE=InnoDB CHARSET=utf8;
+
 create table project (
 	`id` int(11) not null auto_increment primary key,
-	`created` datetime not null comment "Created timestamp",
+	`created` datetime not null default current_timestamp comment 'Created timestamp',
 	`name` varchar(255) not null comment "Project name"
 ) ENGINE=InnoDB CHARSET=utf8;
 
@@ -40,6 +49,7 @@ create table access_key (
 
 create table project__repository (
 	`id` int(11) not null primary key auto_increment,
+	`name` varchar(255) not null,
 	`project_id` int(11) not null,
 	`git_url` text not null,
 	`ssh_key_id` int(11) not null,
@@ -50,17 +60,21 @@ create table project__repository (
 
 create table project__inventory (
 	`id` int(11) not null primary key auto_increment,
+	`name` varchar(255) not null,
 	`project_id` int(11) not null,
 	`type` varchar(255) not null comment 'can be static/aws/do/gcloud',
 	`key_id` int(11) null comment 'references keys to authenticate remote services',
 	`inventory` longtext not null,
+	`ssh_key_id` int(11) not null,
 
 	foreign key (`project_id`) references project(`id`) on delete cascade,
-	foreign key (`key_id`) references access_key(`id`)
+	foreign key (`key_id`) references access_key(`id`),
+	foreign key (`ssh_key_id`) references access_key(`id`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
 create table project__environment (
 	`id` int(11) not null primary key auto_increment,
+	`name` varchar(255) not null,
 	`project_id` int(11) not null,
 	`password` varchar(255) null,
 	`json` longtext not null,
@@ -75,6 +89,8 @@ create table project__template (
 	`inventory_id` int(11) not null,
 	`repository_id` int(11) not null,
 	`environment_id` int(11) null,
+	`arguments` text null,
+	`override_args` tinyint(1) not null default 0,
 	`playbook` varchar(255) not null comment 'playbook name (ansible.yml)',
 
 	foreign key (`project_id`) references project(`id`) on delete cascade,
@@ -95,18 +111,46 @@ create table task (
 	`id` int(11) not null primary key auto_increment,
 	`template_id` int(11) not null,
 	`status` varchar(255) not null,
+	`debug` tinyint(1) not null default 0,
 	`playbook` varchar(255) not null comment 'override playbook name (ansible.yml)',
 	`environment` longtext null comment 'override environment',
+	`created` datetime not null default current_timestamp,
 
-	foreign key (`template_id`) references project__template(`id`)
+	(`template_id`) references `project__template` (`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
 create table task__output (
 	`task_id` int(11) not null,
 	`task` varchar(255) not null,
-	`time` datetime not null,
+	`time` datetime(6) not null,
 	`output` longtext not null,
+	`start` datetime null,
+	`end` datetime null,
 
 	unique key `id` (`task_id`, `time`),
 	foreign key (`task_id`) references task(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
+
+CREATE TABLE `session` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `created` datetime NOT NULL,
+  `last_active` datetime NOT NULL,
+  `ip` varchar(15) NOT NULL DEFAULT '',
+  `user_agent` text NOT NULL,
+  `expired` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `expired` (`expired`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `event` (
+  `project_id` int(11) DEFAULT NULL,
+  `object_id` int(11) DEFAULT NULL,
+  `object_type` varchar(20) DEFAULT '',
+  `description` text,
+  `created` datetime(6) NOT NULL,
+  KEY `project_id` (`project_id`),
+  KEY `object_id` (`object_id`),
+  KEY `created` (`created`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
