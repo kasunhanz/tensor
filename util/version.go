@@ -1,3 +1,4 @@
 package util
 
-var Version string = "1.0.0"
+// Version is for hold the system version globally
+var Version = "1.0.0"
