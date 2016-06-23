@@ -2,13 +2,6 @@
 // sources:
 // config.json
 // db/migrations/v0.0.0.sql
-// db/migrations/v0.1.0.sql
-// db/migrations/v1.0.0.sql
-// db/migrations/v1.1.0.sql
-// db/migrations/v1.2.0.sql
-// db/migrations/v1.3.0.sql
-// db/migrations/v1.4.0.sql
-// db/migrations/v1.5.0.sql
 // DO NOT EDIT!
 
 package util
@@ -57,132 +50,6 @@ func configJson() (*asset, error) {
 func dbMigrationsV000Sql() (*asset, error) {
 	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v0.0.0.sql"
 	name := "db/migrations/v0.0.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV010Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV010Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v0.1.0.sql"
-	name := "db/migrations/v0.1.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV100Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV100Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.0.0.sql"
-	name := "db/migrations/v1.0.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV110Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV110Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.1.0.sql"
-	name := "db/migrations/v1.1.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV120Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV120Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.2.0.sql"
-	name := "db/migrations/v1.2.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV130Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV130Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.3.0.sql"
-	name := "db/migrations/v1.3.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV140Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV140Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.4.0.sql"
-	name := "db/migrations/v1.4.0.sql"
-	bytes, err := bindataRead(path, name)
-	if err != nil {
-		return nil, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
-	}
-
-	a := &asset{bytes: bytes, info: fi}
-	return a, err
-}
-
-// dbMigrationsV150Sql reads file data from disk. It returns an error on failure.
-func dbMigrationsV150Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v1.5.0.sql"
-	name := "db/migrations/v1.5.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
@@ -251,13 +118,6 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"config.json": configJson,
 	"db/migrations/v0.0.0.sql": dbMigrationsV000Sql,
-	"db/migrations/v0.1.0.sql": dbMigrationsV010Sql,
-	"db/migrations/v1.0.0.sql": dbMigrationsV100Sql,
-	"db/migrations/v1.1.0.sql": dbMigrationsV110Sql,
-	"db/migrations/v1.2.0.sql": dbMigrationsV120Sql,
-	"db/migrations/v1.3.0.sql": dbMigrationsV130Sql,
-	"db/migrations/v1.4.0.sql": dbMigrationsV140Sql,
-	"db/migrations/v1.5.0.sql": dbMigrationsV150Sql,
 }
 
 // AssetDir returns the file names below a certain
@@ -304,13 +164,6 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"db": &bintree{nil, map[string]*bintree{
 		"migrations": &bintree{nil, map[string]*bintree{
 			"v0.0.0.sql": &bintree{dbMigrationsV000Sql, map[string]*bintree{}},
-			"v0.1.0.sql": &bintree{dbMigrationsV010Sql, map[string]*bintree{}},
-			"v1.0.0.sql": &bintree{dbMigrationsV100Sql, map[string]*bintree{}},
-			"v1.1.0.sql": &bintree{dbMigrationsV110Sql, map[string]*bintree{}},
-			"v1.2.0.sql": &bintree{dbMigrationsV120Sql, map[string]*bintree{}},
-			"v1.3.0.sql": &bintree{dbMigrationsV130Sql, map[string]*bintree{}},
-			"v1.4.0.sql": &bintree{dbMigrationsV140Sql, map[string]*bintree{}},
-			"v1.5.0.sql": &bintree{dbMigrationsV150Sql, map[string]*bintree{}},
 		}},
 	}},
 }}

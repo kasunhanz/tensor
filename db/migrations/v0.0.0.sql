@@ -116,7 +116,7 @@ create table task (
 	`environment` longtext null comment 'override environment',
 	`created` datetime not null default current_timestamp,
 
-	(`template_id`) references `project__template` (`id`) on delete cascade
+	foreign key (`template_id`) references project__template(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
 create table task__output (
@@ -154,3 +154,27 @@ CREATE TABLE `event` (
   KEY `object_id` (`object_id`),
   KEY `created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+create table addhoc_task (
+	`id` int(11) not null primary key auto_increment,
+	`status` varchar(255) not null,
+	`debug` tinyint(1) not null default 0,
+	`module` varchar(255) not null,
+	`action` text not null,
+	`forks` int(2) default 5,
+	`inventory` text not null,
+	`created` datetime not null default current_timestamp
+) ENGINE=InnoDB CHARSET=utf8;
+
+create table addhoc_task__output (
+	`task_id` int(11) not null,
+	`task` varchar(255) not null,
+	`time` datetime(6) not null,
+	`output` longtext not null,
+	`start` datetime null,
+	`end` datetime null,
+
+	unique key `id` (`task_id`, `time`),
+	foreign key (`task_id`) references addhoc_task(`id`) on delete cascade
+) ENGINE=InnoDB CHARSET=utf8;

@@ -14,4 +14,6 @@ func SetupDBLink() {
 	db.Mysql.AddTableWithName(Template{}, "project__template").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(User{}, "user").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(Session{}, "session").SetKeys(true, "id")
+	db.Mysql.AddTableWithName(AddHocTask{}, "addhoc").SetKeys(true, "id")
+	db.Mysql.AddTableWithName(AddHocTaskOutput{}, "addhoc_output").SetKeys(true, "task_id")
 }
