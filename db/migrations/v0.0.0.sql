@@ -1,4 +1,4 @@
-create table user (
+create table `user` (
 	`id` int(11) not null auto_increment primary key,
 	`created` datetime not null default current_timestamp,
 	`username` varchar(255) not null comment "Username, unique",
@@ -19,13 +19,13 @@ create table `user__token` (
 	foreign key (`user_id`) references user(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project (
+create table `project` (
 	`id` int(11) not null auto_increment primary key,
 	`created` datetime not null default current_timestamp comment 'Created timestamp',
 	`name` varchar(255) not null comment "Project name"
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__user (
+create table `project__user` (
 	`project_id` int(11) not null,
 	`user_id` int (11) not null comment "User ID",
 	`admin` tinyint (1) not null default 0 comment 'Gives user god-like privileges',
@@ -35,7 +35,16 @@ create table project__user (
 	foreign key (`user_id`) references user(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table access_key (
+create table `global_access_key` (
+	`id` int(11) not null primary key auto_increment,
+	`name` varchar(255) not null,
+	`type` varchar(255) not null comment 'aws/do/gcloud/ssh/credential',
+
+	`key` text null,
+	`secret` text null
+) ENGINE=InnoDB CHARSET=utf8;
+
+create table `access_key` (
 	`id` int(11) not null primary key auto_increment,
 	`name` varchar(255) not null,
 	`type` varchar(255) not null comment 'aws/do/gcloud/ssh',
@@ -47,7 +56,7 @@ create table access_key (
 	foreign key (`project_id`) references project(`id`) on delete set null
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__repository (
+create table `project__repository` (
 	`id` int(11) not null primary key auto_increment,
 	`name` varchar(255) not null,
 	`project_id` int(11) not null,
@@ -58,7 +67,7 @@ create table project__repository (
 	foreign key (`ssh_key_id`) references access_key(`id`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__inventory (
+create table `project__inventory` (
 	`id` int(11) not null primary key auto_increment,
 	`name` varchar(255) not null,
 	`project_id` int(11) not null,
@@ -72,7 +81,7 @@ create table project__inventory (
 	foreign key (`ssh_key_id`) references access_key(`id`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__environment (
+create table `project__environment` (
 	`id` int(11) not null primary key auto_increment,
 	`name` varchar(255) not null,
 	`project_id` int(11) not null,
@@ -82,7 +91,7 @@ create table project__environment (
 	foreign key (`project_id`) references project(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__template (
+create table `project__template` (
 	`id` int(11) not null primary key auto_increment,
 	`ssh_key_id` int(11) not null comment 'for accessing the inventory',
 	`project_id` int(11) not null,
@@ -100,14 +109,14 @@ create table project__template (
 	foreign key (`environment_id`) references project__environment(`id`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table project__template_schedule (
+create table `project__template_schedule` (
 	`template_id` int(11) not null,
 	`cron_format` varchar(255) not null,
 
 	foreign key (`template_id`) references project__template(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table task (
+create table `task` (
 	`id` int(11) not null primary key auto_increment,
 	`template_id` int(11) not null,
 	`status` varchar(255) not null,
@@ -119,7 +128,7 @@ create table task (
 	foreign key (`template_id`) references project__template(`id`) on delete cascade
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table task__output (
+create table `task__output` (
 	`task_id` int(11) not null,
 	`task` varchar(255) not null,
 	`time` datetime(6) not null,
@@ -155,19 +164,25 @@ CREATE TABLE `event` (
   KEY `created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
-create table addhoc_task (
+create table `addhoc_task` (
 	`id` int(11) not null primary key auto_increment,
+	`access_key_id` int(11) not null,
 	`status` varchar(255) not null,
 	`debug` tinyint(1) not null default 0,
 	`module` varchar(255) not null,
-	`action` text not null,
+	`arguments` text null,
+	`extra_vars` text null,
+	`connection` varchar(255) null,
+	`timeout` int(5) null,
 	`forks` int(2) default 5,
 	`inventory` text not null,
-	`created` datetime not null default current_timestamp
+	`created` datetime not null default current_timestamp,
+
+
+	foreign key (`access_key_id`) references global_access_key(`id`)
 ) ENGINE=InnoDB CHARSET=utf8;
 
-create table addhoc_task__output (
+create table `addhoc_task__output` (
 	`task_id` int(11) not null,
 	`task` varchar(255) not null,
 	`time` datetime(6) not null,
