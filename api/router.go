@@ -10,6 +10,8 @@ import (
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
 	"github.com/russross/blackfriday"
+	"github.com/gamunu/hilbertspace/api/addhoctasks"
+	"github.com/gamunu/hilbertspace/api/access"
 )
 
 // Route declare all routes
@@ -35,11 +37,11 @@ func Route(r *gin.Engine) {
 
 	auth := r.Group("/auth")
 	{
-		auth.POST("/login", login)
-		auth.POST("/logout", logout)
+		auth.POST("/login", access.Login)
+		auth.POST("/logout", access.Logout)
 	}
 
-	r.Use(authentication)
+	r.Use(access.Authentication)
 
 	r.GET("/ws", sockets.Handler)
 
@@ -108,6 +110,20 @@ func Route(r *gin.Engine) {
 		apiProject.GET("/tasks", tasks.GetAll)
 		apiProject.POST("/tasks", tasks.AddTask)
 		apiProject.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
+	}
+
+	addHocTask := r.Group("/addhoc")
+	{
+		addHocTask.POST("/tasks", addhoctasks.AddTask)
+		addHocTask.GET("/tasks/:task_id/output", addhoctasks.GetTaskMiddleware, addhoctasks.GetTaskOutput)
+	}
+
+	globalAccessKeys := r.Group("access")
+	{
+		globalAccessKeys.GET("/keys", access.GetKeys)
+		globalAccessKeys.POST("/keys", access.AddKey)
+		globalAccessKeys.PUT("/keys/:key_id", access.KeyMiddleware, access.UpdateKey)
+		globalAccessKeys.DELETE("/keys/:key_id", access.KeyMiddleware, access.RemoveKey)
 	}
 }
 
