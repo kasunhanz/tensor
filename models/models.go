@@ -5,6 +5,7 @@ import "github.com/gamunu/hilbertspace/db"
 func SetupDBLink() {
 	db.Mysql.AddTableWithName(APIToken{}, "user__token").SetKeys(false, "id")
 	db.Mysql.AddTableWithName(AccessKey{}, "access_key").SetKeys(true, "id")
+	db.Mysql.AddTableWithName(GlobalAccessKey{}, "global_access_key").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(Environment{}, "project__environment").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(Inventory{}, "project__inventory").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(Project{}, "project").SetKeys(true, "id")
@@ -14,6 +15,6 @@ func SetupDBLink() {
 	db.Mysql.AddTableWithName(Template{}, "project__template").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(User{}, "user").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(Session{}, "session").SetKeys(true, "id")
-	db.Mysql.AddTableWithName(AddHocTask{}, "addhoc").SetKeys(true, "id")
-	db.Mysql.AddTableWithName(AddHocTaskOutput{}, "addhoc_output").SetKeys(true, "task_id")
+	db.Mysql.AddTableWithName(AddHocTask{}, "addhoc_task").SetKeys(true, "id")
+	db.Mysql.AddTableWithName(AddHocTaskOutput{}, "addhoc_task__output").SetUniqueTogether("task_id", "time")
 }

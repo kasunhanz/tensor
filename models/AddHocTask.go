@@ -6,19 +6,23 @@ import "time"
 // is used as database model for record
 // add hoc command execution details
 type AddHocTask struct {
-	ID int `db:"id" json:"id"`
+	ID          int `db:"id" json:"id"`
+	AccessKeyID int `db:"access_key_id" json:"access_key_id"`
 
-	Status string `db:"status" json:"status"`
-	Debug  bool   `db:"debug" json:"debug"`
+	Status      string `db:"status" json:"status"`
+	Debug       bool   `db:"debug" json:"debug"`
 
-	Module    string `db:"module" json:"module"`
-	Action    string `db:"action" json:"action"`
-	Forks     string `db:"forks" json:"forks"`
-	Inventory string `db:"inventory" json:"inventory"`
+	Module      string `db:"module" json:"module"`
+	Arguments   string `db:"arguments" json:"arguments"`
+	ExtraVars   string `db:"extra_vars" json:"extra_vars"`
+	Forks       int    `db:"forks" json:"forks"`
+	Inventory   string `db:"inventory" json:"inventory"`
+	Connection  string `db:"connection" json:"connection"`
+	Timeout     int    `db:"timeout" json:"timeout"`
 
-	Created time.Time  `db:"created" json:"created"`
-	Start   *time.Time `db:"start" json:"start"`
-	End     *time.Time `db:"end" json:"end"`
+	Created     time.Time  `db:"created" json:"created"`
+	Start       *time.Time `db:"start" json:"start"`
+	End         *time.Time `db:"end" json:"end"`
 }
 
 // AddHocTaskOutput is an exported type that
