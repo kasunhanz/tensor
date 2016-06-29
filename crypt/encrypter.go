@@ -1,4 +1,4 @@
-package hscrypt
+package crypt
 
 import (
 	"crypto/aes"
@@ -15,19 +15,19 @@ Example usage:
 originalText := "encrypt this golang"
 fmt.Println(originalText)
 
-key := []byte("example key 1234")
-
 // encrypt value to base64
-cryptoText := encrypt(key, originalText)
+cryptoText := Encrypt(originalText)
 fmt.Println(cryptoText)
 
 // encrypt base64 crypto to original value
-text := decrypt(key, cryptoText)
+text := Decrypt(cryptoText)
 fmt.Printf(text)
  */
 
-// encrypt string to base64 crypto using AES
-func encrypt(key []byte, text string) string {
+var key []byte = []byte("8m86pie1ef8bghbq41ru!de4")
+
+// Encrypt string to base64 crypto using AES
+func Encrypt(text string) string {
 	// key := []byte(keyText)
 	plaintext := []byte(text)
 
@@ -51,8 +51,8 @@ func encrypt(key []byte, text string) string {
 	return base64.URLEncoding.EncodeToString(ciphertext)
 }
 
-// decrypt from base64 to decrypted string
-func decrypt(key []byte, cryptoText string) string {
+// Decrypt from base64 to decrypted string
+func Decrypt(cryptoText string) string {
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
 	block, err := aes.NewCipher(key)
