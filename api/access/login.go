@@ -28,7 +28,7 @@ func login(c *gin.Context) {
 	login.Auth = strings.ToLower(login.Auth)
 
 	q := sq.Select("*").
-		From("user")
+	From("user")
 
 	_, err := mail.ParseAddress(login.Auth)
 	if err == nil {
