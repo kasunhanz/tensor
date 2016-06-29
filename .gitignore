@@ -39,3 +39,4 @@ cli/hilbertspace_openbsd_386
 
 #ignore project vs code
 .vscode/
+.idea/
