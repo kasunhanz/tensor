@@ -9,10 +9,10 @@ import (
 )
 
 type DBVersion struct {
-	Major int
-	Minor int
-	Patch int
-	Build string
+	Major        int
+	Minor        int
+	Patch        int
+	Build        string
 
 	UpgradedDate *time.Time
 	Notes        *string
