@@ -1,4 +1,4 @@
-package api
+package access
 
 import (
 	"database/sql"
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func login(c *gin.Context) {
+func Login(c *gin.Context) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -83,7 +83,7 @@ func login(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func logout(c *gin.Context) {
+func Logout(c *gin.Context) {
 	c.SetCookie("hilbertspace", "", -1, "/", "", false, true)
 	c.AbortWithStatus(204)
 }

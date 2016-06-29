@@ -1,4 +1,4 @@
-package api
+package access
 
 import (
 	"database/sql"
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func authentication(c *gin.Context) {
+func Authentication(c *gin.Context) {
 	var userID int
 
 	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
