@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/util"
 )
 
 type DBVersion struct {

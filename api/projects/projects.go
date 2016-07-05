@@ -1,8 +1,8 @@
 package projects
 
 import (
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"time"

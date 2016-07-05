@@ -63,7 +63,7 @@ func DoUpgrade(version string) error {
 		return err
 	}
 
-	fmt.Println("visit https://github.com/gamunu/hilbertspace/releases for the changelog")
+	fmt.Println("visit https://pearson.com/hilbert-space/releases for the changelog")
 	go func() {
 		time.Sleep(time.Second * 3)
 		os.Exit(0)

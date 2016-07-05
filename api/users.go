@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"

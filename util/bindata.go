@@ -30,7 +30,7 @@ type asset struct {
 
 // configJson reads file data from disk. It returns an error on failure.
 func configJson() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/config.json"
+	path := "/home/gamunu/develop/go_workspace/src/pearson.com/hilbert-space/config.json"
 	name := "config.json"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -48,7 +48,7 @@ func configJson() (*asset, error) {
 
 // dbMigrationsV000Sql reads file data from disk. It returns an error on failure.
 func dbMigrationsV000Sql() (*asset, error) {
-	path := "/home/gamunu/develop/go_workspace/src/github.com/gamunu/hilbertspace/db/migrations/v0.0.0.sql"
+	path := "/home/gamunu/develop/go_workspace/src/pearson.com/hilbert-space/db/migrations/v0.0.0.sql"
 	name := "db/migrations/v0.0.0.sql"
 	bytes, err := bindataRead(path, name)
 	if err != nil {

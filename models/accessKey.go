@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
-	database "github.com/gamunu/hilbertspace/db"
+	database "pearson.com/hilbert-space/db"
 )
 
 // AccessKey is the model for access_key

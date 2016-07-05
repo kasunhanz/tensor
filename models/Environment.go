@@ -1,7 +1,7 @@
 package models
 
 import (
-	database "github.com/gamunu/hilbertspace/db"
+	database "pearson.com/hilbert-space/db"
 )
 // Environment is the model for
 // project_environment collection

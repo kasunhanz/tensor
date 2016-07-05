@@ -1,8 +1,8 @@
 package api
 
 import (
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	"github.com/masterminds/squirrel"
 	"gopkg.in/mgo.v2/bson"

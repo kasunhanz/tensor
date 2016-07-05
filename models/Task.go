@@ -4,7 +4,7 @@ import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
 	"github.com/ansible-semaphore/semaphore/models"
-	database "github.com/gamunu/hilbertspace/db"
+	database "pearson.com/hilbert-space/db"
 )
 
 // Task is the model for project_task

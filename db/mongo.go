@@ -2,7 +2,7 @@ package db
 
 import (
 	"gopkg.in/mgo.v2"
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/util"
 )
 
 var MongoDb *mgo.Database

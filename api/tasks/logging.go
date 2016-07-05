@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gamunu/hilbertspace/api/sockets"
-	"github.com/gamunu/hilbertspace/models"
+	"pearson.com/hilbert-space/api/sockets"
+	"pearson.com/hilbert-space/models"
 	"gopkg.in/mgo.v2/bson"
 )
 

@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"io/ioutil"
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/util"
 )
 
 func (t *task) installInventory() error {

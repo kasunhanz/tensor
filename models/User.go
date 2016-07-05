@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	database "github.com/gamunu/hilbertspace/db"
+	database "pearson.com/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 )
 

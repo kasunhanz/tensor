@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
-	database "github.com/gamunu/hilbertspace/db"
+	database "pearson.com/hilbert-space/db"
 )
 
 // Session is the model for session

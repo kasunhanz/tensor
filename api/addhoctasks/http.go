@@ -2,10 +2,10 @@ package addhoctasks
 
 import (
 	"time"
-	"github.com/gamunu/hilbertspace/models"
+	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/util"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/util"
 )
 
 func AddTask(c *gin.Context) {

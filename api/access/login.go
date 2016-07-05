@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
+	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"

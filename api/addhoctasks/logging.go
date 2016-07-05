@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
 )
 
 func (t *task) log(msg string) {

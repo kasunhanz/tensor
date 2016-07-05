@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
 	"strings"
 	"errors"
 	"io/ioutil"
 	"os/exec"
-	"github.com/gamunu/hilbertspace/util"
-	"github.com/gamunu/hilbertspace/crypt"
+	"pearson.com/hilbert-space/util"
+	"pearson.com/hilbert-space/crypt"
 )
 
 type task struct {

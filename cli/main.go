@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gamunu/hilbertspace/api"
-	"github.com/gamunu/hilbertspace/api/sockets"
-	"github.com/gamunu/hilbertspace/api/tasks"
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/api"
+	"pearson.com/hilbert-space/api/sockets"
+	"pearson.com/hilbert-space/api/tasks"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
+	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/gamunu/hilbertspace/api/addhoctasks"
+	"pearson.com/hilbert-space/api/addhoctasks"
 )
 
 func main() {

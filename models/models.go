@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/gamunu/hilbertspace/db"
+	"pearson.com/hilbert-space/db"
 	"github.com/ansible-semaphore/semaphore/db"
 )
 

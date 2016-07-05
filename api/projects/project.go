@@ -1,9 +1,9 @@
 package projects
 
 import (
-	database "github.com/gamunu/hilbertspace/db"
-	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
+	database "pearson.com/hilbert-space/db"
+	"pearson.com/hilbert-space/models"
+	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )

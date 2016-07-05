@@ -3,15 +3,15 @@ package api
 import (
 	"time"
 
-	"github.com/gamunu/hilbertspace/api/cors"
-	"github.com/gamunu/hilbertspace/api/projects"
-	"github.com/gamunu/hilbertspace/api/sockets"
-	"github.com/gamunu/hilbertspace/api/tasks"
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/api/cors"
+	"pearson.com/hilbert-space/api/projects"
+	"pearson.com/hilbert-space/api/sockets"
+	"pearson.com/hilbert-space/api/tasks"
+	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"github.com/russross/blackfriday"
-	"github.com/gamunu/hilbertspace/api/addhoctasks"
-	"github.com/gamunu/hilbertspace/api/access"
+	"pearson.com/hilbert-space/api/addhoctasks"
+	"pearson.com/hilbert-space/api/access"
 )
 
 // Route declare all routes

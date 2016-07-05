@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gamunu/hilbertspace/util"
+	"pearson.com/hilbert-space/util"
 	"github.com/go-sql-driver/mysql"
 )
 
