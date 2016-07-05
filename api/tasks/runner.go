@@ -62,13 +62,11 @@ func (t *task) run() {
 		return
 	}
 
-	{
-		fmt.Println(t.users)
-		now := time.Now()
-		t.task.Status = "running"
-		t.task.Start = &now
-		t.updateStatus()
-	}
+	fmt.Println(t.users)
+	now := time.Now()
+	t.task.Status = "running"
+	t.task.Start = &now
+	t.updateStatus()
 
 	objType := "task"
 	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
@@ -250,7 +248,7 @@ func (t *task) runPlaybook() error {
 	}
 
 	if t.inventory.SshKeyID != nil {
-		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
+		args = append(args, "--private-key=" + t.inventory.SshKey.GetPath())
 	}
 
 	if t.task.Debug {

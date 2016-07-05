@@ -1,29 +1,17 @@
 package projects
 
 import (
-	"database/sql"
-
-	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func KeyMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	keyID, err := util.GetIntParam("key_id", c)
-	if err != nil {
-		return
-	}
+	keyID := c.Params.ByName("key_id")
 
 	var key models.AccessKey
-	if err := database.Mysql.SelectOne(&key, "select * from access_key where project_id=? and id=?", project.ID, keyID); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
-
+	if err := project.GetAccessKey(keyID, &key); err != nil {
 		panic(err)
 	}
 
@@ -35,17 +23,14 @@ func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var keys []models.AccessKey
 
-	q := squirrel.Select("id, name, type, project_id, `key`").
-		From("access_key").
-		Where("project_id=?", project.ID)
-
 	if len(c.Query("type")) > 0 {
-		q = q.Where("type=?", c.Query("type"))
-	}
-
-	query, args, _ := q.ToSql()
-	if _, err := database.Mysql.Select(&keys, query, args...); err != nil {
-		panic(err)
+		if err := project.GetAccessKeysByType(&keys, c.Query("type")); err != nil {
+			panic(err)
+		}
+	} else {
+		if err := project.GetAccessKeys(&keys); err != nil {
+			panic(err)
+		}
 	}
 
 	c.JSON(200, keys)
@@ -67,21 +52,18 @@ func AddKey(c *gin.Context) {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into access_key set name=?, type=?, project_id=?, `key`=?, secret=?", key.Name, key.Type, project.ID, key.Key, key.Secret)
-	if err != nil {
+	key.ID = bson.NewObjectId()
+	key.ProjectID = project.ID
+
+	if err := key.Insert(); err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
-	insertIDInt := int(insertID)
-	objType := "key"
-
-	desc := "Access Key " + key.Name + " created"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  "key",
+		ObjectID:    key.ID,
+		Description: "Access Key " + key.Name + " created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -105,17 +87,20 @@ func UpdateKey(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update access_key set name=?, type=?, `key`=?, secret=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	oldKey.Name = key.Name
+	oldKey.Type = key.Type
+	oldKey.Key = key.Key
+	oldKey.Secret = key.Secret
+
+	if err := oldKey.Update(); err != nil {
 		panic(err)
 	}
 
-	desc := "Access Key " + key.Name + " updated"
-	objType := "key"
 	if err := (models.Event{
 		ProjectID:   oldKey.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldKey.ID,
-		ObjectType:  &objType,
+		Description: "Access Key " + key.Name + " updated",
+		ObjectID:    oldKey.ID,
+		ObjectType:  "key",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -126,14 +111,13 @@ func UpdateKey(c *gin.Context) {
 func RemoveKey(c *gin.Context) {
 	key := c.MustGet("accessKey").(models.AccessKey)
 
-	if _, err := database.Mysql.Exec("delete from access_key where id=?", key.ID); err != nil {
+	if err := key.Remove(); err != nil {
 		panic(err)
 	}
 
-	desc := "Access Key " + key.Name + " deleted"
 	if err := (models.Event{
 		ProjectID:   key.ProjectID,
-		Description: &desc,
+		Description: "Access Key " + key.Name + " deleted",
 	}.Insert()); err != nil {
 		panic(err)
 	}

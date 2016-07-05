@@ -1,14 +1,11 @@
 package projects
 
 import (
-	"database/sql"
-	"strconv"
-
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func UserMiddleware(c *gin.Context) {
@@ -19,12 +16,16 @@ func UserMiddleware(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.Mysql.SelectOne(&user, "select u.* from project__user as pu join user as u on pu.user_id=u.id where pu.user_id=? and pu.project_id=?", userID, project.ID); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
 
+	userIds := make([]bson.ObjectId, 0, len(project.Users))
+
+	for _, pUser := range project.Users {
+		userIds = append(userIds, pUser.UserID)
+	}
+
+	col := database.MongoDb.C("user")
+
+	if err := col.Find(bson.M{"_id": bson.M{"$in": userIds}}).Select(bson.M{"_id": userID}).One(&user); err != nil {
 		panic(err)
 	}
 
@@ -34,15 +35,17 @@ func UserMiddleware(c *gin.Context) {
 
 func GetUsers(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
+
 	var users []models.User
+	col := database.MongoDb.C("users")
 
-	query, args, _ := squirrel.Select("u.*").
-		From("project__user as pu").
-		Join("user as u on pu.user_id=u.id").
-		Where("pu.project_id=?", project.ID).
-		ToSql()
+	userIds := make([]bson.ObjectId, 0, len(project.Users))
 
-	if _, err := database.Mysql.Select(&users, query, args...); err != nil {
+	for _, pUser := range project.Users {
+		userIds = append(userIds, pUser.UserID)
+	}
+
+	if err := col.Find(bson.M{"_id": bson.M{"$in": userIds}}).All(&users); err != nil {
 		panic(err)
 	}
 
@@ -51,26 +54,23 @@ func GetUsers(c *gin.Context) {
 
 func AddUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var user struct {
-		UserID int  `json:"user_id" binding:"required"`
-		Admin  bool `json:"admin"`
-	}
+	var projectUser models.ProjectUser
 
-	if err := c.Bind(&user); err != nil {
+	if err := c.Bind(&projectUser); err != nil {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__user set user_id=?, project_id=?, admin=?", user.UserID, project.ID, user.Admin); err != nil {
+	col := database.MongoDb.C("project")
+
+	if err := col.Update(bson.M{"_id":project.ID}, bson.M{"$push": bson.M{"users": bson.M{"user_id":projectUser.UserID, "admin": projectUser.Admin}}}); err != nil {
 		panic(err)
 	}
 
-	objType := "user"
-	desc := "User ID " + strconv.Itoa(user.UserID) + " added to team"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &user.UserID,
-		Description: &desc,
+		ProjectID:   projectUser.UserID,
+		ObjectType:  "user",
+		ObjectID:    projectUser.UserID,
+		Description: "User ID " + projectUser.UserID + " added to team",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -82,17 +82,17 @@ func RemoveUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("projectUser").(models.User)
 
-	if _, err := database.Mysql.Exec("delete from project__user where user_id=? and project_id=?", user.ID, project.ID); err != nil {
+	col := database.MongoDb.C("project")
+
+	if err := col.Update(bson.M{"_id":project.ID}, bson.M{"$pull": bson.M{"users.$.user_id" : user.ID}}); err != nil {
 		panic(err)
 	}
 
-	objType := "user"
-	desc := "User ID " + strconv.Itoa(user.ID) + " removed from team"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &user.ID,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  "user",
+		ObjectID:    user.ID,
+		Description: "User ID " + user.ID + " removed from team",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -103,14 +103,16 @@ func RemoveUser(c *gin.Context) {
 func MakeUserAdmin(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("projectUser").(models.User)
-	admin := 1
+	admin := true
 
 	if c.Request.Method == "DELETE" {
 		// strip admin
-		admin = 0
+		admin = false
 	}
 
-	if _, err := database.Mysql.Exec("update project__user set admin=? where user_id=? and project_id=?", admin, user.ID, project.ID); err != nil {
+	col := database.MongoDb.C("project")
+
+	if err := col.Update(bson.M{"_id":project.ID, "users.user_id" : user.ID}, bson.M{"users.$.admin": admin}); err != nil {
 		panic(err)
 	}
 

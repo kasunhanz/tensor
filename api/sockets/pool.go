@@ -1,5 +1,7 @@
 package sockets
 
+import "gopkg.in/mgo.v2/bson"
+
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
@@ -7,17 +9,17 @@ type hub struct {
 	connections map[*connection]bool
 
 	// Inbound messages from the connections.
-	broadcast chan *sendRequest
+	broadcast   chan *sendRequest
 
 	// Register requests from the connections.
-	register chan *connection
+	register    chan *connection
 
 	// Unregister requests from connections.
-	unregister chan *connection
+	unregister  chan *connection
 }
 
 type sendRequest struct {
-	userID int
+	userID bson.ObjectId
 	msg    []byte
 }
 
@@ -40,7 +42,7 @@ func (h *hub) run() {
 			}
 		case m := <-h.broadcast:
 			for c := range h.connections {
-				if m.userID > 0 && m.userID != c.userID {
+				if m.userID != c.userID {
 					continue
 				}
 

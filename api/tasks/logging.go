@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/gamunu/hilbertspace/api/sockets"
-	database "github.com/gamunu/hilbertspace/db"
+	"github.com/gamunu/hilbertspace/models"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func (t *task) log(msg string) {
@@ -31,8 +32,13 @@ func (t *task) log(msg string) {
 	}
 
 	go func() {
-		_, err := database.Mysql.Exec("insert into task__output set task_id=?, output=?, time=?", t.task.ID, msg, now)
-		if err != nil {
+
+		if err := (models.TaskOutput{
+			"ID": bson.NewObjectId(),
+			"msg": msg,
+			"Time": now,
+			"TaskID":t.task.ID,
+		}.Insert()); err != nil {
 			panic(err)
 		}
 	}()
@@ -56,7 +62,7 @@ func (t *task) updateStatus() {
 		sockets.Message(user, b)
 	}
 
-	if _, err := database.Mysql.Exec("update task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
+	if err := t.task.Update(); err != nil {
 		fmt.Println("Failed to update task status")
 		t.log("Fatal error with database!")
 		panic(err)

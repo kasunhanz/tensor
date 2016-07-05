@@ -1,8 +1,12 @@
 package models
 
-import "github.com/gamunu/hilbertspace/db"
+import (
+	"github.com/gamunu/hilbertspace/db"
+	"github.com/ansible-semaphore/semaphore/db"
+)
 
 func SetupDBLink() {
+
 	db.Mysql.AddTableWithName(APIToken{}, "user__token").SetKeys(false, "id")
 	db.Mysql.AddTableWithName(AccessKey{}, "access_key").SetKeys(true, "id")
 	db.Mysql.AddTableWithName(GlobalAccessKey{}, "global_access_key").SetKeys(true, "id")

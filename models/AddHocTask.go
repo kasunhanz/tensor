@@ -1,36 +1,55 @@
 package models
 
-import "time"
+import (
+	"time"
+	database "github.com/gamunu/hilbertspace/db"
+	"gopkg.in/mgo.v2/bson"
+)
 
 // AddHocTask is an exported type that
 // is used as database model for record
 // add hoc command execution details
 type AddHocTask struct {
-	ID          int `db:"id" json:"id"`
-	AccessKeyID int `db:"access_key_id" json:"access_key_id"`
+	ID          bson.ObjectId `bson:"_id" json:"id"`
+	AccessKeyID int `bson:"access_key_id" json:"access_key_id"`
 
-	Status      string `db:"status" json:"status"`
-	Debug       bool   `db:"debug" json:"debug"`
+	Status      string `bson:"status" json:"status"`
+	Debug       bool   `bson:"debug" json:"debug"`
 
-	Module      string `db:"module" json:"module"`
-	Arguments   string `db:"arguments" json:"arguments"`
-	ExtraVars   string `db:"extra_vars" json:"extra_vars"`
-	Forks       int    `db:"forks" json:"forks"`
-	Inventory   string `db:"inventory" json:"inventory"`
-	Connection  string `db:"connection" json:"connection"`
-	Timeout     int    `db:"timeout" json:"timeout"`
+	Module      string `bson:"module" json:"module"`
+	Arguments   string `bson:"arguments" json:"arguments"`
+	ExtraVars   string `bson:"extra_vars" json:"extra_vars"`
+	Forks       int    `bson:"forks" json:"forks"`
+	Inventory   []string `bson:"inventory" json:"inventory"`
+	Connection  string `bson:"connection" json:"connection"`
+	Timeout     int    `bson:"timeout" json:"timeout"`
 
-	Created     time.Time  `db:"created" json:"created"`
-	Start       *time.Time `db:"start" json:"start"`
-	End         *time.Time `db:"end" json:"end"`
+	Created     time.Time  `bson:"created" json:"created"`
+	Start       time.Time `bson:"start" json:"start"`
+	End         time.Time `bson:"end" json:"end"`
 }
 
 // AddHocTaskOutput is an exported type that
 // is used as database model for record
 // add command database output
 type AddHocTaskOutput struct {
-	TaskID int       `db:"task_id" json:"task_id"`
+	ID     bson.ObjectId  `bson:"_id" json:"id"`
+	TaskID bson.ObjectId        `bson:"task_id" json:"task_id"`
 	Task   string    `db:"task" json:"task"`
 	Time   time.Time `db:"time" json:"time"`
 	Output string    `db:"output" json:"output"`
+}
+
+func (task AddHocTask) AddHocTaskInsert() error {
+	c := database.MongoDb.C("addhoc_task")
+	err := c.Insert(task)
+
+	return err
+}
+
+func (task AddHocTaskOutput) AddHocTaskOutputInsert() error {
+	c := database.MongoDb.C("addhoc_task__output")
+	err := c.Insert(task)
+
+	return err
 }

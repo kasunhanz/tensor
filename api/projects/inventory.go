@@ -1,35 +1,17 @@
 package projects
 
 import (
-	"database/sql"
-
-	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func InventoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	inventoryID, err := util.GetIntParam("inventory_id", c)
-	if err != nil {
-		return
-	}
-
-	query, args, _ := squirrel.Select("*").
-		From("project__inventory").
-		Where("project_id=?", project.ID).
-		Where("id=?", inventoryID).
-		ToSql()
+	inventoryID := c.Params.ByName("inventory_id")
 
 	var inventory models.Inventory
-	if err := database.Mysql.SelectOne(&inventory, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
-
+	if err := project.GetInventory(inventoryID, &inventory); err != nil {
 		panic(err)
 	}
 
@@ -41,12 +23,7 @@ func GetInventory(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var inv []models.Inventory
 
-	query, args, _ := squirrel.Select("*").
-		From("project__inventory").
-		Where("project_id=?", project.ID).
-		ToSql()
-
-	if _, err := database.Mysql.Select(&inv, query, args...); err != nil {
+	if err := project.GetInventories(&inv); err != nil {
 		panic(err)
 	}
 
@@ -55,13 +32,7 @@ func GetInventory(c *gin.Context) {
 
 func AddInventory(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var inventory struct {
-		Name      string `json:"name" binding:"required"`
-		KeyID     *int   `json:"key_id"`
-		SshKeyID  int    `json:"ssh_key_id"`
-		Type      string `json:"type"`
-		Inventory string `json:"inventory"`
-	}
+	var inventory models.Inventory
 
 	if err := c.Bind(&inventory); err != nil {
 		return
@@ -75,21 +46,20 @@ func AddInventory(c *gin.Context) {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__inventory set project_id=?, name=?, type=?, key_id=?, ssh_key_id=?, inventory=?", project.ID, inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory)
-	if err != nil {
+	inventory.ID = bson.NewObjectId()
+
+	if err := inventory.Insert(); err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
-	insertIDInt := int(insertID)
 	objType := "inventory"
 
 	desc := "Inventory " + inventory.Name + " created"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  objType,
+		ObjectID:    inventory.ID,
+		Description: desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -100,13 +70,7 @@ func AddInventory(c *gin.Context) {
 func UpdateInventory(c *gin.Context) {
 	oldInventory := c.MustGet("inventory").(models.Inventory)
 
-	var inventory struct {
-		Name      string `json:"name" binding:"required"`
-		KeyID     *int   `json:"key_id"`
-		SshKeyID  int    `json:"ssh_key_id"`
-		Type      string `json:"type"`
-		Inventory string `json:"inventory"`
-	}
+	var inventory models.Inventory
 
 	if err := c.Bind(&inventory); err != nil {
 		return
@@ -120,17 +84,23 @@ func UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__inventory set name=?, type=?, key_id=?, ssh_key_id=?, inventory=? where id=?", inventory.Name, inventory.Type, inventory.KeyID, inventory.SshKeyID, inventory.Inventory, oldInventory.ID); err != nil {
+	oldInventory.Name = inventory.Name
+	oldInventory.Name = inventory.Type
+	oldInventory.KeyID = inventory.KeyID
+	oldInventory.SshKeyID = inventory.SshKeyID
+	oldInventory.Inventory = inventory.Inventory
+
+	if err := oldInventory.Update(); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
 	if err := (models.Event{
-		ProjectID:   &oldInventory.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldInventory.ID,
-		ObjectType:  &objType,
+		ProjectID:   oldInventory.ProjectID,
+		Description: desc,
+		ObjectID:    oldInventory.ID,
+		ObjectType:  objType,
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -141,14 +111,14 @@ func UpdateInventory(c *gin.Context) {
 func RemoveInventory(c *gin.Context) {
 	inventory := c.MustGet("inventory").(models.Inventory)
 
-	if _, err := database.Mysql.Exec("delete from project__inventory where id=?", inventory.ID); err != nil {
+	if err := inventory.Remove(); err != nil {
 		panic(err)
 	}
 
 	desc := "Inventory " + inventory.Name + " deleted"
 	if err := (models.Event{
-		ProjectID:   &inventory.ProjectID,
-		Description: &desc,
+		ProjectID:   inventory.ProjectID,
+		Description: desc,
 	}.Insert()); err != nil {
 		panic(err)
 	}

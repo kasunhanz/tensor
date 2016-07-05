@@ -6,14 +6,18 @@ import (
 
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
+	"fmt"
 )
 
 func getUsers(c *gin.Context) {
 	var users []models.User
-	if _, err := database.Mysql.Select(&users, "select * from user"); err != nil {
+
+	col := database.MongoDb.C("user_token")
+
+	if err := col.Find(nil).All(&users); err != nil {
 		panic(err)
 	}
 
@@ -36,13 +40,13 @@ func addUser(c *gin.Context) {
 }
 
 func getUserMiddleware(c *gin.Context) {
-	userID, err := util.GetIntParam("user_id", c)
-	if err != nil {
-		return
-	}
+	userID := c.Params.ByName("user_id")
 
 	var user models.User
-	if err := database.Mysql.SelectOne(&user, "select * from user where id=?", userID); err != nil {
+
+	col := database.MongoDb.C("user")
+
+	if err := col.FindId(userID).One(&user); err != nil {
 		if err == sql.ErrNoRows {
 			c.AbortWithStatus(404)
 			return
@@ -63,7 +67,9 @@ func updateUser(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update user set name=?, username=?, email=? where id=?", user.Name, user.Username, user.Email, oldUser.ID); err != nil {
+	col := database.MongoDb.C("user")
+
+	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username":user.Username, "email":user.Email}); err != nil {
 		panic(err)
 	}
 
@@ -81,7 +87,10 @@ func updateUserPassword(c *gin.Context) {
 	}
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-	if _, err := database.Mysql.Exec("update user set password=? where id=?", string(password), user.ID); err != nil {
+
+	col := database.MongoDb.C("user")
+
+	if err := col.UpdateId(user.ID, bson.M{"password":string(password)}); err != nil {
 		panic(err)
 	}
 
@@ -91,10 +100,18 @@ func updateUserPassword(c *gin.Context) {
 func deleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 
-	if _, err := database.Mysql.Exec("delete from project__user where user_id=?", user.ID); err != nil {
+	col := database.MongoDb.C("project")
+
+	info, err := col.UpdateAll(nil, bson.M{"$pull": {"users" : bson.M{"user_id": user.ID}}});
+	if err != nil {
 		panic(err)
 	}
-	if _, err := database.Mysql.Exec("delete from user where id=?", user.ID); err != nil {
+
+	fmt.Println(info.Matched)
+
+	userCol := database.MongoDb.C("user")
+
+	if err := userCol.RemoveId(user.ID); err != nil {
 		panic(err)
 	}
 

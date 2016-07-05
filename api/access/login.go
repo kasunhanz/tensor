@@ -1,7 +1,6 @@
 package access
 
 import (
-	"database/sql"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -11,8 +10,8 @@ import (
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	sq "github.com/masterminds/squirrel"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func Login(c *gin.Context) {
@@ -27,25 +26,21 @@ func Login(c *gin.Context) {
 
 	login.Auth = strings.ToLower(login.Auth)
 
-	q := sq.Select("*").
-	From("user")
+	var q bson.M
 
 	_, err := mail.ParseAddress(login.Auth)
 	if err == nil {
-		q = q.Where("email=?", login.Auth)
+		q = bson.M{"email": login.Auth}
+
 	} else {
-		q = q.Where("username=?", login.Auth)
+		q = bson.M{"username": login.Auth}
 	}
 
-	query, args, _ := q.ToSql()
-
 	var user models.User
-	if err := database.Mysql.SelectOne(&user, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(400)
-			return
-		}
 
+	col := database.MongoDb.C("user")
+
+	if err := col.Find(q).One(&user); err != nil {
 		panic(err)
 	}
 
@@ -55,6 +50,7 @@ func Login(c *gin.Context) {
 	}
 
 	session := models.Session{
+		ID: bson.NewObjectId(),
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
@@ -62,7 +58,8 @@ func Login(c *gin.Context) {
 		UserAgent:  c.Request.Header.Get("user-agent"),
 		Expired:    false,
 	}
-	if err := database.Mysql.Insert(&session); err != nil {
+
+	if err := session.Insert(); err != nil {
 		panic(err)
 	}
 
@@ -70,6 +67,7 @@ func Login(c *gin.Context) {
 		"user":    user.ID,
 		"session": session.ID,
 	})
+
 	if err != nil {
 		panic(err)
 	}

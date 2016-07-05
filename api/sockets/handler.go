@@ -8,6 +8,7 @@ import (
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var upgrader = websocket.Upgrader{
@@ -32,7 +33,7 @@ const (
 type connection struct {
 	ws     *websocket.Conn
 	send   chan []byte
-	userID int
+	userID bson.ObjectId
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -114,7 +115,7 @@ func Handler(context *gin.Context) {
 	c.readPump()
 }
 
-func Message(userID int, message []byte) {
+func Message(userID bson.ObjectId, message []byte) {
 	h.broadcast <- &sendRequest{
 		userID: userID,
 		msg:    message,

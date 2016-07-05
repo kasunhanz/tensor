@@ -1,14 +1,12 @@
 package tasks
 
 import (
-	"strconv"
 	"time"
 
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
-	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func AddTask(c *gin.Context) {
@@ -22,7 +20,7 @@ func AddTask(c *gin.Context) {
 	taskObj.Created = time.Now()
 	taskObj.Status = "waiting"
 
-	if err := database.Mysql.Insert(&taskObj); err != nil {
+	if err := taskObj.Insert(); err != nil {
 		panic(err)
 	}
 
@@ -31,13 +29,11 @@ func AddTask(c *gin.Context) {
 		projectID: project.ID,
 	}
 
-	objType := "task"
-	desc := "Task ID " + strconv.Itoa(taskObj.ID) + " queued for running"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &taskObj.ID,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  "task",
+		ObjectID:    taskObj.ID,
+		Description: "Task ID " + taskObj.ID + " queued for running",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -48,19 +44,30 @@ func AddTask(c *gin.Context) {
 func GetAll(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	query, args, _ := squirrel.Select("task.*, tpl.playbook as tpl_playbook").
-		From("task").
-		Join("project__template as tpl on task.template_id=tpl.id").
-		Where("tpl.project_id=?", project.ID).
-		OrderBy("task.created desc").
-		ToSql()
+	col := database.MongoDb.C("task")
+
+	aggrigrate := []bson.M{
+		{"$lookup" : bson.M{
+			"from":"project_template",
+			"localField":"template_id",
+			"foreignField":"_id",
+			"as": "project_template",
+		}},
+		{"$match": bson.M{
+			"$project_template._id":project.ID,
+		}},
+		{"$sort": bson.M{
+			"created":-1,
+		}},
+	}
 
 	var tasks []struct {
 		models.Task
 
-		TemplatePlaybook string `db:"tpl_playbook" json:"tpl_playbook"`
+		TemplatePlaybook string `bson:"tpl_playbook" json:"tpl_playbook"`
 	}
-	if _, err := database.Mysql.Select(&tasks, query, args...); err != nil {
+
+	if err := col.Pipe(aggrigrate).All(&tasks); err != nil {
 		panic(err)
 	}
 
@@ -68,13 +75,11 @@ func GetAll(c *gin.Context) {
 }
 
 func GetTaskMiddleware(c *gin.Context) {
-	taskID, err := util.GetIntParam("task_id", c)
-	if err != nil {
-		panic(err)
-	}
+	taskID := c.Params.ByName("task_id")
 
 	var task models.Task
-	if err := database.Mysql.SelectOne(&task, "select * from task where id=?", taskID); err != nil {
+	task, err := task.GetTask(taskID);
+	if err != nil {
 		panic(err)
 	}
 
@@ -85,8 +90,8 @@ func GetTaskMiddleware(c *gin.Context) {
 func GetTaskOutput(c *gin.Context) {
 	task := c.MustGet("task").(models.Task)
 
-	var output []models.TaskOutput
-	if _, err := database.Mysql.Select(&output, "select * from task__output where task_id=? order by time asc", task.ID); err != nil {
+	output, err := task.GetTaskOutput();
+	if err != nil {
 		panic(err)
 	}
 

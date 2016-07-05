@@ -1,15 +1,12 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"io"
-	"strings"
 	"time"
 
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func getUser(c *gin.Context) {
@@ -25,7 +22,10 @@ func getAPITokens(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
 
 	var tokens []models.APIToken
-	if _, err := database.Mysql.Select(&tokens, "select * from user__token where user_id=?", user.ID); err != nil {
+
+	col := database.MongoDb.C("user_token")
+
+	if err := col.Find(bson.M{"user_id": user.ID}).All(&tokens); err != nil {
 		panic(err)
 	}
 
@@ -34,19 +34,15 @@ func getAPITokens(c *gin.Context) {
 
 func createAPIToken(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
-	tokenID := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
-		panic(err)
-	}
 
 	token := models.APIToken{
-		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+		ID:      bson.NewObjectId(),
 		Created: time.Now(),
 		UserID:  user.ID,
 		Expired: false,
 	}
 
-	if err := database.Mysql.Insert(&token); err != nil {
+	if err := token.Insert(); err != nil {
 		panic(err)
 	}
 
@@ -57,19 +53,12 @@ func expireAPIToken(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
 
 	tokenID := c.Param("token_id")
-	res, err := database.Mysql.Exec("update user__token set expired=1 where id=? and user_id=?", tokenID, user.ID)
-	if err != nil {
-		panic(err)
-	}
 
-	affected, err := res.RowsAffected()
-	if err != nil {
-		panic(err)
-	}
+	col := database.MongoDb.C("user_token")
 
-	if affected == 0 {
+	if err := col.Update(bson.M{"_id": tokenID, "user_id":user.ID}, bson.M{"expired": true}); err != nil {
 		c.AbortWithStatus(400)
-		return
+		panic(err)
 	}
 
 	c.AbortWithStatus(204)

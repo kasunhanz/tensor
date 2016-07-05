@@ -42,7 +42,8 @@ if [ "$1" == "watch" ]; then
 fi
 
 cd cli
-gox -os="linux darwin windows openbsd" -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
+gox -os="linux" -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
+#gox -os="linux darwin windows openbsd" -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
 
 if [ "$CIRCLE_ARTIFACTS" != "" ]; then
 	rsync -a hilbertspace_* $CIRCLE_ARTIFACTS/

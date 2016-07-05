@@ -7,8 +7,8 @@ import (
 	"time"
 
 	database "github.com/gamunu/hilbertspace/db"
+	"github.com/gamunu/hilbertspace/models"
 )
-
 
 func (t *task) log(msg string) {
 	now := time.Now()
@@ -16,7 +16,13 @@ func (t *task) log(msg string) {
 	//TODO: send event
 
 	go func() {
-		_, err := database.Mysql.Exec("insert into addhoc_task__output set task_id=?, output=?, time=?", t.task.ID, msg, now)
+
+		taskOutput := models.AddHocTaskOutput{
+			TaskID: t.task.ID,
+			Output: msg,
+			Time:now,
+		}
+		err := taskOutput.AddHocTaskOutputInsert()
 		if err != nil {
 			panic(err)
 		}
@@ -24,7 +30,14 @@ func (t *task) log(msg string) {
 }
 
 func (t *task) updateStatus() {
-	if _, err := database.Mysql.Exec("update addhoc_task set status=?, start=?, end=? where id=?", t.task.Status, t.task.Start, t.task.End, t.task.ID); err != nil {
+
+	c := database.MongoDb.C("addhoc_task")
+
+	if err := c.UpdateId(t.task.ID, models.AddHocTask{
+		Status:t.task.Status,
+		Start:t.task.Start,
+		End:t.task.End,
+	}); err != nil {
 		fmt.Println("Failed to update task status")
 		t.log("Fatal error with database!")
 		panic(err)

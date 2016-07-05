@@ -1,7 +1,6 @@
 package access
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -10,20 +9,20 @@ import (
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func Authentication(c *gin.Context) {
-	var userID int
+	var userID bson.ObjectId
 
 	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
 		var token models.APIToken
-		if err := database.Mysql.SelectOne(&token, "select * from user__token where id=? and expired=0", strings.Replace(authHeader, "bearer ", "", 1)); err != nil {
-			if err == sql.ErrNoRows {
-				c.AbortWithStatus(403)
-				return
-			}
+		col := database.MongoDb.C("user_token")
 
-			panic(err)
+		if err := col.Find(bson.M{"_id": strings.Replace(authHeader, "bearer ", "", 1), "expired": false}).One(&token); err != nil {
+			c.Error(err)
+			c.AbortWithStatus(403)
+			return
 		}
 
 		userID = token.UserID
@@ -53,29 +52,38 @@ func Authentication(c *gin.Context) {
 
 		// fetch session
 		var session models.Session
-		if err := database.Mysql.SelectOne(&session, "select * from session where id=? and user_id=? and expired=0", sessionID, userID); err != nil {
+		col := database.MongoDb.C("session")
+
+		if err := col.Find(bson.M{"_id":sessionID, "user_id": userID, "expired": false}).One(&session); err != nil {
 			c.AbortWithStatus(403)
 			return
 		}
 
-		if time.Now().Sub(session.LastActive).Hours() > 7*24 {
+		if time.Now().Sub(session.LastActive).Hours() > 7 * 24 {
 			// more than week old unused session
 			// destroy.
-			if _, err := database.Mysql.Exec("update session set expired=1 where id=?", sessionID); err != nil {
-				panic(err)
+
+			if err := col.UpdateId(sessionID, bson.M{"expired": true}); err != nil {
+				c.Error(err)
+				c.AbortWithStatus(403)
+				return
 			}
 
 			c.AbortWithStatus(403)
 			return
 		}
 
-		if _, err := database.Mysql.Exec("update session set last_active=NOW() where id=?", sessionID); err != nil {
-			panic(err)
+		if err := col.UpdateId(sessionID, bson.M{"last_active": time.Now()}); err != nil {
+			c.Error(err)
+			c.AbortWithStatus(403)
+			return
 		}
 	}
 
-	user, err := models.FetchUser(userID)
-	if err != nil {
+	var user models.User
+	userCol := database.MongoDb.C("user")
+
+	if err := userCol.FindId(userID).One(&user); err != nil {
 		fmt.Println("Can't find user", err)
 		c.AbortWithStatus(403)
 		return

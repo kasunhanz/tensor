@@ -1,7 +1,6 @@
 package addhoctasks
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -36,7 +35,7 @@ func (t *task) run() {
 		pool.running = nil
 
 		now := time.Now()
-		t.task.End = &now
+		t.task.End = now
 		t.updateStatus()
 
 		objType := "addhoc_task"
@@ -57,12 +56,10 @@ func (t *task) run() {
 		return
 	}
 
-	{
-		now := time.Now()
-		t.task.Status = "running"
-		t.task.Start = &now
-		t.updateStatus()
-	}
+	now := time.Now()
+	t.task.Status = "running"
+	t.task.Start = &now
+	t.updateStatus()
 
 	objType := "addhoc_task"
 	desc := "Add-Hoc Task ID " + strconv.Itoa(t.task.ID) + " is running"
@@ -95,14 +92,12 @@ func (t *task) run() {
 	t.updateStatus()
 }
 
-func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := database.Mysql.SelectOne(ptr, query, args...)
-	if err == sql.ErrNoRows {
-		t.log(errMsg)
-		return err
-	}
+func (t *task) fetch(errMsg string, ptr interface{}, collection string, query interface{}) error {
+	c := database.MongoDb.C(collection)
+	err := c.Find(query).One(ptr)
 
 	if err != nil {
+		t.log(errMsg)
 		t.fail()
 		panic(err)
 	}
@@ -113,13 +108,13 @@ func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...inter
 func (t *task) populateDetails() error {
 
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.accessKey, "select * from global_access_key where id=?", t.task.AccessKeyID); err != nil {
+	if err := t.fetch("Template Access Key not found!", &t.accessKey, "global_access_key", models.GlobalAccessKey{ID:t.task.AccessKeyID}); err != nil {
 		return err
 	}
 
-	if t.accessKey.Type != "ssh" {
-		t.log("Non ssh-type keys are currently not supported: " + t.accessKey.Type)
-		return errors.New("Unsupported SSH Key")
+	if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
+		t.log("Only ssh and credential currently supported: " + t.accessKey.Type)
+		return errors.New("Unsupported Key")
 	}
 
 	return nil
@@ -142,19 +137,13 @@ func (t *task) runAnsible() error {
 	// --extra-vars argument values
 	var extraVars map[string]interface{}
 
-	// inventory
-	var inventory []string
+	if cap(t.task.Inventory) > 0 {
+		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
 
-	if len(t.task.Inventory) > 0 {
-		err := json.Unmarshal([]byte(t.task.Inventory), &inventory)
-
-		if err != nil {
-			t.log("Could not unmarshal inventory to []string")
-			return err
-		}
+	} else {
+		t.log("No argument passed to inventory")
+		return errors.New("No argument passed to inventory")
 	}
-
-	args = append(args, "-i", strings.Join(inventory, ",") + ",")
 
 	if len(t.task.Module) > 0 {
 		args = append(args, "-m", t.task.Module)

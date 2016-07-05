@@ -1,13 +1,10 @@
 package projects
 
 import (
-	"database/sql"
-
-	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func RepositoryMiddleware(c *gin.Context) {
@@ -17,13 +14,9 @@ func RepositoryMiddleware(c *gin.Context) {
 		return
 	}
 
-	var repository models.Repository
-	if err := database.Mysql.SelectOne(&repository, "select * from project__repository where project_id=? and id=?", project.ID, repositoryID); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
+	repository, err := project.GetRepository(repositoryID);
 
+	if err != nil {
 		panic(err)
 	}
 
@@ -33,14 +26,10 @@ func RepositoryMiddleware(c *gin.Context) {
 
 func GetRepositories(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var repos []models.Repository
 
-	query, args, _ := squirrel.Select("*").
-		From("project__repository").
-		Where("project_id=?", project.ID).
-		ToSql()
+	repos, err := project.GetRepositories();
 
-	if _, err := database.Mysql.Select(&repos, query, args...); err != nil {
+	if err != nil {
 		panic(err)
 	}
 
@@ -50,30 +39,24 @@ func GetRepositories(c *gin.Context) {
 func AddRepository(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	var repository struct {
-		Name     string `json:"name" binding:"required"`
-		GitUrl   string `json:"git_url" binding:"required"`
-		SshKeyID int    `json:"ssh_key_id" binding:"required"`
-	}
+	var repository models.Repository
+
 	if err := c.Bind(&repository); err != nil {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__repository set project_id=?, git_url=?, ssh_key_id=?, name=?", project.ID, repository.GitUrl, repository.SshKeyID, repository.Name)
-	if err != nil {
+	repository.ID = bson.NewObjectId()
+	repository.ProjectID = project.ID
+
+	if err := repository.Insert(); err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
-	insertIDInt := int(insertID)
-	objType := "repository"
-
-	desc := "Repository (" + repository.GitUrl + ") created"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  "repository",
+		ObjectID:    repository.ID,
+		Description: "Repository (" + repository.GitUrl + ") created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -88,17 +71,18 @@ func UpdateRepository(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__repository set git_url=?, ssh_key_id=? where id=?", repository.GitUrl, repository.SshKeyID, oldRepo.ID); err != nil {
+	oldRepo.GitUrl = repository.GitUrl
+	oldRepo.SshKeyID = repository.SshKeyID
+
+	if err := oldRepo.Update(); err != nil {
 		panic(err)
 	}
 
-	desc := "Repository (" + repository.GitUrl + ") updated"
-	objType := "inventory"
 	if err := (models.Event{
-		ProjectID:   &oldRepo.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldRepo.ID,
-		ObjectType:  &objType,
+		ProjectID:   oldRepo.ProjectID,
+		Description: "Repository (" + repository.GitUrl + ") updated",
+		ObjectID:    oldRepo.ID,
+		ObjectType:   "inventory",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -109,14 +93,13 @@ func UpdateRepository(c *gin.Context) {
 func RemoveRepository(c *gin.Context) {
 	repository := c.MustGet("repository").(models.Repository)
 
-	if _, err := database.Mysql.Exec("delete from project__repository where id=?", repository.ID); err != nil {
+	if err := repository.Remove(); err != nil {
 		panic(err)
 	}
 
-	desc := "Repository (" + repository.GitUrl + ") deleted"
 	if err := (models.Event{
-		ProjectID:   &repository.ProjectID,
-		Description: &desc,
+		ProjectID:   repository.ProjectID,
+		Description: "Repository (" + repository.GitUrl + ") deleted",
 	}.Insert()); err != nil {
 		panic(err)
 	}

@@ -1,14 +1,10 @@
 package projects
 
 import (
-	"database/sql"
-	"strconv"
-
-	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TemplatesMiddleware(c *gin.Context) {
@@ -17,14 +13,8 @@ func TemplatesMiddleware(c *gin.Context) {
 	if err != nil {
 		return
 	}
-
-	var template models.Template
-	if err := database.Mysql.SelectOne(&template, "select * from project__template where project_id=? and id=?", project.ID, templateID); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
-
+	template, err := project.GetTemplate(templateID);
+	if err != nil {
 		panic(err)
 	}
 
@@ -34,15 +24,10 @@ func TemplatesMiddleware(c *gin.Context) {
 
 func GetTemplates(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var templates []models.Template
 
-	q := squirrel.Select("*").
-		From("project__template").
-		Where("project_id=?", project.ID)
+	templates, err := project.GetTemplates();
 
-	query, args, _ := q.ToSql()
-
-	if _, err := database.Mysql.Select(&templates, query, args...); err != nil {
+	if err != nil {
 		panic(err)
 	}
 
@@ -57,25 +42,18 @@ func AddTemplate(c *gin.Context) {
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into project__template set ssh_key_id=?, project_id=?, inventory_id=?, repository_id=?, environment_id=?, playbook=?, arguments=?, override_args=?", template.SshKeyID, project.ID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Playbook, template.Arguments, template.OverrideArguments)
-	if err != nil {
+	template.ID = bson.NewObjectId()
+	template.ProjectID = project.ID
+
+	if err := template.Insert(); err != nil {
 		panic(err)
 	}
 
-	insertID, err := res.LastInsertId()
-	if err != nil {
-		panic(err)
-	}
-
-	template.ID = int(insertID)
-
-	objType := "template"
-	desc := "Template ID " + strconv.Itoa(template.ID) + " created"
 	if err := (models.Event{
-		ProjectID:   &project.ID,
-		ObjectType:  &objType,
-		ObjectID:    &template.ID,
-		Description: &desc,
+		ProjectID:   project.ID,
+		ObjectType:  "template",
+		ObjectID:    template.ID,
+		Description: "Template ID " + template.ID + " created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -91,17 +69,17 @@ func UpdateTemplate(c *gin.Context) {
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update project__template set ssh_key_id=?, inventory_id=?, repository_id=?, environment_id=?, playbook=?, arguments=?, override_args=? where id=?", template.SshKeyID, template.InventoryID, template.RepositoryID, template.EnvironmentID, template.Playbook, template.Arguments, template.OverrideArguments, oldTemplate.ID); err != nil {
+	template.ID = oldTemplate.ID
+
+	if err := template.Update(); err != nil {
 		panic(err)
 	}
 
-	desc := "Template ID " + strconv.Itoa(template.ID) + " updated"
-	objType := "template"
 	if err := (models.Event{
-		ProjectID:   &oldTemplate.ProjectID,
-		Description: &desc,
-		ObjectID:    &oldTemplate.ID,
-		ObjectType:  &objType,
+		ProjectID:   oldTemplate.ProjectID,
+		Description: "Template ID " + template.ID + " updated",
+		ObjectID:    oldTemplate.ID,
+		ObjectType:  "template",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -112,14 +90,13 @@ func UpdateTemplate(c *gin.Context) {
 func RemoveTemplate(c *gin.Context) {
 	tpl := c.MustGet("template").(models.Template)
 
-	if _, err := database.Mysql.Exec("delete from project__template where id=?", tpl.ID); err != nil {
+	if err := tpl.Remove(); err != nil {
 		panic(err)
 	}
 
-	desc := "Template ID " + strconv.Itoa(tpl.ID) + " deleted"
 	if err := (models.Event{
-		ProjectID:   &tpl.ProjectID,
-		Description: &desc,
+		ProjectID:   tpl.ProjectID,
+		Description: "Template ID " + tpl.ID + " deleted",
 	}.Insert()); err != nil {
 		panic(err)
 	}

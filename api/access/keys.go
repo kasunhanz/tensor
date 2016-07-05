@@ -7,8 +7,8 @@ import (
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
 	"github.com/gamunu/hilbertspace/crypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func KeyMiddleware(c *gin.Context) {
@@ -18,7 +18,10 @@ func KeyMiddleware(c *gin.Context) {
 	}
 
 	var key models.AccessKey
-	if err := database.Mysql.SelectOne(&key, "select * from global_access_key where id=?", keyID); err != nil {
+
+	col := database.MongoDb.C("global_access_key")
+
+	if err := col.FindId(keyID).One(&key); err != nil {
 		if err == sql.ErrNoRows {
 			c.AbortWithStatus(404)
 			return
@@ -32,17 +35,17 @@ func KeyMiddleware(c *gin.Context) {
 }
 
 func GetKeys(c *gin.Context) {
-	var keys []models.GlobalAccessKeyResponse
+	var keys []models.GlobalAccessKey
 
-	q := squirrel.Select("id, name, type, `key`").
-	From("global_access_key")
+	col := database.MongoDb.C("global_access_key")
+
+	var query bson.M
 
 	if len(c.Query("type")) > 0 {
-		q = q.Where("type=?", c.Query("type"))
+		query = bson.M{"type": c.Query("type")}
 	}
 
-	query, args, _ := q.ToSql()
-	if _, err := database.Mysql.Select(&keys, query, args...); err != nil {
+	if err := col.Find(query).Select(bson.M{"_id":1, "name":1, "type":1, "key":1}).All(&keys); err != nil {
 		panic(err)
 	}
 
@@ -50,7 +53,7 @@ func GetKeys(c *gin.Context) {
 }
 
 func AddKey(c *gin.Context) {
-	var key models.AccessKey
+	var key models.GlobalAccessKey
 
 	if err := c.Bind(&key); err != nil {
 		return
@@ -60,28 +63,24 @@ func AddKey(c *gin.Context) {
 	case "aws", "gcloud", "do", "ssh":
 		break
 	case "credential":
-		secret := crypt.Encrypt(*key.Secret)
-		key.Secret = &secret;
+		secret := crypt.Encrypt(key.Secret)
+		key.Secret = secret;
 		break
 	default:
 		c.AbortWithStatus(400)
 		return
 	}
 
-	res, err := database.Mysql.Exec("insert into global_access_key set name=?, type=?, `key`=?, secret=?", key.Name, key.Type, key.Key, key.Secret)
-	if err != nil {
+	key.ID = bson.NewObjectId()
+
+	if err := key.Insert(); err != nil {
 		panic(err)
 	}
 
-	insertID, _ := res.LastInsertId()
-	insertIDInt := int(insertID)
-	objType := "key"
-
-	desc := "Global Access Key " + key.Name + " created"
 	if err := (models.Event{
-		ObjectType:  &objType,
-		ObjectID:    &insertIDInt,
-		Description: &desc,
+		ObjectType:  "key",
+		ObjectID:    key.ID,
+		Description: "Global Access Key " + key.Name + " created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -101,24 +100,27 @@ func UpdateKey(c *gin.Context) {
 	case "aws", "gcloud", "do", "ssh":
 		break
 	case "credential":
-		secret := crypt.Encrypt(*key.Secret)
-		key.Secret = &secret;
+		secret := crypt.Encrypt(key.Secret)
+		key.Secret = secret;
 		break
 	default:
 		c.AbortWithStatus(400)
 		return
 	}
 
-	if _, err := database.Mysql.Exec("update global_access_key set name=?, type=?, `key`=?, secret=?", key.Name, key.Type, key.Key, key.Secret, oldKey.ID); err != nil {
+	oldKey.Name = key.Name
+	oldKey.Type = key.Type
+	oldKey.Key = key.Key
+	oldKey.Secret = key.Secret
+
+	if err := oldKey.Update(); err != nil {
 		panic(err)
 	}
 
-	desc := "Global Access Key " + key.Name + " updated"
-	objType := "key"
 	if err := (models.Event{
-		Description: &desc,
-		ObjectID:    &oldKey.ID,
-		ObjectType:  &objType,
+		Description: "Global Access Key " + key.Name + " updated",
+		ObjectID:    oldKey.ID,
+		ObjectType:  "key",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -129,13 +131,12 @@ func UpdateKey(c *gin.Context) {
 func RemoveKey(c *gin.Context) {
 	key := c.MustGet("globalAccessKey").(models.GlobalAccessKey)
 
-	if _, err := database.Mysql.Exec("delete from global_access_key where id=?", key.ID); err != nil {
+	if err := key.Remove(); err != nil {
 		panic(err)
 	}
 
-	desc := "Global Access Key " + key.Name + " deleted"
 	if err := (models.Event{
-		Description: &desc,
+		Description: "Global Access Key " + key.Name + " deleted",
 	}.Insert()); err != nil {
 		panic(err)
 	}

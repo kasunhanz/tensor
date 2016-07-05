@@ -4,21 +4,23 @@ import (
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
 func GetProjects(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
 
-	query, args, _ := squirrel.Select("p.*").
-		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("pu.user_id=?", user.ID).
-		OrderBy("p.name").
-		ToSql()
+	col := database.MongoDb.C("project")
+
+	query := bson.M{
+		"users": bson.M{
+			"$in": []bson.ObjectId{user.ID},
+		},
+	}
 
 	var projects []models.Project
-	if _, err := database.Mysql.Select(&projects, query, args...); err != nil {
+	if err := col.Find(query).Sort("name").All(&projects); err != nil {
 		panic(err)
 	}
 
@@ -26,29 +28,27 @@ func GetProjects(c *gin.Context) {
 }
 
 func AddProject(c *gin.Context) {
-	var body models.Project
+	var project models.Project
 	user := c.MustGet("user").(*models.User)
 
-	if err := c.Bind(&body); err != nil {
+	if err := c.Bind(&project); err != nil {
 		return
 	}
 
-	err := body.CreateProject()
-	if err != nil {
+	project.ID = bson.NewObjectId()
+	project.Created = time.Now()
+	project.Users = []bson.ObjectId{user.ID}
+
+	if err := project.Insert(); err != nil {
 		panic(err)
 	}
 
-	if _, err := database.Mysql.Exec("insert into project__user set project_id=?, user_id=?, admin=1", body.ID, user.ID); err != nil {
-		panic(err)
-	}
-
-	desc := "Project Created"
 	if err := (models.Event{
-		ProjectID:   &body.ID,
-		Description: &desc,
+		ProjectID:   project.ID,
+		Description: "Project Created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
 
-	c.JSON(201, body)
+	c.JSON(201, project)
 }

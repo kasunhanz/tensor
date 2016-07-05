@@ -1,13 +1,11 @@
 package projects
 
 import (
-	"database/sql"
-
 	database "github.com/gamunu/hilbertspace/db"
 	"github.com/gamunu/hilbertspace/models"
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func ProjectMiddleware(c *gin.Context) {
@@ -18,20 +16,17 @@ func ProjectMiddleware(c *gin.Context) {
 		return
 	}
 
-	query, args, _ := squirrel.Select("p.*").
-		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("p.id=?", projectID).
-		Where("pu.user_id=?", user.ID).
-		ToSql()
+	col := database.MongoDb.C("project")
+
+	query := bson.M{
+		"_id": projectID,
+		"users": bson.M{
+			"$in": []bson.ObjectId{user.ID},
+		},
+	}
 
 	var project models.Project
-	if err := database.Mysql.SelectOne(&project, query, args...); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
-
+	if err := col.Find(query).One(&project); err != nil {
 		panic(err)
 	}
 

@@ -123,6 +123,8 @@ create table `task` (
 	`debug` tinyint(1) not null default 0,
 	`playbook` varchar(255) not null comment 'override playbook name (ansible.yml)',
 	`environment` longtext null comment 'override environment',
+	`start` datetime null,
+	`end` datetime null,
 	`created` datetime not null default current_timestamp,
 
 	foreign key (`template_id`) references project__template(`id`) on delete cascade
@@ -133,8 +135,6 @@ create table `task__output` (
 	`task` varchar(255) not null,
 	`time` datetime(6) not null,
 	`output` longtext not null,
-	`start` datetime null,
-	`end` datetime null,
 
 	unique key `id` (`task_id`, `time`),
 	foreign key (`task_id`) references task(`id`) on delete cascade
@@ -176,6 +176,8 @@ create table `addhoc_task` (
 	`timeout` int(5) null,
 	`forks` int(2) default 5,
 	`inventory` text not null,
+	`start` datetime null,
+	`end` datetime null,
 	`created` datetime not null default current_timestamp,
 
 
@@ -187,8 +189,6 @@ create table `addhoc_task__output` (
 	`task` varchar(255) not null,
 	`time` datetime(6) not null,
 	`output` longtext not null,
-	`start` datetime null,
-	`end` datetime null,
 
 	unique key `id` (`task_id`, `time`),
 	foreign key (`task_id`) references addhoc_task(`id`) on delete cascade

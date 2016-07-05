@@ -18,6 +18,7 @@ import (
 	"github.com/gamunu/hilbertspace/util"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/gamunu/hilbertspace/api/addhoctasks"
 )
 
 func main() {
@@ -41,10 +42,15 @@ func main() {
 	if err := database.Connect(); err != nil {
 		panic(err)
 	}
-
+	if err := database.MdbConnect(); err != nil {
+		panic(err)
+	}
 	models.SetupDBLink()
 
-	defer database.Mysql.Db.Close()
+	defer func() {
+		database.Mysql.Db.Close()
+		database.MongoDb.Session.Close()
+	}()
 
 	if util.Migration {
 		fmt.Println("\n Running DB Migrations")
@@ -63,6 +69,8 @@ func main() {
 
 	go checkUpdates()
 	go tasks.StartRunner()
+	go addhoctasks.StartRunner()
+
 	r.Run(util.Config.Port)
 }
 
