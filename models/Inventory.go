@@ -11,7 +11,7 @@ type Inventory struct {
 	ID        bson.ObjectId    `bson:"_id" json:"id"`
 	Name      string `bson:"name" json:"name" binding:"required"`
 	ProjectID bson.ObjectId    `bson:"project_id" json:"project_id"`
-	Inventory []string `bson:"inventory" json:"inventory"`
+	Inventory bson.M `bson:"inventory" json:"inventory"`
 
 	// accesses dynamic inventory
 	KeyID     bson.ObjectId      `bson:"key_id" json:"key_id"`

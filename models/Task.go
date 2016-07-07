@@ -3,7 +3,6 @@ package models
 import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/ansible-semaphore/semaphore/models"
 	database "pearson.com/hilbert-space/db"
 )
 
@@ -35,28 +34,6 @@ type TaskOutput struct {
 	Output string    `bson:"output" json:"output"`
 }
 
-// GetRepositories is returns output of a
-// returns the Task.Output array and error returned by mongo driver
-func (task Task) GetTaskOutput() ([]models.TaskOutput, error) {
-	c := database.MongoDb.C("project_repository")
-
-	var tasks []models.TaskOutput
-	err := c.Find(bson.M{"task_id": task.ID, }).Sort("time").All(tasks)
-
-	return tasks, err
-}
-
-// Gettask returns the inventory associated with the project
-// invId parameter required
-// inv parameter need to be reference
-func (task Task) GetTask(taksId bson.ObjectId) (models.Task, error) {
-	c := database.MongoDb.C("project_template")
-
-	var tpl models.Template
-	err := c.Find(bson.M{"_id": taksId}).One(tpl)
-
-	return tpl, err
-}
 
 // Create a new project
 func (task Task) Insert() error {

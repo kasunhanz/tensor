@@ -30,9 +30,10 @@ func addUser(c *gin.Context) {
 		return
 	}
 
+	user.ID = bson.NewObjectId()
 	user.Created = time.Now()
 
-	if err := database.Mysql.Insert(&user); err != nil {
+	if err := user.Insert(); err != nil {
 		panic(err)
 	}
 
@@ -102,7 +103,7 @@ func deleteUser(c *gin.Context) {
 
 	col := database.MongoDb.C("project")
 
-	info, err := col.UpdateAll(nil, bson.M{"$pull": {"users" : bson.M{"user_id": user.ID}}});
+	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users" : bson.M{"user_id": user.ID}}});
 	if err != nil {
 		panic(err)
 	}

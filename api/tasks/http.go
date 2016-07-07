@@ -33,7 +33,7 @@ func AddTask(c *gin.Context) {
 		ProjectID:   project.ID,
 		ObjectType:  "task",
 		ObjectID:    taskObj.ID,
-		Description: "Task ID " + taskObj.ID + " queued for running",
+		Description: "Task ID " + taskObj.ID.String() + " queued for running",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -78,7 +78,10 @@ func GetTaskMiddleware(c *gin.Context) {
 	taskID := c.Params.ByName("task_id")
 
 	var task models.Task
-	task, err := task.GetTask(taskID);
+
+	col := database.MongoDb.C("task")
+
+	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task);
 	if err != nil {
 		panic(err)
 	}
@@ -90,8 +93,11 @@ func GetTaskMiddleware(c *gin.Context) {
 func GetTaskOutput(c *gin.Context) {
 	task := c.MustGet("task").(models.Task)
 
-	output, err := task.GetTaskOutput();
-	if err != nil {
+	var output []models.TaskOutput
+
+	col := database.MongoDb.C("task_output")
+
+	if err := col.Find(bson.M{"task_id": task.ID, }).Sort("time").All(&output); err != nil {
 		panic(err)
 	}
 

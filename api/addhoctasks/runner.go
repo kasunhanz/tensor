@@ -38,12 +38,10 @@ func (t *task) run() {
 		t.task.End = now
 		t.updateStatus()
 
-		objType := "addhoc_task"
-		desc := "Add-Hoc Task ID " + strconv.Itoa(t.task.ID) + " finished"
 		if err := (models.Event{
-			ObjectType:  &objType,
-			ObjectID:    &t.task.ID,
-			Description: &desc,
+			ObjectType:  "addhoc_task",
+			ObjectID:    t.task.ID,
+			Description: "Add-Hoc Task ID " + t.task.ID.String() + " finished",
 		}.Insert()); err != nil {
 			t.log("Fatal error inserting an event")
 			panic(err)
@@ -58,21 +56,19 @@ func (t *task) run() {
 
 	now := time.Now()
 	t.task.Status = "running"
-	t.task.Start = &now
+	t.task.Start = now
 	t.updateStatus()
 
-	objType := "addhoc_task"
-	desc := "Add-Hoc Task ID " + strconv.Itoa(t.task.ID) + " is running"
 	if err := (models.Event{
-		ObjectType:  &objType,
-		ObjectID:    &t.task.ID,
-		Description: &desc,
+		ObjectType:  "addhoc_task",
+		ObjectID:    t.task.ID,
+		Description: "Add-Hoc Task ID " + t.task.ID.String() + " is running",
 	}.Insert()); err != nil {
 		t.log("Fatal error inserting an event")
 		panic(err)
 	}
 
-	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
+	t.log("Started: " + t.task.ID.String()+ "\n")
 
 	if t.accessKey.Type != "credential" {
 		if err := t.installKey(t.accessKey); err != nil {
@@ -122,7 +118,7 @@ func (t *task) populateDetails() error {
 
 func (t *task) installKey(key models.GlobalAccessKey) error {
 	t.log("Global access key " + key.Name + " installed")
-	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
+	err := ioutil.WriteFile(key.GetPath(), []byte(key.Secret), 0600)
 
 	return err
 }
@@ -177,9 +173,9 @@ func (t *task) runAnsible() error {
 	}
 
 	if t.accessKey.Type == "credential" {
-		args = append(args, "-u", *t.accessKey.Key)
+		args = append(args, "-u", t.accessKey.Key)
 		//add ssh password as an extra argument
-		extraVars["ansible_ssh_pass"] = crypt.Decrypt(*t.accessKey.Secret)
+		extraVars["ansible_ssh_pass"] = crypt.Decrypt(t.accessKey.Secret)
 	} else if t.accessKey.Type == "ssh" {
 		args = append(args, "--private-key=" + t.accessKey.GetPath())
 

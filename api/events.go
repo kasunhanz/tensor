@@ -1,12 +1,7 @@
 package api
 
 import (
-	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
-	"github.com/masterminds/squirrel"
-	"gopkg.in/mgo.v2/bson"
-	"net"
 )
 
 func getEvents(c *gin.Context) {

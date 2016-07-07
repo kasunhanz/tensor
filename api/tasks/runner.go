@@ -1,18 +1,17 @@
 package tasks
 
 import (
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"strconv"
 	"time"
 
 	database "pearson.com/hilbert-space/db"
 	"pearson.com/hilbert-space/models"
+	"gopkg.in/mgo.v2/bson"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"encoding/json"
 	"pearson.com/hilbert-space/util"
 )
 
@@ -23,8 +22,8 @@ type task struct {
 	inventory   models.Inventory
 	repository  models.Repository
 	environment models.Environment
-	users       []int
-	projectID   int
+	users       []bson.ObjectId
+	projectID   bson.ObjectId
 }
 
 func (t *task) fail() {
@@ -40,16 +39,14 @@ func (t *task) run() {
 		pool.running = nil
 
 		now := time.Now()
-		t.task.End = &now
+		t.task.End = now
 		t.updateStatus()
 
-		objType := "task"
-		desc := "Task ID " + strconv.Itoa(t.task.ID) + " finished"
 		if err := (models.Event{
-			ProjectID:   &t.projectID,
-			ObjectType:  &objType,
-			ObjectID:    &t.task.ID,
-			Description: &desc,
+			ProjectID:   t.projectID,
+			ObjectType:  "task",
+			ObjectID:    t.task.ID,
+			Description: "Task ID " + t.task.ID.String() + " finished",
 		}.Insert()); err != nil {
 			t.log("Fatal error inserting an event")
 			panic(err)
@@ -65,22 +62,20 @@ func (t *task) run() {
 	fmt.Println(t.users)
 	now := time.Now()
 	t.task.Status = "running"
-	t.task.Start = &now
+	t.task.Start = now
 	t.updateStatus()
 
-	objType := "task"
-	desc := "Task ID " + strconv.Itoa(t.task.ID) + " is running"
 	if err := (models.Event{
-		ProjectID:   &t.projectID,
-		ObjectType:  &objType,
-		ObjectID:    &t.task.ID,
-		Description: &desc,
+		ProjectID:   t.projectID,
+		ObjectType: "task",
+		ObjectID:    t.task.ID,
+		Description: "Task ID " + t.task.ID.String() + " is running",
 	}.Insert()); err != nil {
 		t.log("Fatal error inserting an event")
 		panic(err)
 	}
 
-	t.log("Started: " + strconv.Itoa(t.task.ID) + "\n")
+	t.log("Started: " + t.task.ID.String() + "\n")
 
 	if err := t.installKey(t.repository.SshKey); err != nil {
 		t.log("Failed installing ssh key for repository access: " + err.Error())
@@ -112,42 +107,32 @@ func (t *task) run() {
 	t.updateStatus()
 }
 
-func (t *task) fetch(errMsg string, ptr interface{}, query string, args ...interface{}) error {
-	err := database.Mysql.SelectOne(ptr, query, args...)
-	if err == sql.ErrNoRows {
-		t.log(errMsg)
-		return err
-	}
-
-	if err != nil {
-		t.fail()
-		panic(err)
-	}
-
-	return nil
-}
-
 func (t *task) populateDetails() error {
 	// get template
-	if err := t.fetch("Template not found!", &t.template, "select * from project__template where id=?", t.task.TemplateID); err != nil {
+	tempCollection := database.MongoDb.C("project_template")
+	if err := tempCollection.FindId(t.task.TemplateID).One(&t.template); err != nil {
 		return err
 	}
 
 	// get project users
 	var users []struct {
-		ID int `db:"id"`
+		ID bson.ObjectId `db:"id"`
 	}
-	if _, err := database.Mysql.Select(&users, "select user_id as id from project__user where project_id=?", t.template.ProjectID); err != nil {
+
+	pUserc := database.MongoDb.C("project_user")
+
+	if err := pUserc.FindId(t.template.ProjectID).Select(bson.M{"user_id":1}).One(&users); err != nil {
 		return err
 	}
 
-	t.users = []int{}
+	t.users = []bson.ObjectId{}
 	for _, user := range users {
 		t.users = append(t.users, user.ID)
 	}
 
+	keyc := database.MongoDb.C("access_key")
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.sshKey, "select * from access_key where id=?", t.template.SshKeyID); err != nil {
+	if err := keyc.FindId(t.template.SshKeyID).One(&t.sshKey); err != nil {
 		return err
 	}
 
@@ -157,31 +142,38 @@ func (t *task) populateDetails() error {
 	}
 
 	// get inventory
-	if err := t.fetch("Template Inventory not found!", &t.inventory, "select * from project__inventory where id=?", t.template.InventoryID); err != nil {
+	projectInvc := database.MongoDb.C("project_inventory")
+
+	if err := projectInvc.FindId(t.template.InventoryID).One(&t.inventory); err != nil {
 		return err
 	}
 
 	// get inventory services key
-	if t.inventory.KeyID != nil {
-		if err := t.fetch("Inventory AccessKey not found!", &t.inventory.Key, "select * from access_key where id=?", *t.inventory.KeyID); err != nil {
+	if bson.IsObjectIdHex(t.inventory.KeyID.String()) {
+
+		accesskeyc := database.MongoDb.C("access_key")
+		if err := accesskeyc.FindId(t.inventory.KeyID).One(&t.inventory.Key); err != nil {
 			return err
 		}
 	}
 
 	// get inventory ssh key
-	if t.inventory.SshKeyID != nil {
-		if err := t.fetch("Inventory Ssh Key not found!", &t.inventory.SshKey, "select * from access_key where id=?", *t.inventory.SshKeyID); err != nil {
+	if bson.IsObjectIdHex(t.inventory.SshKeyID.String()) {
+		accesskeyc := database.MongoDb.C("access_key")
+		if err := accesskeyc.FindId(t.inventory.SshKeyID).One(&t.inventory.SshKey); err != nil {
 			return err
 		}
 	}
 
 	// get repository
-	if err := t.fetch("Repository not found!", &t.repository, "select * from project__repository where id=?", t.template.RepositoryID); err != nil {
+	projectRepoc := database.MongoDb.C("project_repository")
+	if err := projectRepoc.FindId(t.template.RepositoryID).One(&t.repository); err != nil {
 		return err
 	}
 
 	// get repository access key
-	if err := t.fetch("Repository Access Key not found!", &t.repository.SshKey, "select * from access_key where id=?", t.repository.SshKeyID); err != nil {
+	accesskeyc := database.MongoDb.C("access_key")
+	if err := accesskeyc.FindId(t.repository.SshKeyID).One(&t.repository.SshKey); err != nil {
 		return err
 	}
 	if t.repository.SshKey.Type != "ssh" {
@@ -190,8 +182,10 @@ func (t *task) populateDetails() error {
 	}
 
 	// get environment
-	if len(t.task.Environment) == 0 && t.template.EnvironmentID != nil {
-		err := t.fetch("Environment not found", &t.environment, "select * from project__environment where id=?", *t.template.EnvironmentID)
+	if len(t.task.Environment) == 0 && bson.IsObjectIdHex(t.template.EnvironmentID.String()) {
+
+		projectenvc := database.MongoDb.C("project_environment")
+		err := projectenvc.FindId(t.template.EnvironmentID).One(&t.environment)
 		if err != nil {
 			return err
 		}
@@ -204,13 +198,13 @@ func (t *task) populateDetails() error {
 
 func (t *task) installKey(key models.AccessKey) error {
 	t.log("access key " + key.Name + " installed")
-	err := ioutil.WriteFile(key.GetPath(), []byte(*key.Secret), 0600)
+	err := ioutil.WriteFile(key.GetPath(), []byte(key.Secret), 0600)
 
 	return err
 }
 
 func (t *task) updateRepository() error {
-	repoName := "repository_" + strconv.Itoa(t.repository.ID)
+	repoName := "repository_" + t.repository.ID.String()
 	_, err := os.Stat(util.Config.TmpPath + "/" + repoName)
 
 	cmd := exec.Command("git")
@@ -244,10 +238,10 @@ func (t *task) runPlaybook() error {
 	}
 
 	args := []string{
-		"-i", util.Config.TmpPath + "/inventory_" + strconv.Itoa(t.task.ID),
+		"-i", util.Config.TmpPath + "/inventory_" + t.task.ID.String(),
 	}
 
-	if t.inventory.SshKeyID != nil {
+	if bson.IsObjectIdHex(t.inventory.SshKeyID.String()) {
 		args = append(args, "--private-key=" + t.inventory.SshKey.GetPath())
 	}
 
@@ -260,8 +254,8 @@ func (t *task) runPlaybook() error {
 	}
 
 	var extraArgs []string
-	if t.template.Arguments != nil {
-		err := json.Unmarshal([]byte(*t.template.Arguments), &extraArgs)
+	if len(t.template.Arguments) > 0 {
+		err := json.Unmarshal([]byte(t.template.Arguments), &extraArgs)
 		if err != nil {
 			t.log("Could not unmarshal arguments to []string")
 			return err
@@ -276,7 +270,7 @@ func (t *task) runPlaybook() error {
 	}
 
 	cmd := exec.Command("ansible-playbook", args...)
-	cmd.Dir = util.Config.TmpPath + "/repository_" + strconv.Itoa(t.repository.ID)
+	cmd.Dir = util.Config.TmpPath + "/repository_" + t.repository.ID.String()
 	cmd.Env = []string{
 		"HOME=" + util.Config.TmpPath,
 		"PWD=" + cmd.Dir,

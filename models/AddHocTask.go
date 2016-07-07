@@ -11,7 +11,7 @@ import (
 // add hoc command execution details
 type AddHocTask struct {
 	ID          bson.ObjectId `bson:"_id" json:"id"`
-	AccessKeyID int `bson:"access_key_id" json:"access_key_id"`
+	AccessKeyID bson.ObjectId `bson:"access_key_id" json:"access_key_id"`
 
 	Status      string `bson:"status" json:"status"`
 	Debug       bool   `bson:"debug" json:"debug"`
@@ -48,7 +48,7 @@ func (task AddHocTask) AddHocTaskInsert() error {
 }
 
 func (task AddHocTaskOutput) AddHocTaskOutputInsert() error {
-	c := database.MongoDb.C("addhoc_task__output")
+	c := database.MongoDb.C("addhoc_task_output")
 	err := c.Insert(task)
 
 	return err

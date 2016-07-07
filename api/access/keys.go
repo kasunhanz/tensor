@@ -5,23 +5,19 @@ import (
 
 	database "pearson.com/hilbert-space/db"
 	"pearson.com/hilbert-space/models"
-	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"pearson.com/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func KeyMiddleware(c *gin.Context) {
-	keyID, err := util.GetIntParam("key_id", c)
-	if err != nil {
-		return
-	}
+	keyID := c.Params.ByName("key_id")
 
 	var key models.AccessKey
 
 	col := database.MongoDb.C("global_access_key")
 
-	if err := col.FindId(keyID).One(&key); err != nil {
+	if err := col.FindId(bson.ObjectIdHex(keyID)).One(&key); err != nil {
 		if err == sql.ErrNoRows {
 			c.AbortWithStatus(404)
 			return

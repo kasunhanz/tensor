@@ -10,8 +10,9 @@ func KeyMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	keyID := c.Params.ByName("key_id")
 
-	var key models.AccessKey
-	if err := project.GetAccessKey(keyID, &key); err != nil {
+	key, err := project.GetAccessKey(bson.ObjectIdHex(keyID));
+
+	if err != nil {
 		panic(err)
 	}
 
@@ -21,16 +22,20 @@ func KeyMiddleware(c *gin.Context) {
 
 func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var keys []models.AccessKey
 
 	if len(c.Query("type")) > 0 {
-		if err := project.GetAccessKeysByType(&keys, c.Query("type")); err != nil {
+		keys, err := project.GetAccessKeysByType(c.Query("type"));
+
+		if err != nil {
 			panic(err)
 		}
-	} else {
-		if err := project.GetAccessKeys(&keys); err != nil {
-			panic(err)
-		}
+		c.JSON(200, keys)
+		return
+	}
+
+	keys, err := project.GetAccessKeys();
+	if err != nil {
+		panic(err)
 	}
 
 	c.JSON(200, keys)

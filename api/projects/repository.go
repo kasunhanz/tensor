@@ -2,19 +2,15 @@ package projects
 
 import (
 	"pearson.com/hilbert-space/models"
-	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func RepositoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	repositoryID, err := util.GetIntParam("repository_id", c)
-	if err != nil {
-		return
-	}
+	repositoryID := c.Params.ByName("repository_id")
 
-	repository, err := project.GetRepository(repositoryID);
+	repository, err := project.GetRepository(bson.ObjectIdHex(repositoryID));
 
 	if err != nil {
 		panic(err)

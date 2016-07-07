@@ -47,8 +47,8 @@ func Authentication(c *gin.Context) {
 			return
 		}
 
-		userID = user.(int)
-		sessionID := sessionVal.(int)
+		userID = user.(bson.ObjectId)
+		sessionID := sessionVal.(bson.ObjectId)
 
 		// fetch session
 		var session models.Session

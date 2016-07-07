@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	database "pearson.com/hilbert-space/db"
 	"pearson.com/hilbert-space/util"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func AddTask(c *gin.Context) {
@@ -47,7 +48,10 @@ func GetTaskMiddleware(c *gin.Context) {
 	}
 
 	var task models.AddHocTask
-	if err := database.Mysql.SelectOne(&task, "select * from addhoc_task where id=?", taskID); err != nil {
+
+	col := database.MongoDb.C("addhoc_task")
+
+	if err := col.FindId(taskID).One(&task); err != nil {
 		panic(err)
 	}
 
@@ -58,7 +62,10 @@ func GetTaskMiddleware(c *gin.Context) {
 func GetTaskOutput(c *gin.Context) {
 	task := c.MustGet("addhoctask").(models.AddHocTask)
 	var output []models.AddHocTaskOutput
-	if _, err := database.Mysql.Select(&output, "select * from addhoc_task__output where task_id=? order by time asc", task.ID); err != nil {
+
+	col := database.MongoDb.C("addhoc_task_output")
+
+	if err := col.Find(bson.M{"task_id": task.ID}).Sort("time").All(&output); err != nil {
 		panic(err)
 	}
 

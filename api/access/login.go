@@ -64,8 +64,8 @@ func Login(c *gin.Context) {
 	}
 
 	encoded, err := util.Cookie.Encode("hilbertspace", map[string]interface{}{
-		"user":    user.ID,
-		"session": session.ID,
+		"user":    user.ID.String(),
+		"session": session.ID.String(),
 	})
 
 	if err != nil {

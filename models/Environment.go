@@ -2,13 +2,14 @@ package models
 
 import (
 	database "pearson.com/hilbert-space/db"
+	"gopkg.in/mgo.v2/bson"
 )
 // Environment is the model for
 // project_environment collection
 type Environment struct {
-	ID        int     `bson:"_id" json:"id"`
+	ID        bson.ObjectId     `bson:"_id" json:"id"`
 	Name      string  `bson:"name" json:"name" binding:"required"`
-	ProjectID int     `bson:"project_id" json:"project_id"`
+	ProjectID bson.ObjectId     `bson:"project_id" json:"project_id"`
 	Password  string `bson:"password" json:"password"`
 	JSON      string  `bson:"json" json:"json" binding:"required"`
 }

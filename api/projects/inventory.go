@@ -10,8 +10,8 @@ func InventoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	inventoryID := c.Params.ByName("inventory_id")
 
-	var inventory models.Inventory
-	if err := project.GetInventory(inventoryID, &inventory); err != nil {
+	inventory, err := project.GetInventory(bson.ObjectIdHex(inventoryID));
+	if err != nil {
 		panic(err)
 	}
 
@@ -21,9 +21,9 @@ func InventoryMiddleware(c *gin.Context) {
 
 func GetInventory(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	var inv []models.Inventory
 
-	if err := project.GetInventories(&inv); err != nil {
+	inv, err := project.GetInventories();
+	if err != nil {
 		panic(err)
 	}
 

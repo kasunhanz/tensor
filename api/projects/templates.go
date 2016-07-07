@@ -2,18 +2,16 @@ package projects
 
 import (
 	"pearson.com/hilbert-space/models"
-	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
 
 func TemplatesMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
-	templateID, err := util.GetIntParam("template_id", c)
-	if err != nil {
-		return
-	}
-	template, err := project.GetTemplate(templateID);
+	templateID := c.Params.ByName("template_id")
+
+	template, err := project.GetTemplate(bson.ObjectIdHex(templateID));
+
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +51,7 @@ func AddTemplate(c *gin.Context) {
 		ProjectID:   project.ID,
 		ObjectType:  "template",
 		ObjectID:    template.ID,
-		Description: "Template ID " + template.ID + " created",
+		Description: "Template ID " + template.ID.String() + " created",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -77,7 +75,7 @@ func UpdateTemplate(c *gin.Context) {
 
 	if err := (models.Event{
 		ProjectID:   oldTemplate.ProjectID,
-		Description: "Template ID " + template.ID + " updated",
+		Description: "Template ID " + template.ID.String() + " updated",
 		ObjectID:    oldTemplate.ID,
 		ObjectType:  "template",
 	}.Insert()); err != nil {
@@ -96,7 +94,7 @@ func RemoveTemplate(c *gin.Context) {
 
 	if err := (models.Event{
 		ProjectID:   tpl.ProjectID,
-		Description: "Template ID " + tpl.ID + " deleted",
+		Description: "Template ID " + tpl.ID.String() + " deleted",
 	}.Insert()); err != nil {
 		panic(err)
 	}

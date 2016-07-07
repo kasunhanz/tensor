@@ -37,7 +37,7 @@ func AddProject(c *gin.Context) {
 
 	project.ID = bson.NewObjectId()
 	project.Created = time.Now()
-	project.Users = []bson.ObjectId{user.ID}
+	project.Users = []models.ProjectUser{models.ProjectUser{Admin:true, UserID:user.ID}}
 
 	if err := project.Insert(); err != nil {
 		panic(err)

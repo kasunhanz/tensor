@@ -9,9 +9,9 @@ import (
 	"pearson.com/hilbert-space/api/tasks"
 	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
-	"github.com/russross/blackfriday"
 	"pearson.com/hilbert-space/api/addhoctasks"
 	"pearson.com/hilbert-space/api/access"
+	"strings"
 )
 
 // Route declare all routes
@@ -46,8 +46,6 @@ func Route(r *gin.Engine) {
 	r.GET("/ws", sockets.Handler)
 
 	r.GET("/info", getSystemInfo)
-	r.GET("/upgrade", checkUpgrade)
-	r.POST("/upgrade", doUpgrade)
 
 	user := r.Group("/user")
 	{
@@ -130,37 +128,14 @@ func Route(r *gin.Engine) {
 func getSystemInfo(c *gin.Context) {
 	body := map[string]interface{}{
 		"version": util.Version,
-		"update":  util.UpdateAvailable,
 		"config": map[string]string{
-			"dbHost":  util.Config.MySQL.Hostname,
-			"dbName":  util.Config.MySQL.DbName,
-			"dbUser":  util.Config.MySQL.Username,
+			"dbHost":  strings.Join(util.Config.MongoDB.Hosts, ","),
+			"dbName":  util.Config.MongoDB.DbName,
+			"dbUser":  util.Config.MongoDB.Username,
 			"path":    util.Config.TmpPath,
 			"cmdPath": util.FindHilbertspace(),
 		},
 	}
 
-	if util.UpdateAvailable != nil {
-		body["updateBody"] = string(blackfriday.MarkdownCommon([]byte(*util.UpdateAvailable.Body)))
-	}
-
 	c.JSON(200, body)
-}
-
-func checkUpgrade(c *gin.Context) {
-	if err := util.CheckUpdate(util.Version); err != nil {
-		c.JSON(500, err)
-		return
-	}
-
-	if util.UpdateAvailable != nil {
-		getSystemInfo(c)
-		return
-	}
-
-	c.AbortWithStatus(204)
-}
-
-func doUpgrade(c *gin.Context) {
-	util.DoUpgrade(util.Version)
 }

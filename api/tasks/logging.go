@@ -34,10 +34,10 @@ func (t *task) log(msg string) {
 	go func() {
 
 		if err := (models.TaskOutput{
-			"ID": bson.NewObjectId(),
-			"msg": msg,
-			"Time": now,
-			"TaskID":t.task.ID,
+			ID: bson.NewObjectId(),
+			Output: msg,
+			Time: now,
+			TaskID:t.task.ID,
 		}.Insert()); err != nil {
 			panic(err)
 		}

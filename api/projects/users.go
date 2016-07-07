@@ -70,7 +70,7 @@ func AddUser(c *gin.Context) {
 		ProjectID:   projectUser.UserID,
 		ObjectType:  "user",
 		ObjectID:    projectUser.UserID,
-		Description: "User ID " + projectUser.UserID + " added to team",
+		Description: "User ID " + projectUser.UserID.String() + " added to team",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -92,7 +92,7 @@ func RemoveUser(c *gin.Context) {
 		ProjectID:   project.ID,
 		ObjectType:  "user",
 		ObjectID:    user.ID,
-		Description: "User ID " + user.ID + " removed from team",
+		Description: "User ID " + user.ID.String() + " removed from team",
 	}.Insert()); err != nil {
 		panic(err)
 	}

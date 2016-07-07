@@ -3,10 +3,12 @@ package tasks
 import (
 	"io/ioutil"
 	"pearson.com/hilbert-space/util"
+	"gopkg.in/mgo.v2/bson"
+	"encoding/json"
 )
 
 func (t *task) installInventory() error {
-	if t.inventory.SshKeyID != nil {
+	if bson.IsObjectIdHex(t.inventory.SshKeyID.String()) {
 		// write inventory key
 		err := t.installKey(t.inventory.SshKey)
 		if err != nil {
@@ -25,6 +27,10 @@ func (t *task) installInventory() error {
 func (t *task) installStaticInventory() error {
 	t.log("installing static inventory")
 
+	bytes, err := json.Marshal(t.inventory.Inventory)
+	if err != nil {
+		return err
+	}
 	// create inventory file
-	return ioutil.WriteFile(util.Config.TmpPath + "/inventory_" + t.task.ID, []byte(t.inventory.Inventory), 0664)
+	return ioutil.WriteFile(util.Config.TmpPath + "/inventory_" + t.task.ID.String(), bytes, 0664)
 }

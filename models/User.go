@@ -28,3 +28,8 @@ func FetchUser(userID bson.ObjectId) (*User, error) {
 
 	return &user, err
 }
+
+func (usr User) Insert() error {
+	c := database.MongoDb.C("user")
+	return c.Insert(usr)
+}
