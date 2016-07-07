@@ -1,15 +1,6 @@
 #!/bin/bash
 set -e
 
-BINDATA_ARGS="-o util/bindata.go -pkg util"
-
-if [ "$1" == "watch" ]; then
-	BINDATA_ARGS="-debug ${BINDATA_ARGS}"
-	echo "Creating util/bindata.go with file proxy"
-else
-	echo "Creating util/bindata.go"
-fi
-
 if [ "$1" == "ci_test" ]; then
 	echo "Creating CI Test config.json"
 
@@ -28,10 +19,6 @@ EOF
 
 fi
 
-echo "Adding bindata"
-
-go-bindata $BINDATA_ARGS config.json db/migrations/
-
 if [ "$1" == "ci_test" ]; then
 	exit 0
 fi
@@ -42,10 +29,4 @@ if [ "$1" == "watch" ]; then
 fi
 
 cd cli
-gox -os="linux" -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
-#gox -os="linux darwin windows openbsd" -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
-
-if [ "$CIRCLE_ARTIFACTS" != "" ]; then
-	rsync -a hilbertspace_* $CIRCLE_ARTIFACTS/
-	exit 0
-fi
+gox -os="linux" -arch="amd64 386" -cgo -verbose -output="hilbertspace_{{.OS}}_{{.Arch}}" ./...
