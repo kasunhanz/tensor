@@ -4,6 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"strconv"
 	"strings"
+	"os/exec"
+	"path/filepath"
+	"os"
 )
 
 func isXHR(c *gin.Context) bool {
@@ -40,4 +43,14 @@ func GetIntParam(name string, c *gin.Context) (int, error) {
 	}
 
 	return intParam, nil
+}
+
+func FindHilbertspace() string {
+	cmdPath, _ := exec.LookPath("hilbertspace")
+
+	if len(cmdPath) == 0 {
+		cmdPath, _ = filepath.Abs(os.Args[0])
+	}
+
+	return cmdPath
 }
