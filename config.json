@@ -1,10 +1,14 @@
 {
-	"mysql": {
-		"host": "127.0.0.1:3306",
-		"user": "hilbert",
-		"pass": "hilbert",
-		"name": "hilbertspace"
-	},
-	"session_db": "127.0.0.1:6379",
-	"port": ":8010"
+  "mongodb": {
+    "hosts": [
+      "127.0.0.1:27017",
+      "127.0.0.2:27018"
+    ],
+    "user": "hilbert",
+    "pass": "hilbert",
+    "name": "hilbertspace",
+    "replica_set": "rs0"
+  },
+  "session_db": "127.0.0.1:6379",
+  "port": ":8010"
 }
