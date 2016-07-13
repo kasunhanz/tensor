@@ -37,3 +37,7 @@ github.com/russross/blackfriday
 golang.org/x/crypto/bcrypt
 gopkg.in/gorp.v1
 ```
+
+**Build dependacies**
+
+sudo apt-get install g++-multilib
