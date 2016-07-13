@@ -5,7 +5,7 @@ import (
 )
 
 func TestDecrypt(t *testing.T) {
-	expected := "Hello Word"
+	expected := "Hello World"
 	cryptvalue := Encrypt(expected)
 	actual := Decrypt(cryptvalue)
 

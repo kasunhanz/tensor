@@ -64,14 +64,13 @@ func Login(c *gin.Context) {
 	}
 
 	encoded, err := util.Cookie.Encode("hilbertspace", map[string]interface{}{
-		"user":    user.ID.String(),
-		"session": session.ID.String(),
+		"user":    user.ID.Hex(),
+		"session": session.ID.Hex(),
 	})
 
 	if err != nil {
 		panic(err)
 	}
-
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:  "hilbertspace",
 		Value: encoded,

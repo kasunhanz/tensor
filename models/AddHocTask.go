@@ -11,7 +11,9 @@ import (
 // add hoc command execution details
 type AddHocTask struct {
 	ID          bson.ObjectId `bson:"_id" json:"id"`
-	AccessKeyID bson.ObjectId `bson:"access_key_id" json:"access_key_id"`
+	//if no access key then it's a local connection
+	//for now we will allow local connection type
+	AccessKeyID bson.ObjectId `bson:"access_key_id,omitempty" json:"access_key_id,omitempty"`
 
 	Status      string `bson:"status" json:"status"`
 	Debug       bool   `bson:"debug" json:"debug"`
@@ -24,32 +26,21 @@ type AddHocTask struct {
 	Connection  string `bson:"connection" json:"connection"`
 	Timeout     int    `bson:"timeout" json:"timeout"`
 
+	//task status without log
+	Log         []TaskLogItem    `bson:"log" json:"log,omitempty"`
+
 	Created     time.Time  `bson:"created" json:"created"`
 	Start       time.Time `bson:"start" json:"start"`
 	End         time.Time `bson:"end" json:"end"`
 }
 
-// AddHocTaskOutput is an exported type that
-// is used as database model for record
-// add command database output
-type AddHocTaskOutput struct {
-	ID     bson.ObjectId  `bson:"_id" json:"id"`
-	TaskID bson.ObjectId        `bson:"task_id" json:"task_id"`
-	Task   string    `db:"task" json:"task"`
-	Time   time.Time `db:"time" json:"time"`
-	Output string    `db:"output" json:"output"`
+type TaskLogItem struct {
+	Record string `bson:"record" json:"record"`
+	Time   time.Time `bson:"time" json:"time"`
 }
 
-func (task AddHocTask) AddHocTaskInsert() error {
+
+func (task AddHocTask) Insert() error {
 	c := database.MongoDb.C("addhoc_task")
-	err := c.Insert(task)
-
-	return err
-}
-
-func (task AddHocTaskOutput) AddHocTaskOutputInsert() error {
-	c := database.MongoDb.C("addhoc_task_output")
-	err := c.Insert(task)
-
-	return err
+	return c.Insert(task)
 }

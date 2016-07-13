@@ -17,13 +17,13 @@ type GlobalAccessKey struct {
 	// username
 	Key    string `bson:"key" json:"key"`
 	// password
-	Secret string `bson:"secret" json:"-"`
+	Secret string `bson:"secret" json:"secret"`
 }
 
 // Get storage path for global access key
 // for keys except credentials
 func (key GlobalAccessKey) GetPath() string {
-	return util.Config.TmpPath + "/global_access_key_" + key.ID.String()
+	return util.Config.TmpPath + "/global_access_key_" + key.ID.Hex()
 }
 
 func (key GlobalAccessKey) Insert() error {

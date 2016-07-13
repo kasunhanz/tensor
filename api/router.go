@@ -29,7 +29,7 @@ func Route(r *gin.Engine) {
 	}))
 
 	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "PONG")
+		c.JSON(200, "PONG")
 	})
 
 	// set up the namespace
@@ -113,7 +113,8 @@ func Route(r *gin.Engine) {
 	addHocTask := r.Group("/addhoc")
 	{
 		addHocTask.POST("/tasks", addhoctasks.AddTask)
-		addHocTask.GET("/tasks/:task_id/output", addhoctasks.GetTaskMiddleware, addhoctasks.GetTaskOutput)
+		addHocTask.GET("/tasks/:task_id", addhoctasks.GetTaskWithoutLogMiddleware, addhoctasks.GetTaskWithoutLog)
+		addHocTask.GET("/tasks/:task_id/log", addhoctasks.GetTaskMiddleware, addhoctasks.GetTaskOutput)
 	}
 
 	globalAccessKeys := r.Group("access")

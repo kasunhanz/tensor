@@ -5,69 +5,119 @@ import (
 	"pearson.com/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
+	"net/http"
 )
 
+// AddTask creates a new add-hoc task
+// It validates post task object and ads new task to database and to task pool
 func AddTask(c *gin.Context) {
 
 	var taskObj models.AddHocTask
-	if err := c.Bind(&taskObj); err != nil {
-		c.Error(err)
+
+	// bind request JSON with model
+	if err := c.BindJSON(&taskObj); err != nil {
+		// Return 400 if request has bad JSON format
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
+	taskObj.ID = bson.NewObjectId()
 	taskObj.Created = time.Now()
 	taskObj.Status = "waiting"
 
-	if err := taskObj.AddHocTaskInsert(); err != nil {
-		panic(err)
+	// Ansible's default connection type is smart
+	// if JSON payload doesn't have connection type
+	// we set it to smart
+	if len(taskObj.Connection) <= 0 {
+		taskObj.Connection = "smart"
+	}
+	// Ansible's default forks is 5
+	// if the JSON payload doesn't have number of forks
+	// we set it to 5
+	if taskObj.Forks < 1 {
+		taskObj.Forks = 5
 	}
 
+	// Insert the task object to database
+	if err := taskObj.Insert(); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	// add newly created task in to addHocTaskPool
 	pool.register <- &task{
 		task:      taskObj,
 	}
 
-	objType := "addhoctask"
-	desc := "Add-Hoc Task ID " + taskObj.ID.String() + " queued for running"
+	// Create new event ins the database
 	if err := (models.Event{
-		ObjectType:  objType,
+		ID: bson.NewObjectId(),
+		ObjectType:  "addhoc_task",
 		ObjectID:    taskObj.ID,
-		Description: desc,
+		Description: "Add-Hoc Task ID " + taskObj.ID.Hex() + " queued for running",
+		Created: time.Now(),
 	}.Insert()); err != nil {
-		panic(err)
+		// We don't inform client about this error
+		c.Error(err)
+		return
 	}
 
-	c.JSON(201, taskObj)
+	c.JSON(http.StatusCreated, taskObj)
 }
 
+// GetTaskMiddleware takes task_id parameter and
+// fetches task data from the database
+// it set task data under key addhoc_task in gin.Context
 func GetTaskMiddleware(c *gin.Context) {
-	taskID, err := util.GetIntParam("task_id", c)
-	if ( err != nil) {
-		panic(err)
-	}
+	taskID := c.Params.ByName("task_id")
 
 	var task models.AddHocTask
 
 	col := database.MongoDb.C("addhoc_task")
 
-	if err := col.FindId(taskID).One(&task); err != nil {
-		panic(err)
+	if err := col.FindId(bson.ObjectIdHex(taskID)).One(&task); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
-	c.Set("addhoctask", task)
+	c.Set("addhoc_task", task)
 	c.Next()
 }
 
-func GetTaskOutput(c *gin.Context) {
-	task := c.MustGet("addhoctask").(models.AddHocTask)
-	var output []models.AddHocTaskOutput
+// GetTaskWithoutLogMiddleware takes task_id parameter from and
+// fetches task data from the database without log data
+// it set task data under key addhoc_task_wlog in gin.Context
+func GetTaskWithoutLogMiddleware(c *gin.Context) {
+	taskID := c.Params.ByName("task_id")
+	var task models.AddHocTask
 
-	col := database.MongoDb.C("addhoc_task_output")
+	col := database.MongoDb.C("addhoc_task")
 
-	if err := col.Find(bson.M{"task_id": task.ID}).Sort("time").All(&output); err != nil {
-		panic(err)
+	if err := col.FindId(bson.ObjectIdHex(taskID)).Select(bson.M{"log":0}).One(&task); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
-	c.JSON(200, output)
+	c.Set("addhoc_task_wlog", task)
+
+	c.Next() //process next handler
+}
+
+// GetTaskWithoutLog takes addhoc_task_wlog from gin.Context
+// which added by GetTaskWithoutLogMiddleware
+// and returns task formatted as JSON
+func GetTaskWithoutLog(c *gin.Context) {
+	task := c.MustGet("addhoc_task_wlog").(models.AddHocTask)
+
+	c.JSON(http.StatusOK, task)
+}
+
+// GetTaskOutput takes addhoc_task from gin.Context
+// which added by GetTaskMiddleware and
+// returns task.Log as formatted as JSON
+func GetTaskOutput(c *gin.Context) {
+	task := c.MustGet("addhoc_task").(models.AddHocTask)
+
+	c.JSON(http.StatusOK, task.Log)
 }

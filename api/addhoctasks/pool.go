@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// addHocTaskPool is object to store
+// task queue
 type addHocTaskPool struct {
 	queue    []*task
 	register chan *task
@@ -27,7 +29,6 @@ func (p *addHocTaskPool) run() {
 	for {
 		select {
 		case task := <-p.register:
-			fmt.Println(task)
 			if p.running == nil {
 				go task.run()
 				continue

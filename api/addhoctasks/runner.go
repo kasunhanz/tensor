@@ -14,6 +14,8 @@ import (
 	"os/exec"
 	"pearson.com/hilbert-space/util"
 	"pearson.com/hilbert-space/crypt"
+	"gopkg.in/mgo.v2/bson"
+	"os"
 )
 
 type task struct {
@@ -39,9 +41,10 @@ func (t *task) run() {
 		t.updateStatus()
 
 		if err := (models.Event{
+			ID: bson.NewObjectId(),
 			ObjectType:  "addhoc_task",
 			ObjectID:    t.task.ID,
-			Description: "Add-Hoc Task ID " + t.task.ID.String() + " finished",
+			Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " finished",
 		}.Insert()); err != nil {
 			t.log("Fatal error inserting an event")
 			panic(err)
@@ -60,15 +63,17 @@ func (t *task) run() {
 	t.updateStatus()
 
 	if err := (models.Event{
+		ID: bson.NewObjectId(),
 		ObjectType:  "addhoc_task",
 		ObjectID:    t.task.ID,
-		Description: "Add-Hoc Task ID " + t.task.ID.String() + " is running",
+		Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " is running",
+		Created: time.Now(),
 	}.Insert()); err != nil {
 		t.log("Fatal error inserting an event")
 		panic(err)
 	}
 
-	t.log("Started: " + t.task.ID.String()+ "\n")
+	t.log("Started: " + t.task.ID.Hex() + "\n")
 
 	if t.accessKey.Type != "credential" {
 		if err := t.installKey(t.accessKey); err != nil {
@@ -88,29 +93,19 @@ func (t *task) run() {
 	t.updateStatus()
 }
 
-func (t *task) fetch(errMsg string, ptr interface{}, collection string, query interface{}) error {
-	c := database.MongoDb.C(collection)
-	err := c.Find(query).One(ptr)
-
-	if err != nil {
-		t.log(errMsg)
-		t.fail()
-		panic(err)
-	}
-
-	return nil
-}
-
 func (t *task) populateDetails() error {
 
 	// get access key
-	if err := t.fetch("Template Access Key not found!", &t.accessKey, "global_access_key", models.GlobalAccessKey{ID:t.task.AccessKeyID}); err != nil {
-		return err
-	}
+	if bson.IsObjectIdHex(t.task.AccessKeyID.Hex()) {
+		accesskeyc := database.MongoDb.C("global_access_key")
+		if err := accesskeyc.FindId(t.task.AccessKeyID).One(&t.accessKey); err != nil {
+			return errors.New("Global Access Key not found!")
+		}
 
-	if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
-		t.log("Only ssh and credential currently supported: " + t.accessKey.Type)
-		return errors.New("Unsupported Key")
+		if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
+			t.log("Only ssh and credentials currently supported: " + t.accessKey.Type)
+			return errors.New("Unsupported Key")
+		}
 	}
 
 	return nil
@@ -123,15 +118,13 @@ func (t *task) installKey(key models.GlobalAccessKey) error {
 	return err
 }
 
+// runAnsible is executes the task using Ansible command
 func (t *task) runAnsible() error {
 
-	// arguments for ansible command
+	// arguments for Ansible command
 	args := []string{
 		"all",
 	}
-
-	// --extra-vars argument values
-	var extraVars map[string]interface{}
 
 	if cap(t.task.Inventory) > 0 {
 		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
@@ -164,10 +157,12 @@ func (t *task) runAnsible() error {
 		args = append(args, "-c", t.task.Connection)
 	}
 
+	// --extra-vars argument values
+	extraVars := make(map[string]interface{})
+
 	if len(t.task.ExtraVars) > 0 {
-		err := json.Unmarshal([]byte(t.task.ExtraVars), &extraVars)
-		if err != nil {
-			t.log("Could not unmarshal arguments to map[string]interface{}")
+		if err := json.Unmarshal([]byte(t.task.ExtraVars), &extraVars); err != nil {
+			t.log("Could not unmarshal ExtraVars, data invalid!")
 			return err
 		}
 	}
@@ -184,21 +179,24 @@ func (t *task) runAnsible() error {
 	if t.task.Debug {
 		args = append(args, "-vvvv")
 	}
+
 	if len(extraVars) > 0 {
 		marshalVars, err := json.Marshal(extraVars)
 		if err != nil {
 			t.log("Could not marshal arguments to json string")
 			return err
 		}
-		args = append(args, "--extra-vars=", string(marshalVars))
+		args = append(args, "--extra-vars", string(marshalVars))
 	}
 
 	cmd := exec.Command("ansible", args...)
-	cmd.Env = []string{
-		"HOME=" + util.Config.TmpPath,
-		"PWD=" + util.Config.TmpPath,
-		"PYTHONUNBUFFERED=1",
-	}
+	cmd.Dir = util.Config.TmpPath
+
+	// This is must for ansible
+	env := os.Environ()
+
+	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir)
+	cmd.Env = env
 
 	t.logCmd(cmd)
 	return cmd.Run()

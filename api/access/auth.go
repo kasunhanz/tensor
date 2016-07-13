@@ -10,6 +10,7 @@ import (
 	"pearson.com/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	"errors"
 )
 
 func Authentication(c *gin.Context) {
@@ -19,8 +20,8 @@ func Authentication(c *gin.Context) {
 		var token models.APIToken
 		col := database.MongoDb.C("user_token")
 
-		if err := col.Find(bson.M{"_id": strings.Replace(authHeader, "bearer ", "", 1), "expired": false}).One(&token); err != nil {
-			c.Error(err)
+		if err := col.Find(bson.M{"_id": bson.ObjectIdHex(strings.Replace(authHeader, "bearer ", "", 1)), "expired": false}).One(&token); err != nil {
+			c.Error(errors.New("Cannot find user token for " + strings.Replace(authHeader, "bearer ", "", 1)))
 			c.AbortWithStatus(403)
 			return
 		}
@@ -29,13 +30,16 @@ func Authentication(c *gin.Context) {
 	} else {
 		// fetch session from cookie
 		cookie, err := c.Request.Cookie("hilbertspace")
+
 		if err != nil {
+			c.Error(err)
 			c.AbortWithStatus(403)
 			return
 		}
 
 		value := make(map[string]interface{})
 		if err = util.Cookie.Decode("hilbertspace", cookie.Value, &value); err != nil {
+			c.Error(err)
 			c.AbortWithStatus(403)
 			return
 		}
@@ -47,15 +51,14 @@ func Authentication(c *gin.Context) {
 			return
 		}
 
-		userID = user.(bson.ObjectId)
-		sessionID := sessionVal.(bson.ObjectId)
+		userID = bson.ObjectIdHex(user.(string))
+		sessionID := bson.ObjectIdHex(sessionVal.(string))
 
 		// fetch session
 		var session models.Session
 		col := database.MongoDb.C("session")
-
 		if err := col.Find(bson.M{"_id":sessionID, "user_id": userID, "expired": false}).One(&session); err != nil {
-			c.AbortWithStatus(403)
+			c.AbortWithError(403, errors.New("Cannot find session " + sessionID.Hex() + " for user " + userID.Hex()))
 			return
 		}
 
@@ -64,8 +67,7 @@ func Authentication(c *gin.Context) {
 			// destroy.
 
 			if err := col.UpdateId(sessionID, bson.M{"expired": true}); err != nil {
-				c.Error(err)
-				c.AbortWithStatus(403)
+				c.AbortWithError(403, errors.New("Error cound't expire session  " + sessionID.Hex()))
 				return
 			}
 
@@ -73,9 +75,8 @@ func Authentication(c *gin.Context) {
 			return
 		}
 
-		if err := col.UpdateId(sessionID, bson.M{"last_active": time.Now()}); err != nil {
-			c.Error(err)
-			c.AbortWithStatus(403)
+		if err := col.UpdateId(sessionID, bson.M{"$set":bson.M{"last_active": time.Now()}}); err != nil {
+			c.AbortWithError(403, err)
 			return
 		}
 	}

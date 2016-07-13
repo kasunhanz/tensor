@@ -19,7 +19,7 @@ func getUser(c *gin.Context) {
 }
 
 func getAPITokens(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
+	user := c.MustGet("user").(models.User)
 
 	var tokens []models.APIToken
 
@@ -33,7 +33,7 @@ func getAPITokens(c *gin.Context) {
 }
 
 func createAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
+	user := c.MustGet("user").(models.User)
 
 	token := models.APIToken{
 		ID:      bson.NewObjectId(),
@@ -50,7 +50,7 @@ func createAPIToken(c *gin.Context) {
 }
 
 func expireAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
+	user := c.MustGet("user").(models.User)
 
 	tokenID := c.Param("token_id")
 

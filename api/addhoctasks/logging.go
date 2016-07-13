@@ -7,23 +7,21 @@ import (
 	"time"
 
 	database "pearson.com/hilbert-space/db"
+	"gopkg.in/mgo.v2/bson"
 	"pearson.com/hilbert-space/models"
 )
 
 func (t *task) log(msg string) {
-	now := time.Now()
-
 	//TODO: send event
 
 	go func() {
 
-		taskOutput := models.AddHocTaskOutput{
-			TaskID: t.task.ID,
-			Output: msg,
-			Time:now,
-		}
-		err := taskOutput.AddHocTaskOutputInsert()
-		if err != nil {
+		c := database.MongoDb.C("addhoc_task")
+
+		if _, err := c.Upsert(bson.M{"_id": t.task.ID},
+			bson.M{
+				"$push": bson.M{"log": models.TaskLogItem{Record:msg, Time:time.Now()}},
+			}); err != nil {
 			panic(err)
 		}
 	}()
@@ -33,10 +31,12 @@ func (t *task) updateStatus() {
 
 	c := database.MongoDb.C("addhoc_task")
 
-	if err := c.UpdateId(t.task.ID, models.AddHocTask{
-		Status:t.task.Status,
-		Start:t.task.Start,
-		End:t.task.End,
+	if err := c.UpdateId(t.task.ID, bson.M{"$set":
+	bson.M{
+		"status":t.task.Status,
+		"start":t.task.Start,
+		"end":t.task.End,
+	},
 	}); err != nil {
 		fmt.Println("Failed to update task status")
 		t.log("Fatal error with database!")

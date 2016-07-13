@@ -46,7 +46,7 @@ func GetAll(c *gin.Context) {
 
 	col := database.MongoDb.C("task")
 
-	aggrigrate := []bson.M{
+	aggregate := []bson.M{
 		{"$lookup" : bson.M{
 			"from":"project_template",
 			"localField":"template_id",
@@ -67,7 +67,7 @@ func GetAll(c *gin.Context) {
 		TemplatePlaybook string `bson:"tpl_playbook" json:"tpl_playbook"`
 	}
 
-	if err := col.Pipe(aggrigrate).All(&tasks); err != nil {
+	if err := col.Pipe(aggregate).All(&tasks); err != nil {
 		panic(err)
 	}
 
