@@ -26,19 +26,6 @@ func AddTask(c *gin.Context) {
 	taskObj.Created = time.Now()
 	taskObj.Status = "waiting"
 
-	// Ansible's default connection type is smart
-	// if JSON payload doesn't have connection type
-	// we set it to smart
-	if len(taskObj.Connection) <= 0 {
-		taskObj.Connection = "smart"
-	}
-	// Ansible's default forks is 5
-	// if the JSON payload doesn't have number of forks
-	// we set it to 5
-	if taskObj.Forks < 1 {
-		taskObj.Forks = 5
-	}
-
 	// Insert the task object to database
 	if err := taskObj.Insert(); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -59,6 +46,7 @@ func AddTask(c *gin.Context) {
 		Created: time.Now(),
 	}.Insert()); err != nil {
 		// We don't inform client about this error
+		// do not ever panic :D
 		c.Error(err)
 		return
 	}
