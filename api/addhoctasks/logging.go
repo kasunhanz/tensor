@@ -11,7 +11,7 @@ import (
 	"pearson.com/hilbert-space/models"
 )
 
-func (t *task) log(msg string) {
+func (t *task) log(msg string, logType string) {
 	//TODO: send event
 
 	go func() {
@@ -20,7 +20,7 @@ func (t *task) log(msg string) {
 
 		if _, err := c.Upsert(bson.M{"_id": t.task.ID},
 			bson.M{
-				"$push": bson.M{"log": models.TaskLogItem{Record:msg, Time:time.Now()}},
+				"$push": bson.M{"log": models.TaskLogItem{Record:msg, Type: logType, Time: time.Now()}},
 			}); err != nil {
 			panic(err)
 		}
@@ -39,21 +39,22 @@ func (t *task) updateStatus() {
 	},
 	}); err != nil {
 		fmt.Println("Failed to update task status")
-		t.log("Fatal error with database!")
+		t.log("Fatal error with database!", models.TaskLogError)
 		panic(err)
 	}
 }
 
-func (t *task) logPipe(scanner *bufio.Scanner) {
+func (t *task) logPipe(scanner *bufio.Scanner, logType string) {
 	for scanner.Scan() {
-		t.log(scanner.Text())
+		t.log(scanner.Text(), logType)
 	}
 }
 
 func (t *task) logCmd(cmd *exec.Cmd) {
+
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
-	go t.logPipe(bufio.NewScanner(stderr))
-	go t.logPipe(bufio.NewScanner(stdout))
+	go t.logPipe(bufio.NewScanner(stderr), models.TaskLogError)
+	go t.logPipe(bufio.NewScanner(stdout), models.TaskLogInfo)
 }

@@ -16,6 +16,7 @@ import (
 	"pearson.com/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
 	"os"
+	"log"
 )
 
 type task struct {
@@ -46,13 +47,12 @@ func (t *task) run() {
 			ObjectID:    t.task.ID,
 			Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " finished",
 		}.Insert()); err != nil {
-			t.log("Fatal error inserting an event")
-			panic(err)
+			log.Print(err)
 		}
 	}()
 
 	if err := t.populateDetails(); err != nil {
-		t.log("Error: " + err.Error())
+		t.log("Error: " + err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -69,22 +69,21 @@ func (t *task) run() {
 		Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " is running",
 		Created: time.Now(),
 	}.Insert()); err != nil {
-		t.log("Fatal error inserting an event")
-		panic(err)
+		log.Print(err)
 	}
 
-	t.log("Started: " + t.task.ID.Hex() + "\n")
+	t.log("Started: " + t.task.ID.Hex(), models.TaskLogInfo)
 
 	if t.accessKey.Type != "credential" {
 		if err := t.installKey(t.accessKey); err != nil {
-			t.log("Failed installing access key for server access: " + err.Error())
+			t.log("Failed installing access key for server access: " + err.Error(), models.TaskLogError)
 			t.fail()
 			return
 		}
 	}
 
 	if err := t.runAnsible(); err != nil {
-		t.log("Running ansible failed: " + err.Error())
+		t.log("Running ansible failed: " + err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -99,11 +98,12 @@ func (t *task) populateDetails() error {
 	if bson.IsObjectIdHex(t.task.AccessKeyID.Hex()) {
 		accesskeyc := database.MongoDb.C("global_access_key")
 		if err := accesskeyc.FindId(t.task.AccessKeyID).One(&t.accessKey); err != nil {
+			t.log("Global Access Key not found!", models.TaskLogError)
 			return errors.New("Global Access Key not found!")
 		}
 
 		if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
-			t.log("Only ssh and credentials currently supported: " + t.accessKey.Type)
+			t.log("Only ssh and credentials currently supported: " + t.accessKey.Type, models.TaskLogError)
 			return errors.New("Unsupported Key")
 		}
 	}
@@ -112,7 +112,7 @@ func (t *task) populateDetails() error {
 }
 
 func (t *task) installKey(key models.GlobalAccessKey) error {
-	t.log("Global access key " + key.Name + " installed")
+	t.log("Global access key " + key.Name + " installed", models.TaskLogInfo)
 	err := ioutil.WriteFile(key.GetPath(), []byte(key.Secret), 0600)
 
 	return err
@@ -124,20 +124,17 @@ func (t *task) runAnsible() error {
 	// arguments for Ansible command
 	args := []string{
 		"all",
+		"-o",
 	}
-
+	// specify inventory, comma separated host list
 	if cap(t.task.Inventory) > 0 {
 		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
 
-	} else {
-		t.log("No argument passed to inventory")
-		return errors.New("No argument passed to inventory")
 	}
 
 	if len(t.task.Module) > 0 {
 		args = append(args, "-m", t.task.Module)
 	} else {
-		t.log("No argument passed to command module")
 		return errors.New("No argument passed to command module")
 	}
 
@@ -149,9 +146,21 @@ func (t *task) runAnsible() error {
 		args = append(args, "-f", strconv.Itoa(t.task.Forks))
 	}
 
+	// don't make any changes; instead, try to predict some
+	// of the changes that may occur
+	if t.task.Check {
+		args = append(args, "--check")
+	}
+
+	// when changing (small) files and templates, show the
+	// differences in those files; works great with --check
+	if t.task.Diff {
+		args = append(args, "--diff")
+	}
+
+	// connection type to use (default=smart)
 	if len(t.task.Connection) > 0 {
 		if (t.task.Connection == "winrm") {
-			t.log("Windows hosts are not currently supported")
 			return errors.New("Windows hosts are not currently supported")
 		}
 		args = append(args, "-c", t.task.Connection)
@@ -162,8 +171,7 @@ func (t *task) runAnsible() error {
 
 	if len(t.task.ExtraVars) > 0 {
 		if err := json.Unmarshal([]byte(t.task.ExtraVars), &extraVars); err != nil {
-			t.log("Could not unmarshal ExtraVars, data invalid!")
-			return err
+			return errors.New("Could not unmarshal ExtraVars, data invalid!")
 		}
 	}
 
@@ -173,18 +181,36 @@ func (t *task) runAnsible() error {
 		extraVars["ansible_ssh_pass"] = crypt.Decrypt(t.accessKey.Secret)
 	} else if t.accessKey.Type == "ssh" {
 		args = append(args, "--private-key=" + t.accessKey.GetPath())
-
 	}
 
+	// verbose mode -vvvv to enable
+	// connection debugging)
 	if t.task.Debug {
 		args = append(args, "-vvvv")
+	}
+
+	// run operations with become (does not imply password
+	// prompting)
+	if t.task.Become {
+		args = append(args, "-b")
+
+		// privilege escalation method to use (default=sudo),
+		// valid choices: [ sudo | su | pbrun | pfexec | runas |
+		// doas | dzdo ]
+		if len(t.task.BecomeMethod) > 0 {
+			args = append(args, t.task.BecomeMethod)
+		}
+
+		// run operations as this user (default=root)
+		if len(t.task.BecomeUser) > 0 {
+			args = append(args, t.task.BecomeUser)
+		}
 	}
 
 	if len(extraVars) > 0 {
 		marshalVars, err := json.Marshal(extraVars)
 		if err != nil {
-			t.log("Could not marshal arguments to json string")
-			return err
+			return errors.New("Could not marshal arguments to json string")
 		}
 		args = append(args, "--extra-vars", string(marshalVars))
 	}
@@ -192,9 +218,8 @@ func (t *task) runAnsible() error {
 	cmd := exec.Command("ansible", args...)
 	cmd.Dir = util.Config.TmpPath
 
-	// This is must for ansible
+	// This is must for Ansible
 	env := os.Environ()
-
 	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir)
 	cmd.Env = env
 
