@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"pearson.com/hilbert-space/api/addhoctasks"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/gin-gonic/gin/binding"
 )
 
 func main() {
@@ -38,6 +39,10 @@ func main() {
 	}()
 
 	go sockets.StartWS()
+
+	//Define custom validator
+	binding.Validator = &util.SpaceValidator{}
+
 	r := gin.New()
 	r.Use(gin.Recovery(), recovery, gin.Logger())
 
@@ -47,6 +52,7 @@ func main() {
 	go addhoctasks.StartRunner()
 
 	r.Run(util.Config.Port)
+
 }
 
 func recovery(c *gin.Context) {
