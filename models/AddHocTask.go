@@ -18,7 +18,7 @@ type AddHocTask struct {
 	AccessKeyID  bson.ObjectId `bson:"access_key_id" json:"access_key_id" binding:"required"`
 
 	Status       string `bson:"status" json:"status" binding:"omitempty"`
-	Debug        bool   `bson:"debug" json:"debug"`
+	Debug        bool   `bson:"debug" json:"debug" binding:"omitempty"`
 
 	Module       string `bson:"module" json:"module" binding:"required" binding:"alpha,required"`
 	Arguments    string `bson:"arguments,omitempty" json:"arguments,omitempty"`
