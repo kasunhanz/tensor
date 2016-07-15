@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"os"
 	"gopkg.in/mgo.v2/bson"
-	"net/http"
+	"errors"
 )
 
 func isXHR(c *gin.Context) bool {
@@ -49,14 +49,13 @@ func GetIntParam(name string, c *gin.Context) (int, error) {
 
 // GetObjectIdParam is to Get ObjectID url parameter
 // If the parameter is not an ObjectId it will terminate the request
-func GetObjectIdParam(name string, c *gin.Context) (bson.ObjectId) {
+func GetObjectIdParam(name string, c *gin.Context) (string, error) {
 	param := c.Params.ByName(name)
 
 	if !bson.IsObjectIdHex(param) {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid ID", "status": "error"})
-		c.Abort() // terminate request
+		return "", errors.New("Invalid ObjectId")
 	}
-	return param;
+	return param, nil;
 }
 
 func FindHilbertspace() string {

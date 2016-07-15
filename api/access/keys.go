@@ -15,7 +15,13 @@ import (
 // will find, assign the correct object to gin context as globalAccessKey
 // key_id must be a bson.ObjectId otherwise request will terminate
 func KeyMiddleware(c *gin.Context) {
-	keyID := util.GetObjectIdParam("key_id", c)
+	keyID, err := util.GetObjectIdParam("key_id", c)
+
+	if err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid ID", "status": "error"})
+		c.Abort() // terminate request
+		return
+	}
 
 	var key models.GlobalAccessKey
 
