@@ -32,7 +32,7 @@ type AddHocTask struct {
 
 	ExtraVars    string `bson:"extra_vars,omitempty" json:"extra_vars,omitempty"`
 	Forks        int    `bson:"forks,omitempty" json:"forks,omitempty" binding:"omitempty,gt=0,numeric"`
-	Inventory    []string `bson:"inventory" json:"inventory" binding:"gt=0,dive,ip,required"`
+	Inventory    []string `bson:"inventory" json:"inventory" binding:"gt=0,dive,ip|domain_server,required"`
 	Connection   string `bson:"connection,omitempty" json:"connection,omitempty" binding:"omitempty,alpha"`
 	Timeout      int    `bson:"timeout,omitempty" json:"timeout,omitempty" binding:"omitempty,gt=0,numeric"`
 
