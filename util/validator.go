@@ -10,11 +10,13 @@ import (
 )
 
 const (
+	domainServerRegexString = "^[a-zA-Z0-9-]{1,61}\\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\\.[a-zA-Z]{2,}$"
 	ansibleBecomeMethodRegexString = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
 )
 
 var (
 	ansibleBecomeMethodRegex = regexp.MustCompile(ansibleBecomeMethodRegexString)
+	domainServerRegex = regexp.MustCompile(domainServerRegexString)
 )
 
 type SpaceValidator struct {
@@ -41,6 +43,7 @@ func (v *SpaceValidator) lazyinit() {
 
 		// Register custom validator functions
 		v.validate.RegisterValidation("ansible_becomemethod", isAnsibleBecomeMethod)
+		v.validate.RegisterValidation("domain_server", isDomainServer)
 	})
 }
 
@@ -55,4 +58,8 @@ func kindOfData(data interface{}) reflect.Kind {
 
 func isAnsibleBecomeMethod(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
 	return ansibleBecomeMethodRegex.MatchString(field.String())
+}
+
+func isDomainServer(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
+	return domainServerRegex.MatchString(field.String())
 }
