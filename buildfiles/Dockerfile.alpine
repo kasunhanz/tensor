@@ -1,15 +1,11 @@
-FROM centos:centos7
+FROM alpine:edge
 MAINTAINER Hilbert Space Project <udaya.balagalla@pearson.com>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r mongodb && useradd -r -g mongodb mongodb
+RUN addgroup -g 82 -S mongodb && adduser -u 82 -D -S -G mongodb mongodb
 
-ADD mongodb-org-3.2.repo /etc/yum.repos.d/mongodb-org-3.2.repo
-
-RUN yum -y update;
-RUN yum install -y mongodb-org; yum clean all
-
-RUN mv /etc/mongod.conf /etc/mongod.conf.orig
+RUN echo http://dl-4.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories && \
+  apk add --no-cache mongodb
 
 RUN mkdir -p /data/db && chown -R mongodb:mongodb /data/db
 
@@ -30,15 +26,15 @@ ENV MONGO_APP_USER hilbert
 ENV MONGO_APP_PASSWORD hilbert
 ENV MONGO_APP_DATABASE hilbertspace
 
-RUN mkdir /opt/mongo
-ADD mongodb-keyfile /opt/mongo/mongodb-keyfile
-ADD mongo_setup_users.sh /opt/mongo/mongo_setup_users.sh
-ADD mongo_setup_repset.sh /opt/mongo/mongo_setup_repset.sh
-ADD check-keyfile.sh /opt/mongo/check-keyfile.sh
+RUN mkdir -p /opt/mongo
+COPY mongodb-keyfile /opt/mongo/mongodb-keyfile
+COPY mongo_setup_users.sh /opt/mongo/mongo_setup_users.sh
+COPY mongo_setup_repset.sh /opt/mongo/mongo_setup_repset.sh
+COPY check-keyfile.sh /opt/mongo/check-keyfile.sh
 
 RUN chmod +x /opt/mongo/check-keyfile.sh
-RUN /opt/mongo/check-keyfile.sh
-ADD run.sh /run.sh
+RUN sh /opt/mongo/check-keyfile.sh
+COPY run.sh /run.sh
 RUN chown -R mongodb:mongodb /opt/mongo
 RUN chmod 600 /opt/mongo/mongodb-keyfile
 
@@ -46,4 +42,4 @@ VOLUME /data/db
 
 EXPOSE 27017 28017
 
-CMD ["/run.sh"]
+CMD ["sh", "/run.sh"]
