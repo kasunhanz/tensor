@@ -75,6 +75,9 @@ func AddKey(c *gin.Context) {
 	switch key.Type {
 	// We do not currently support these connection types
 	case "aws", "gcloud", "do", "ssh":
+		c.JSON(http.StatusBadRequest, gin.H{"message":"Dooesn't support aws, gcloud, do", "status":"error"})
+		c.Abort()
+		return
 		break
 	case "credential":
 		key.Secret = crypt.Encrypt(key.Secret);
@@ -127,8 +130,7 @@ func UpdateKey(c *gin.Context) {
 	case "aws", "gcloud", "do", "ssh":
 		break
 	case "credential":
-		secret := crypt.Encrypt(key.Secret)
-		key.Secret = secret;
+		key.Secret = crypt.Encrypt(key.Secret)
 		break
 	default:
 		// Give the user an informative error
