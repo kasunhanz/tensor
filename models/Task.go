@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 )
 
 // Task is the model for project_task

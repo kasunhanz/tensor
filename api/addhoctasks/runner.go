@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/models"
+	database "github.com/gamunu/hilbert-space/db"
+	"github.com/gamunu/hilbert-space/models"
 	"strings"
 	"errors"
 	"io/ioutil"
 	"os/exec"
-	"pearson.com/hilbert-space/util"
-	"pearson.com/hilbert-space/crypt"
+	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
 	"os"
 	"log"
@@ -122,10 +122,8 @@ func (t *task) installKey(key models.GlobalAccessKey) error {
 func (t *task) runAnsible() error {
 
 	// arguments for Ansible command
-	args := []string{
-		"all",
-		"-o",
-	}
+	args := []string{"all" }
+
 	// specify inventory, comma separated host list
 	if cap(t.task.Inventory) > 0 {
 		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
@@ -149,19 +147,19 @@ func (t *task) runAnsible() error {
 	// don't make any changes; instead, try to predict some
 	// of the changes that may occur
 	if t.task.Check {
-		args = append(args, "--check")
+		args = append(args, "-C")
 	}
 
 	// when changing (small) files and templates, show the
 	// differences in those files; works great with --check
 	if t.task.Diff {
-		args = append(args, "--diff")
+		args = append(args, "-D")
 	}
 
 	// connection type to use (default=smart)
 	if len(t.task.Connection) > 0 {
-		if (t.task.Connection == "winrm") {
-			return errors.New("Windows hosts are not currently supported")
+		if t.task.Connection == "winrm" {
+			args = append(args, "-e", "")
 		}
 		args = append(args, "-c", t.task.Connection)
 	}
@@ -178,12 +176,12 @@ func (t *task) runAnsible() error {
 	if t.accessKey.Type == "credential" {
 		args = append(args, "-u", t.accessKey.Key)
 		//add ssh password as an extra argument
-		extraVars["ansible_ssh_pass"] = crypt.Decrypt(t.accessKey.Secret)
+		args = append(args, "-e", "ansible_ssh_pass", crypt.Decrypt(t.accessKey.Secret))
 	} else if t.accessKey.Type == "ssh" {
 		args = append(args, "--private-key=" + t.accessKey.GetPath())
 	}
 
-	// verbose mode -vvvv to enable
+	// verbose mode -nasiblevvvv to enable
 	// connection debugging)
 	if t.task.Debug {
 		args = append(args, "-vvvv")
@@ -212,7 +210,7 @@ func (t *task) runAnsible() error {
 		if err != nil {
 			return errors.New("Could not marshal arguments to json string")
 		}
-		args = append(args, "--extra-vars", string(marshalVars))
+		args = append(args, "-e", string(marshalVars))
 	}
 
 	cmd := exec.Command("ansible", args...)
@@ -220,7 +218,7 @@ func (t *task) runAnsible() error {
 
 	// This is must for Ansible
 	env := os.Environ()
-	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir)
+	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir, "HS_TASK_ID=" + t.task.ID.Hex())
 	cmd.Env = env
 
 	t.logCmd(cmd)

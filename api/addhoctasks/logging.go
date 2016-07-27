@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"time"
 
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
-	"pearson.com/hilbert-space/models"
+	"github.com/gamunu/hilbert-space/models"
 )
 
 func (t *task) log(msg string, logType string) {

@@ -8,7 +8,7 @@ When creating a pull-request you should:
 
 # Installing dependencies
 
-Clone the project to `$GOPATH/src/pearson.com/hilbert-space` (more on GOPATHS below)
+Clone the project to `$GOPATH/src/github.com/gamunu/hilbert-space` (more on GOPATHS below)
 
 > note: You should clone hilbertspace with all submodules
 > - you should have latest go installed and node with ES6 (used to be a special `harmony` flag) capability

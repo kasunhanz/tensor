@@ -2,7 +2,7 @@ package db
 
 import (
 	"gopkg.in/mgo.v2"
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 	"time"
 )
 
@@ -21,8 +21,11 @@ func Connect() error {
 		Database: cfg.DbName,
 		Username: cfg.Username,
 		Password: cfg.Password,
-		ReplicaSetName: cfg.ReplicaSet,
-		Mechanism: "SCRAM-SHA-1",
+	}
+
+	if len(cfg.ReplicaSet) > 0 {
+		mongoDBDialInfo.ReplicaSetName = cfg.ReplicaSet
+		mongoDBDialInfo.Mechanism = "SCRAM-SHA-1"
 	}
 
 	// Create a session which maintains a pool of socket connections

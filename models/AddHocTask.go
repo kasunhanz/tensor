@@ -2,7 +2,7 @@ package models
 
 import (
 	"time"
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -18,7 +18,7 @@ type AddHocTask struct {
 	AccessKeyID  bson.ObjectId `bson:"access_key_id" json:"access_key_id" binding:"required"`
 
 	Status       string `bson:"status" json:"status" binding:"omitempty"`
-	Debug        bool   `bson:"debug" json:"debug"`
+	Debug        bool   `bson:"debug" json:"debug" binding:"omitempty"`
 
 	Module       string `bson:"module" json:"module" binding:"required" binding:"alpha,required"`
 	Arguments    string `bson:"arguments,omitempty" json:"arguments,omitempty"`
@@ -32,13 +32,14 @@ type AddHocTask struct {
 
 	ExtraVars    string `bson:"extra_vars,omitempty" json:"extra_vars,omitempty"`
 	Forks        int    `bson:"forks,omitempty" json:"forks,omitempty" binding:"omitempty,gt=0,numeric"`
-	Inventory    []string `bson:"inventory" json:"inventory" binding:"gt=0,dive,ip,required"`
+	Inventory    []string `bson:"inventory" json:"inventory" binding:"gt=0,dive,ip|domain_server,required"`
 	Connection   string `bson:"connection,omitempty" json:"connection,omitempty" binding:"omitempty,alpha"`
 	Timeout      int    `bson:"timeout,omitempty" json:"timeout,omitempty" binding:"omitempty,gt=0,numeric"`
 
 	// task status without log
 	// JSON omit (-) is a must, otherwise users will be able to inject log items
 	Log          []TaskLogItem    `bson:"log" json:"-"`
+	TaskStatus   []bson.M              `bson:"task_status" json:"-"`
 
 	Created      time.Time  `bson:"created" json:"created"`
 	Start        time.Time `bson:"start" json:"start"`

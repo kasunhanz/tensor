@@ -2,9 +2,9 @@ package addhoctasks
 
 import (
 	"time"
-	"pearson.com/hilbert-space/models"
+	"github.com/gamunu/hilbert-space/models"
 	"github.com/gin-gonic/gin"
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
 )

@@ -1,7 +1,7 @@
 package models
 
 import (
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 )
 // Environment is the model for

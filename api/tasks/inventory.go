@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"io/ioutil"
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
 )

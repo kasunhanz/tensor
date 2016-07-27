@@ -1,6 +1,6 @@
 machine:
   environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/pearson.com/hilbert-space/"
+    CPATH: "/home/ubuntu/.go_workspace/src/github.com/gamunu/hilbert-space/"
 
 dependencies:
   pre:

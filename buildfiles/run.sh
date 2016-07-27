@@ -5,7 +5,7 @@ if [ "$MONGO_ROLE" == "primary" ]; then
   /opt/mongo/mongo_setup_users.sh
 fi
 
-mongodb_cmd="mongod --storageEngine $STORAGE_ENGINE --keyFile /opt/mongo/mongodb-keyfile"
+mongodb_cmd="/usr/bin/mongod --storageEngine $STORAGE_ENGINE --keyFile /opt/mongo/mongodb-keyfile"
 cmd="$mongodb_cmd --httpinterface --rest --replSet $REP_SET"
 
 if [ "$AUTH" == "yes" ]; then

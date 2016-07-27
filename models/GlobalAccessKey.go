@@ -1,9 +1,9 @@
 package models
 
 import (
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 )
 
 // GlobalAccessKey is the model for
