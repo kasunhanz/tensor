@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/models"
+	database "github.com/gamunu/hilbert-space/db"
+	"github.com/gamunu/hilbert-space/models"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"encoding/json"
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 )
 
 type task struct {

@@ -2,7 +2,7 @@ package db
 
 import (
 	"gopkg.in/mgo.v2"
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 	"time"
 )
 

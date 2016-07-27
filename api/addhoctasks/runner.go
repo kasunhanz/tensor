@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/models"
+	database "github.com/gamunu/hilbert-space/db"
+	"github.com/gamunu/hilbert-space/models"
 	"strings"
 	"errors"
 	"io/ioutil"
 	"os/exec"
-	"pearson.com/hilbert-space/util"
-	"pearson.com/hilbert-space/crypt"
+	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
 	"os"
 	"log"
@@ -218,7 +218,7 @@ func (t *task) runAnsible() error {
 
 	// This is must for Ansible
 	env := os.Environ()
-	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir, "HS_TASK_ID=" + t.task.ID)
+	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir, "HS_TASK_ID=" + t.task.ID.Hex())
 	cmd.Env = env
 
 	t.logCmd(cmd)

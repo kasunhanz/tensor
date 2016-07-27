@@ -2,7 +2,7 @@ package models
 
 import (
 	"gopkg.in/mgo.v2/bson"
-	database "pearson.com/hilbert-space/db"
+	database "github.com/gamunu/hilbert-space/db"
 )
 
 // Template is the model for project_template

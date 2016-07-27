@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"pearson.com/hilbert-space/models"
+	"github.com/gamunu/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )

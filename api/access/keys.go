@@ -1,13 +1,13 @@
 package access
 
 import (
-	database "pearson.com/hilbert-space/db"
-	"pearson.com/hilbert-space/models"
+	database "github.com/gamunu/hilbert-space/db"
+	"github.com/gamunu/hilbert-space/models"
 	"github.com/gin-gonic/gin"
-	"pearson.com/hilbert-space/crypt"
+	"github.com/gamunu/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
 	"time"
-	"pearson.com/hilbert-space/util"
+	"github.com/gamunu/hilbert-space/util"
 	"net/http"
 )
 
