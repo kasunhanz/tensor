@@ -39,6 +39,7 @@ type AddHocTask struct {
 	// task status without log
 	// JSON omit (-) is a must, otherwise users will be able to inject log items
 	Log          []TaskLogItem    `bson:"log" json:"-"`
+	TaskStatus   []bson.M              `bson:"task_status" json:"-"`
 
 	Created      time.Time  `bson:"created" json:"created"`
 	Start        time.Time `bson:"start" json:"start"`
