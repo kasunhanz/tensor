@@ -1,0 +1,25 @@
+Package: hilbertspace
+Source: hilbertspace
+Version: $var_version
+Architecture: amd64
+Maintainer: Gamunu Balagalla <gamunu.balagalla@outlook.com>
+Installed-Size: 14 MB
+Depends: python3-pymongo (>= 3.2), python-pip (>= 8.1), libkrb5-dev (>= 1.13), krb5-user (>= 1.13), python-dev (>= 2.7), adduser
+Section: admin
+Priority: optional
+Bug: https://github.com/gamunu/hilbertspace/issues/new
+Homepage: https://gamunu.github.io/hilbertspace/
+Vcs-Git: https://github.com/gamunu/hilbertspace.git
+Vcs-Browser: https://github.com/gamunu/hilbertspace.git
+Description: MongoDB database server
+ HilbertSpace is a comprehensive web-based automation framework and
+ Centralized infrastructure management REST API, based on ansible,
+ provides role-based access control, job scheduling, inventory management.
+
+ MongoDB features:
+    * Configuration Management
+    * Provisioning
+    * Code Deployments
+    * Continuous Integration & Continuous Delivery
+    * Security & Compliance
+    * Orchestration
