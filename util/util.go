@@ -1,14 +1,14 @@
 package util
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
-	"strconv"
-	"strings"
+	"gopkg.in/mgo.v2/bson"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"os"
-	"gopkg.in/mgo.v2/bson"
-	"errors"
+	"strconv"
+	"strings"
 )
 
 func isXHR(c *gin.Context) bool {
@@ -55,7 +55,7 @@ func GetObjectIdParam(name string, c *gin.Context) (string, error) {
 	if !bson.IsObjectIdHex(param) {
 		return "", errors.New("Invalid ObjectId")
 	}
-	return param, nil;
+	return param, nil
 }
 
 func FindHilbertspace() string {

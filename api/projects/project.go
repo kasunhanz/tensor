@@ -19,7 +19,7 @@ func ProjectMiddleware(c *gin.Context) {
 	col := database.MongoDb.C("project")
 
 	query := bson.M{
-		"_id": bson.ObjectIdHex(projectID),
+		"_id":           bson.ObjectIdHex(projectID),
 		"users.user_id": user.ID,
 	}
 

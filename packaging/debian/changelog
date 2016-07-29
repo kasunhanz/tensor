@@ -1,0 +1,11 @@
+hilbertspace (%VERSION%-%RELEASE%) %DIST%; urgency=low
+
+  * %VERSION% release
+
+ -- HilbertSpace <gamunu.balagalla@outlook.com>  %DATE%
+
+hilbertspace (0.0.1) unstable; urgency=low
+
+  * Initial Release
+
+ -- Gamunu Balagalla (gamunu) <gamunu.balagalla@outlook.com>  Tue, 17 Apr 2012 17:17:01 -0400

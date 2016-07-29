@@ -1,22 +1,22 @@
 package models
 
 import (
+	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
-	database "github.com/gamunu/hilbert-space/db"
 )
 
 // AccessKey is the model for access_key
 // collection
 type AccessKey struct {
-	ID        bson.ObjectId    `bson:"_id" json:"id"`
-	Name      string `bson:"name" json:"name" binding:"required"`
+	ID   bson.ObjectId `bson:"_id" json:"id"`
+	Name string        `bson:"name" json:"name" binding:"required"`
 	// 'aws/do/gcloud/ssh',
-	Type      string `bson:"type" json:"type" binding:"required"`
+	Type string `bson:"type" json:"type" binding:"required"`
 
-	ProjectID bson.ObjectId    `bson:"project_id" json:"project_id"`
-	Key       string `bson:"key" json:"key"`
-	Secret    string `bson:"secret" json:"secret"`
+	ProjectID bson.ObjectId `bson:"project_id" json:"project_id"`
+	Key       string        `bson:"key" json:"key"`
+	Secret    string        `bson:"secret" json:"secret"`
 }
 
 // get access key path

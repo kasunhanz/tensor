@@ -23,9 +23,10 @@ _testmain.go
 *.test
 *.prof
 
-#ignore binaries
-cli/hilbertspace_linux_386
-cli/hilbertspace_linux_amd64
+#ignore build artifacts
+build
+dist
+deb-build
 
 #ignore project vs code
 .vscode/

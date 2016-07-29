@@ -34,7 +34,7 @@ class CallbackModule(CallbackBase):
 
         # Get configuration object from hilbertspace
         # configuration file
-        with open("/etc/hilbert_space.yaml", 'r') as stream:
+        with open("/etc/hilbertspace.conf", 'r') as stream:
             try:
                 self.config = yaml.load(stream)
             except yaml.YAMLError as exc:

@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/gamunu/hilbert-space/api"
+	"github.com/gamunu/hilbert-space/api/addhoctasks"
 	"github.com/gamunu/hilbert-space/api/sockets"
 	"github.com/gamunu/hilbert-space/api/tasks"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
 	"github.com/gamunu/hilbert-space/util"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/gamunu/hilbert-space/api/addhoctasks"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/gin-gonic/gin/binding"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func main() {
@@ -91,12 +91,12 @@ func doSetup() int {
 		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 
 		newUser := models.User{
-			ID: bson.NewObjectId(),
-			Name: user.Name,
+			ID:       bson.NewObjectId(),
+			Name:     user.Name,
 			Username: user.Username,
-			Email: user.Email,
+			Email:    user.Email,
 			Password: string(pwdHash),
-			Created:time.Now(),
+			Created:  time.Now(),
 		}
 
 		if err := newUser.Insert(); err != nil {

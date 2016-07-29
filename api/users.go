@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"time"
 
+	"fmt"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
-	"fmt"
 )
 
 func getUsers(c *gin.Context) {
@@ -70,7 +70,7 @@ func updateUser(c *gin.Context) {
 
 	col := database.MongoDb.C("user")
 
-	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username":user.Username, "email":user.Email}); err != nil {
+	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username": user.Username, "email": user.Email}); err != nil {
 		panic(err)
 	}
 
@@ -91,7 +91,7 @@ func updateUserPassword(c *gin.Context) {
 
 	col := database.MongoDb.C("user")
 
-	if err := col.UpdateId(user.ID, bson.M{"password":string(password)}); err != nil {
+	if err := col.UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
 		panic(err)
 	}
 
@@ -103,7 +103,7 @@ func deleteUser(c *gin.Context) {
 
 	col := database.MongoDb.C("project")
 
-	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users" : bson.M{"user_id": user.ID}}});
+	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
 	if err != nil {
 		panic(err)
 	}

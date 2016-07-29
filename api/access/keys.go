@@ -1,14 +1,14 @@
 package access
 
 import (
+	"github.com/gamunu/hilbert-space/crypt"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
-	"github.com/gin-gonic/gin"
-	"github.com/gamunu/hilbert-space/crypt"
-	"gopkg.in/mgo.v2/bson"
-	"time"
 	"github.com/gamunu/hilbert-space/util"
+	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 	"net/http"
+	"time"
 )
 
 // KeyMiddleware is taking key_id request parameter and
@@ -29,13 +29,13 @@ func KeyMiddleware(c *gin.Context) {
 
 	if err := col.FindId(bson.ObjectIdHex(keyID)).One(&key); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"ID doesn't exisit", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "ID doesn't exisit", "status": "error"})
 		c.Abort() // abort the request if the key doesn't exist in the db
 		return
 	}
 
 	c.Set("globalAccessKey", key) // set key object to gin context
-	c.Next() // move to next handler
+	c.Next()                      // move to next handler
 }
 
 // GetKeys will returns all global_access_keys
@@ -52,8 +52,8 @@ func GetKeys(c *gin.Context) {
 		query = bson.M{"type": c.Query("type")}
 	}
 
-	if err := col.Find(query).Select(bson.M{"_id":1, "name":1, "type":1, "key":1}).All(&keys); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Cound not find keys", "status":"error"})
+	if err := col.Find(query).Select(bson.M{"_id": 1, "name": 1, "type": 1, "key": 1}).All(&keys); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Cound not find keys", "status": "error"})
 		c.Abort()
 		return
 	}
@@ -67,7 +67,7 @@ func AddKey(c *gin.Context) {
 
 	if err := c.Bind(&key); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Invalid request", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request", "status": "error"})
 		c.Abort() // abort the request if JSON payload is invalid
 		return
 	}
@@ -75,16 +75,15 @@ func AddKey(c *gin.Context) {
 	switch key.Type {
 	// We do not currently support these connection types
 	case "aws", "gcloud", "do", "ssh":
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Dooesn't support aws, gcloud, do", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Dooesn't support aws, gcloud, do", "status": "error"})
 		c.Abort()
 		return
-		break
 	case "credential":
-		key.Secret = crypt.Encrypt(key.Secret);
+		key.Secret = crypt.Encrypt(key.Secret)
 		break
 	default:
 		// Give the user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Unknown authentication scheme", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Unknown authentication scheme", "status": "error"})
 		c.Abort()
 		return
 	}
@@ -93,17 +92,17 @@ func AddKey(c *gin.Context) {
 
 	if err := key.Insert(); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusInternalServerError, gin.H{"message":"Unable to create key", "status":"error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Unable to create key", "status": "error"})
 		c.Abort() // abort the request if insert fails
 		return
 	}
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		ObjectType:  "key",
 		ObjectID:    key.ID,
 		Description: "Global Access Key " + key.Name + " created",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		// Log error but do not abort the request
 		// Since information already in the database
@@ -120,7 +119,7 @@ func UpdateKey(c *gin.Context) {
 
 	if err := c.Bind(&key); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Invalid request", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request", "status": "error"})
 		c.Abort() // abort the request if JSON payload is invalid
 		return
 	}
@@ -134,7 +133,7 @@ func UpdateKey(c *gin.Context) {
 		break
 	default:
 		// Give the user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Unknown authentication scheme", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Unknown authentication scheme", "status": "error"})
 		c.Abort()
 		return
 	}
@@ -146,17 +145,17 @@ func UpdateKey(c *gin.Context) {
 
 	if err := oldKey.Update(); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusInternalServerError, gin.H{"message":"Unable to update key", "status":"error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Unable to update key", "status": "error"})
 		c.Abort() // abort the request if update fails
 		return
 	}
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		Description: "Global Access Key " + key.Name + " updated",
 		ObjectID:    oldKey.ID,
 		ObjectType:  "key",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		// Log error but do not abort the request
 		// Since information already updated
@@ -174,17 +173,17 @@ func RemoveKey(c *gin.Context) {
 
 	if err := key.Remove(); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Invalid request", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request", "status": "error"})
 		c.Abort() // abort the request if remove failed
 		return
 	}
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
-		ObjectID: key.ID,
+		ID:          bson.NewObjectId(),
+		ObjectID:    key.ID,
 		ObjectType:  "key",
 		Description: "Global Access Key " + key.Name + " deleted",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		// Log error but do not abort the request
 		// Since information removed from the database

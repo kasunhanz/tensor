@@ -9,13 +9,13 @@ type hub struct {
 	connections map[*connection]bool
 
 	// Inbound messages from the connections.
-	broadcast   chan *sendRequest
+	broadcast chan *sendRequest
 
 	// Register requests from the connections.
-	register    chan *connection
+	register chan *connection
 
 	// Unregister requests from connections.
-	unregister  chan *connection
+	unregister chan *connection
 }
 
 type sendRequest struct {

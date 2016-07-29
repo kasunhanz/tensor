@@ -56,7 +56,7 @@ func expireAPIToken(c *gin.Context) {
 
 	col := database.MongoDb.C("user_token")
 
-	if err := col.Update(bson.M{"_id": tokenID, "user_id":user.ID}, bson.M{"expired": true}); err != nil {
+	if err := col.Update(bson.M{"_id": tokenID, "user_id": user.ID}, bson.M{"expired": true}); err != nil {
 		c.AbortWithStatus(400)
 		panic(err)
 	}

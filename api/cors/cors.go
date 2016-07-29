@@ -25,16 +25,16 @@ import (
 )
 
 const (
-	AllowOriginKey string = "Access-Control-Allow-Origin"
-	AllowCredentialsKey = "Access-Control-Allow-Credentials"
-	AllowHeadersKey = "Access-Control-Allow-Headers"
-	AllowMethodsKey = "Access-Control-Allow-Methods"
-	MaxAgeKey = "Access-Control-Max-Age"
+	AllowOriginKey      string = "Access-Control-Allow-Origin"
+	AllowCredentialsKey        = "Access-Control-Allow-Credentials"
+	AllowHeadersKey            = "Access-Control-Allow-Headers"
+	AllowMethodsKey            = "Access-Control-Allow-Methods"
+	MaxAgeKey                  = "Access-Control-Max-Age"
 
-	OriginKey = "Origin"
-	RequestMethodKey = "Access-Control-Request-Method"
+	OriginKey         = "Origin"
+	RequestMethodKey  = "Access-Control-Request-Method"
 	RequestHeadersKey = "Access-Control-Request-Headers"
-	ExposeHeadersKey = "Access-Control-Expose-Headers"
+	ExposeHeadersKey  = "Access-Control-Expose-Headers"
 )
 
 const (
@@ -51,13 +51,13 @@ type Config struct {
 
 	// Comma delimited list of origin domains. Wildcard "*" is also allowed, and matches all origins.
 	// If the origin does not match an item in the list, then the request is denied.
-	Origins         string
-	origins         []string
+	Origins string
+	origins []string
 
 	// This are the headers that the resource supports, and will accept in the request.
 	// Default is "Authorization".
-	RequestHeaders  string
-	requestHeaders  []string
+	RequestHeaders string
+	requestHeaders []string
 
 	// These are headers that should be accessable by the CORS client, they are in addition to those defined by the spec as "simple response headers"
 	//	 Cache-Control
@@ -66,20 +66,20 @@ type Config struct {
 	//	 Expires
 	//	 Last-Modified
 	//	 Pragma
-	ExposedHeaders  string
+	ExposedHeaders string
 
 	// Comma delimited list of acceptable HTTP methods.
-	Methods         string
-	methods         []string
+	Methods string
+	methods []string
 
 	// The amount of time in seconds that the client should cache the Preflight request
-	MaxAge          time.Duration
-	maxAge          string
+	MaxAge time.Duration
+	maxAge string
 
 	// If true, then cookies and Authorization headers are allowed along with the request.  This
 	// is passed to the browser, but is not enforced.
-	Credentials     bool
-	credentials     string
+	Credentials bool
+	credentials string
 }
 
 // One time, do the conversion from our the public facing Configuration,

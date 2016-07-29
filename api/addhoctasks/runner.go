@@ -6,17 +6,17 @@ import (
 	"strconv"
 	"time"
 
+	"errors"
+	"github.com/gamunu/hilbert-space/crypt"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
-	"strings"
-	"errors"
-	"io/ioutil"
-	"os/exec"
 	"github.com/gamunu/hilbert-space/util"
-	"github.com/gamunu/hilbert-space/crypt"
 	"gopkg.in/mgo.v2/bson"
-	"os"
+	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
+	"strings"
 )
 
 type task struct {
@@ -42,7 +42,7 @@ func (t *task) run() {
 		t.updateStatus()
 
 		if err := (models.Event{
-			ID: bson.NewObjectId(),
+			ID:          bson.NewObjectId(),
 			ObjectType:  "addhoc_task",
 			ObjectID:    t.task.ID,
 			Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " finished",
@@ -52,7 +52,7 @@ func (t *task) run() {
 	}()
 
 	if err := t.populateDetails(); err != nil {
-		t.log("Error: " + err.Error(), models.TaskLogError)
+		t.log("Error: "+err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -63,27 +63,27 @@ func (t *task) run() {
 	t.updateStatus()
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		ObjectType:  "addhoc_task",
 		ObjectID:    t.task.ID,
 		Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " is running",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		log.Print(err)
 	}
 
-	t.log("Started: " + t.task.ID.Hex(), models.TaskLogInfo)
+	t.log("Started: "+t.task.ID.Hex(), models.TaskLogInfo)
 
 	if t.accessKey.Type != "credential" {
 		if err := t.installKey(t.accessKey); err != nil {
-			t.log("Failed installing access key for server access: " + err.Error(), models.TaskLogError)
+			t.log("Failed installing access key for server access: "+err.Error(), models.TaskLogError)
 			t.fail()
 			return
 		}
 	}
 
 	if err := t.runAnsible(); err != nil {
-		t.log("Running ansible failed: " + err.Error(), models.TaskLogError)
+		t.log("Running ansible failed: "+err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -103,7 +103,7 @@ func (t *task) populateDetails() error {
 		}
 
 		if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
-			t.log("Only ssh and credentials currently supported: " + t.accessKey.Type, models.TaskLogError)
+			t.log("Only ssh and credentials currently supported: "+t.accessKey.Type, models.TaskLogError)
 			return errors.New("Unsupported Key")
 		}
 	}
@@ -112,7 +112,7 @@ func (t *task) populateDetails() error {
 }
 
 func (t *task) installKey(key models.GlobalAccessKey) error {
-	t.log("Global access key " + key.Name + " installed", models.TaskLogInfo)
+	t.log("Global access key "+key.Name+" installed", models.TaskLogInfo)
 	err := ioutil.WriteFile(key.GetPath(), []byte(key.Secret), 0600)
 
 	return err
@@ -122,11 +122,11 @@ func (t *task) installKey(key models.GlobalAccessKey) error {
 func (t *task) runAnsible() error {
 
 	// arguments for Ansible command
-	args := []string{"all" }
+	args := []string{"all"}
 
 	// specify inventory, comma separated host list
 	if cap(t.task.Inventory) > 0 {
-		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
+		args = append(args, "-i", strings.Join(t.task.Inventory, ",")+",")
 
 	}
 
@@ -178,7 +178,7 @@ func (t *task) runAnsible() error {
 		//add ssh password as an extra argument
 		args = append(args, "-e", "ansible_ssh_pass", crypt.Decrypt(t.accessKey.Secret))
 	} else if t.accessKey.Type == "ssh" {
-		args = append(args, "--private-key=" + t.accessKey.GetPath())
+		args = append(args, "--private-key="+t.accessKey.GetPath())
 	}
 
 	// verbose mode -nasiblevvvv to enable
@@ -218,7 +218,7 @@ func (t *task) runAnsible() error {
 
 	// This is must for Ansible
 	env := os.Environ()
-	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir, "HS_TASK_ID=" + t.task.ID.Hex())
+	env = append(env, "HOME="+util.Config.TmpPath, "PWD="+cmd.Dir, "HS_TASK_ID="+t.task.ID.Hex())
 	cmd.Env = env
 
 	t.logCmd(cmd)

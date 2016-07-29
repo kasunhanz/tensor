@@ -4,12 +4,12 @@ import (
 	"strings"
 	"time"
 
+	"errors"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
 	"github.com/gamunu/hilbert-space/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"errors"
 	"net/http"
 )
 
@@ -26,7 +26,7 @@ func Authentication(c *gin.Context) {
 		if err := col.Find(bson.M{"_id": bson.ObjectIdHex(strings.Replace(authHeader, "bearer ", "", 1)), "expired": false}).One(&token); err != nil {
 			c.Error(errors.New("Cannot find user token for " + strings.Replace(authHeader, "bearer ", "", 1)))
 			// send a informative response to user
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized" })
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
@@ -39,7 +39,7 @@ func Authentication(c *gin.Context) {
 		if err != nil {
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized" })
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
@@ -49,7 +49,7 @@ func Authentication(c *gin.Context) {
 
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized" })
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
@@ -59,7 +59,7 @@ func Authentication(c *gin.Context) {
 		if !ok || !okSession {
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized" })
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Request Unauthorized"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
@@ -71,37 +71,37 @@ func Authentication(c *gin.Context) {
 		// fetch session
 		var session models.Session
 		col := database.MongoDb.C("session")
-		if err := col.Find(bson.M{"_id":sessionID, "user_id": userID, "expired": false}).One(&session); err != nil {
+		if err := col.Find(bson.M{"_id": sessionID, "user_id": userID, "expired": false}).One(&session); err != nil {
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Invalid session" })
+			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Invalid session"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
 
-		if time.Now().Sub(session.LastActive).Hours() > 7 * 24 {
+		if time.Now().Sub(session.LastActive).Hours() > 7*24 {
 			// more than week old unused session
 			// destroy.
 
 			if err := col.UpdateId(sessionID, bson.M{"expired": true}); err != nil {
 				c.Error(err)
 				// send a informative response to user
-				c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session" })
+				c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session"})
 				c.Abort() //must! without it request will continue, user will bypass authentication
 				return
 			}
 
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session" })
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
 
-		if err := col.UpdateId(sessionID, bson.M{"$set":bson.M{"last_active": time.Now()}}); err != nil {
+		if err := col.UpdateId(sessionID, bson.M{"$set": bson.M{"last_active": time.Now()}}); err != nil {
 			c.Error(err)
 			// send a informative response to user
-			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session" })
+			c.JSON(http.StatusForbidden, gin.H{"status": "error", "message": "Expired session"})
 			c.Abort() //must! without it request will continue, user will bypass authentication
 			return
 		}
@@ -114,7 +114,7 @@ func Authentication(c *gin.Context) {
 	if err := userCol.FindId(userID).One(&user); err != nil {
 		c.Error(err)
 		// send a informative response to user
-		c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Invalid credentials" })
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "message": "Invalid credentials"})
 		c.Abort() //must! without it request will continue, user will bypass authentication
 		return
 	}

@@ -10,7 +10,7 @@ func EnvironmentMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	envID := c.Params.ByName("environment_id")
 
-	env, err := project.GetEnvironment(bson.ObjectIdHex(envID));
+	env, err := project.GetEnvironment(bson.ObjectIdHex(envID))
 
 	if err != nil {
 		panic(err)
@@ -23,7 +23,7 @@ func EnvironmentMiddleware(c *gin.Context) {
 func GetEnvironment(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	env, err := project.GetEnvironments();
+	env, err := project.GetEnvironments()
 
 	if err != nil {
 		panic(err)

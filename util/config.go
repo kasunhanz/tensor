@@ -2,14 +2,15 @@ package util
 
 import (
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
-	"errors"
-	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
+	"log"
 )
 
 var Cookie *securecookie.SecureCookie
@@ -18,19 +19,19 @@ var Secrets bool
 
 type MongoDBConfig struct {
 	Hosts      []string `yaml:"hosts"`
-	Username   string `yaml:"user"`
-	Password   string `yaml:"pass"`
-	DbName     string `yaml:"name"`
-	ReplicaSet string `yaml:"replica_set"`
+	Username   string   `yaml:"user"`
+	Password   string   `yaml:"pass"`
+	DbName     string   `yaml:"name"`
+	ReplicaSet string   `yaml:"replica_set"`
 }
 
 type configType struct {
-	MongoDB          MongoDBConfig `yaml:"mongodb"`
+	MongoDB MongoDBConfig `yaml:"mongodb"`
 	// Format `:port_num` eg, :3000
-	Port             string `yaml:"port"`
+	Port string `yaml:"port"`
 
 	// HilbertSpace stores projects here
-	TmpPath          string `yaml:"tmp_path"`
+	TmpPath string `yaml:"tmp_path"`
 
 	// cookie hashing & encryption
 	CookieHash       string `yaml:"cookie_hash"`
@@ -61,14 +62,16 @@ func init() {
 		os.Exit(0)
 	}
 
-	conf, err := ioutil.ReadFile("/etc/hilbert_space.yaml")
+	conf, err := ioutil.ReadFile("/etc/hilbertspace.conf")
 
 	if err != nil {
-		panic(errors.New("Cannot Find configuration!\n\n" + err.Error()))
+		log.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
+		os.Exit(5)
 	}
 
 	if err := yaml.Unmarshal(conf, &Config); err != nil {
-		panic("Invalid Configuration!\n\n" + err.Error())
+		log.Fatal("Invalid Configuration!\n\n" + err.Error())
+		os.Exit(6)
 	}
 
 	if len(os.Getenv("PORT")) > 0 {
@@ -95,7 +98,8 @@ func init() {
 	if _, err := os.Stat(Config.TmpPath); os.IsNotExist(err) {
 		fmt.Printf(" Running: mkdir -p %v..\n", Config.TmpPath)
 		if err := os.MkdirAll(Config.TmpPath, 0755); err != nil {
-			panic(err)
+			log.Fatal(err)
+			os.Exit(7)
 		}
 	}
 

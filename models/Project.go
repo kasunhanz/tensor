@@ -10,15 +10,15 @@ import (
 // Project is the model for project
 // collection
 type Project struct {
-	ID      bson.ObjectId       `bson:"_id" json:"id"`
-	Name    string    `bson:"name" json:"name" binding:"required"`
-	Created time.Time `bson:"created" json:"created"`
+	ID      bson.ObjectId `bson:"_id" json:"id"`
+	Name    string        `bson:"name" json:"name" binding:"required"`
+	Created time.Time     `bson:"created" json:"created"`
 	Users   []ProjectUser `bson:"users" json:"users"`
 }
 
-type ProjectUser  struct {
+type ProjectUser struct {
 	UserID bson.ObjectId `bson:"user_id" json:"user_id"`
-	Admin  bool `bson:"admin" json:"admin"`
+	Admin  bool          `bson:"admin" json:"admin"`
 }
 
 // Create a new project
@@ -34,7 +34,7 @@ func (proj Project) GetEnvironments() ([]Environment, error) {
 	c := database.MongoDb.C("project_environment")
 
 	var envs []Environment
-	err := c.Find(bson.M{"project_id": proj.ID, }).All(envs)
+	err := c.Find(bson.M{"project_id": proj.ID}).All(envs)
 
 	return envs, err
 }
@@ -59,7 +59,7 @@ func (proj Project) GetInventories() ([]Inventory, error) {
 	c := database.MongoDb.C("project_inventory")
 
 	var invs []Inventory
-	err := c.Find(bson.M{"project_id": proj.ID, }).All(invs)
+	err := c.Find(bson.M{"project_id": proj.ID}).All(invs)
 
 	return invs, err
 }
@@ -82,7 +82,7 @@ func (proj Project) GetInventory(invId bson.ObjectId) (Environment, error) {
 // returns the error returned by mongo driver
 func (proj Project) GetAccessKeysByType(keyType string) ([]AccessKey, error) {
 	c := database.MongoDb.C("access_key")
-	m := bson.M{"project_id": proj.ID, }
+	m := bson.M{"project_id": proj.ID}
 	if len(keyType) > 0 {
 		m["type"] = keyType
 	}
@@ -100,7 +100,7 @@ func (proj Project) GetAccessKeys() ([]AccessKey, error) {
 
 	var keys []AccessKey
 
-	err := c.Find(bson.M{"project_id": proj.ID, }).All(&keys)
+	err := c.Find(bson.M{"project_id": proj.ID}).All(&keys)
 
 	return keys, err
 }
@@ -124,7 +124,7 @@ func (proj Project) GetRepositories() ([]Repository, error) {
 	c := database.MongoDb.C("project_repository")
 
 	var repos []Repository
-	err := c.Find(bson.M{"project_id": proj.ID, }).All(&repos)
+	err := c.Find(bson.M{"project_id": proj.ID}).All(&repos)
 
 	return repos, err
 }
@@ -148,7 +148,7 @@ func (proj Project) GetTemplates() ([]Template, error) {
 	c := database.MongoDb.C("project_template")
 
 	var repos []Template
-	err := c.Find(bson.M{"project_id": proj.ID, }).All(&repos)
+	err := c.Find(bson.M{"project_id": proj.ID}).All(&repos)
 
 	return repos, err
 }

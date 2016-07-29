@@ -1,5 +1,3 @@
-hilbert-space.README
-
 ## Hilbert Space
 
 Centralized infrastructure management REST API, based on ansible, provides role-based access control, job scheduling, inventory management.

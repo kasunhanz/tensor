@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/json"
 	database "github.com/gamunu/hilbert-space/db"
 	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/hilbert-space/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"encoding/json"
-	"github.com/gamunu/hilbert-space/util"
 )
 
 type task struct {
@@ -67,7 +67,7 @@ func (t *task) run() {
 
 	if err := (models.Event{
 		ProjectID:   t.projectID,
-		ObjectType: "task",
+		ObjectType:  "task",
 		ObjectID:    t.task.ID,
 		Description: "Task ID " + t.task.ID.String() + " is running",
 	}.Insert()); err != nil {
@@ -121,7 +121,7 @@ func (t *task) populateDetails() error {
 
 	pUserc := database.MongoDb.C("project_user")
 
-	if err := pUserc.FindId(t.template.ProjectID).Select(bson.M{"user_id":1}).One(&users); err != nil {
+	if err := pUserc.FindId(t.template.ProjectID).Select(bson.M{"user_id": 1}).One(&users); err != nil {
 		return err
 	}
 
@@ -242,7 +242,7 @@ func (t *task) runPlaybook() error {
 	}
 
 	if bson.IsObjectIdHex(t.inventory.SshKeyID.String()) {
-		args = append(args, "--private-key=" + t.inventory.SshKey.GetPath())
+		args = append(args, "--private-key="+t.inventory.SshKey.GetPath())
 	}
 
 	if t.task.Debug {

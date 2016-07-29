@@ -47,17 +47,17 @@ func GetAll(c *gin.Context) {
 	col := database.MongoDb.C("task")
 
 	aggregate := []bson.M{
-		{"$lookup" : bson.M{
-			"from":"project_template",
-			"localField":"template_id",
-			"foreignField":"_id",
-			"as": "project_template",
+		{"$lookup": bson.M{
+			"from":         "project_template",
+			"localField":   "template_id",
+			"foreignField": "_id",
+			"as":           "project_template",
 		}},
 		{"$match": bson.M{
-			"$project_template._id":project.ID,
+			"$project_template._id": project.ID,
 		}},
 		{"$sort": bson.M{
-			"created":-1,
+			"created": -1,
 		}},
 	}
 
@@ -81,7 +81,7 @@ func GetTaskMiddleware(c *gin.Context) {
 
 	col := database.MongoDb.C("task")
 
-	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task);
+	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task)
 	if err != nil {
 		panic(err)
 	}
@@ -97,7 +97,7 @@ func GetTaskOutput(c *gin.Context) {
 
 	col := database.MongoDb.C("task_output")
 
-	if err := col.Find(bson.M{"task_id": task.ID, }).Sort("time").All(&output); err != nil {
+	if err := col.Find(bson.M{"task_id": task.ID}).Sort("time").All(&output); err != nil {
 		panic(err)
 	}
 

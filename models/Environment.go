@@ -4,14 +4,15 @@ import (
 	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 )
+
 // Environment is the model for
 // project_environment collection
 type Environment struct {
-	ID        bson.ObjectId     `bson:"_id" json:"id"`
-	Name      string  `bson:"name" json:"name" binding:"required"`
-	ProjectID bson.ObjectId     `bson:"project_id" json:"project_id"`
-	Password  string `bson:"password" json:"password"`
-	JSON      string  `bson:"json" json:"json" binding:"required"`
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	Name      string        `bson:"name" json:"name" binding:"required"`
+	ProjectID bson.ObjectId `bson:"project_id" json:"project_id"`
+	Password  string        `bson:"password" json:"password"`
+	JSON      string        `bson:"json" json:"json" binding:"required"`
 }
 
 func (env Environment) Insert() error {

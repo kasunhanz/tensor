@@ -10,7 +10,7 @@ func RepositoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	repositoryID := c.Params.ByName("repository_id")
 
-	repository, err := project.GetRepository(bson.ObjectIdHex(repositoryID));
+	repository, err := project.GetRepository(bson.ObjectIdHex(repositoryID))
 
 	if err != nil {
 		panic(err)
@@ -23,7 +23,7 @@ func RepositoryMiddleware(c *gin.Context) {
 func GetRepositories(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	repos, err := project.GetRepositories();
+	repos, err := project.GetRepositories()
 
 	if err != nil {
 		panic(err)
@@ -78,7 +78,7 @@ func UpdateRepository(c *gin.Context) {
 		ProjectID:   oldRepo.ProjectID,
 		Description: "Repository (" + repository.GitUrl + ") updated",
 		ObjectID:    oldRepo.ID,
-		ObjectType:   "inventory",
+		ObjectType:  "inventory",
 	}.Insert()); err != nil {
 		panic(err)
 	}

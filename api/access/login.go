@@ -24,7 +24,7 @@ func Login(c *gin.Context) {
 
 	if err := c.Bind(&login); err != nil {
 		// Give user an informative error
-		c.JSON(http.StatusBadRequest, gin.H{"message":"Invalid request", "status":"error"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request", "status": "error"})
 		c.Abort() // abort the request if JSON payload is invalid
 		return
 	}
@@ -47,20 +47,20 @@ func Login(c *gin.Context) {
 
 	if err := col.Find(q).One(&user); err != nil {
 		// Give the user an informative error
-		c.JSON(http.StatusUnauthorized, gin.H{"message":"Unable to find user", "status":"error"})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Unable to find user", "status": "error"})
 		c.Abort()
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
 		// Give the user an informative error
-		c.JSON(http.StatusUnauthorized, gin.H{"message":"Invalied password", "status":"error"})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalied password", "status": "error"})
 		c.Abort()
 		return
 	}
 
 	session := models.Session{
-		ID: bson.NewObjectId(),
+		ID:         bson.NewObjectId(),
 		UserID:     user.ID,
 		Created:    time.Now(),
 		LastActive: time.Now(),
@@ -71,7 +71,7 @@ func Login(c *gin.Context) {
 
 	if err := session.Insert(); err != nil {
 		// Give the user an informative error
-		c.JSON(http.StatusInternalServerError, gin.H{"message":"Unable to create session", "status":"error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Unable to create session", "status": "error"})
 		c.Abort()
 		return
 	}
@@ -83,7 +83,7 @@ func Login(c *gin.Context) {
 
 	if err != nil {
 		// Give the user an informative error
-		c.JSON(http.StatusInternalServerError, gin.H{"message":"Unable to create session", "status":"error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Unable to create session", "status": "error"})
 		c.Abort()
 	}
 

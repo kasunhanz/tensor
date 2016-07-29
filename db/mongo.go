@@ -1,13 +1,12 @@
 package db
 
 import (
-	"gopkg.in/mgo.v2"
 	"github.com/gamunu/hilbert-space/util"
+	"gopkg.in/mgo.v2"
 	"time"
 )
 
 var MongoDb *mgo.Database
-
 
 // Mongodb database
 func Connect() error {

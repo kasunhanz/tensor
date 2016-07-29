@@ -62,7 +62,7 @@ func AddUser(c *gin.Context) {
 
 	col := database.MongoDb.C("project")
 
-	if err := col.Update(bson.M{"_id":project.ID}, bson.M{"$push": bson.M{"users": bson.M{"user_id":projectUser.UserID, "admin": projectUser.Admin}}}); err != nil {
+	if err := col.Update(bson.M{"_id": project.ID}, bson.M{"$push": bson.M{"users": bson.M{"user_id": projectUser.UserID, "admin": projectUser.Admin}}}); err != nil {
 		panic(err)
 	}
 
@@ -84,7 +84,7 @@ func RemoveUser(c *gin.Context) {
 
 	col := database.MongoDb.C("project")
 
-	if err := col.Update(bson.M{"_id":project.ID}, bson.M{"$pull": bson.M{"users.$.user_id" : user.ID}}); err != nil {
+	if err := col.Update(bson.M{"_id": project.ID}, bson.M{"$pull": bson.M{"users.$.user_id": user.ID}}); err != nil {
 		panic(err)
 	}
 
@@ -112,7 +112,7 @@ func MakeUserAdmin(c *gin.Context) {
 
 	col := database.MongoDb.C("project")
 
-	if err := col.Update(bson.M{"_id":project.ID, "users.user_id" : user.ID}, bson.M{"users.$.admin": admin}); err != nil {
+	if err := col.Update(bson.M{"_id": project.ID, "users.user_id": user.ID}, bson.M{"users.$.admin": admin}); err != nil {
 		panic(err)
 	}
 

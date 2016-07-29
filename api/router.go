@@ -3,14 +3,14 @@ package api
 import (
 	"time"
 
+	"github.com/gamunu/hilbert-space/api/access"
+	"github.com/gamunu/hilbert-space/api/addhoctasks"
 	"github.com/gamunu/hilbert-space/api/cors"
 	"github.com/gamunu/hilbert-space/api/projects"
 	"github.com/gamunu/hilbert-space/api/sockets"
 	"github.com/gamunu/hilbert-space/api/tasks"
 	"github.com/gamunu/hilbert-space/util"
 	"github.com/gin-gonic/gin"
-	"github.com/gamunu/hilbert-space/api/addhoctasks"
-	"github.com/gamunu/hilbert-space/api/access"
 	"strings"
 )
 
