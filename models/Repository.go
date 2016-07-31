@@ -18,16 +18,16 @@ type Repository struct {
 }
 
 func (repo Repository) Remove() error {
-	c := database.MongoDb.C("project_repository")
+	c := database.MongoDb.C("project_repositories")
 	return c.RemoveId(repo.ID)
 }
 
 func (repo Repository) Update() error {
-	c := database.MongoDb.C("project_repository")
+	c := database.MongoDb.C("project_repositories")
 	return c.UpdateId(repo.ID, repo)
 }
 
 func (repo Repository) Insert() error {
-	c := database.MongoDb.C("project_repository")
+	c := database.MongoDb.C("project_repositories")
 	return c.Insert(repo)
 }

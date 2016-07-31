@@ -25,7 +25,7 @@ func KeyMiddleware(c *gin.Context) {
 
 	var key models.GlobalAccessKey
 
-	col := database.MongoDb.C("global_access_key")
+	col := database.MongoDb.C("global_access_keys")
 
 	if err := col.FindId(bson.ObjectIdHex(keyID)).One(&key); err != nil {
 		// Give user an informative error
@@ -43,7 +43,7 @@ func KeyMiddleware(c *gin.Context) {
 func GetKeys(c *gin.Context) {
 	var keys []models.GlobalAccessKey
 
-	col := database.MongoDb.C("global_access_key") // get the key from gin context
+	col := database.MongoDb.C("global_access_keys") // get the key from gin context
 
 	var query bson.M
 

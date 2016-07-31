@@ -16,7 +16,7 @@ func (t *task) log(msg string, logType string) {
 
 	go func() {
 
-		c := database.MongoDb.C("addhoc_task")
+		c := database.MongoDb.C("addhoc_tasks")
 
 		if _, err := c.Upsert(bson.M{"_id": t.task.ID},
 			bson.M{
@@ -29,7 +29,7 @@ func (t *task) log(msg string, logType string) {
 
 func (t *task) updateStatus() {
 
-	c := database.MongoDb.C("addhoc_task")
+	c := database.MongoDb.C("addhoc_tasks")
 
 	if err := c.UpdateId(t.task.ID, bson.M{"$set": bson.M{
 		"status": t.task.Status,

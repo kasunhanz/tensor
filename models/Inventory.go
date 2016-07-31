@@ -25,16 +25,16 @@ type Inventory struct {
 }
 
 func (inv Inventory) Insert() error {
-	c := database.MongoDb.C("project_inventory")
+	c := database.MongoDb.C("project_inventories")
 	return c.Insert(inv)
 }
 
 func (inv Inventory) Remove() error {
-	c := database.MongoDb.C("project_inventory")
+	c := database.MongoDb.C("project_inventories")
 	return c.RemoveId(inv.ID)
 }
 
 func (inv Inventory) Update() error {
-	c := database.MongoDb.C("project_inventory")
+	c := database.MongoDb.C("project_inventories")
 	return c.UpdateId(inv.ID, inv)
 }

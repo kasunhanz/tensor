@@ -109,7 +109,7 @@ func (t *task) run() {
 
 func (t *task) populateDetails() error {
 	// get template
-	tempCollection := database.MongoDb.C("project_template")
+	tempCollection := database.MongoDb.C("project_templates")
 	if err := tempCollection.FindId(t.task.TemplateID).One(&t.template); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (t *task) populateDetails() error {
 		ID bson.ObjectId `db:"id"`
 	}
 
-	pUserc := database.MongoDb.C("project_user")
+	pUserc := database.MongoDb.C("project_users")
 
 	if err := pUserc.FindId(t.template.ProjectID).Select(bson.M{"user_id": 1}).One(&users); err != nil {
 		return err
@@ -130,7 +130,7 @@ func (t *task) populateDetails() error {
 		t.users = append(t.users, user.ID)
 	}
 
-	keyc := database.MongoDb.C("access_key")
+	keyc := database.MongoDb.C("access_keys")
 	// get access key
 	if err := keyc.FindId(t.template.SshKeyID).One(&t.sshKey); err != nil {
 		return err
@@ -142,7 +142,7 @@ func (t *task) populateDetails() error {
 	}
 
 	// get inventory
-	projectInvc := database.MongoDb.C("project_inventory")
+	projectInvc := database.MongoDb.C("project_inventories")
 
 	if err := projectInvc.FindId(t.template.InventoryID).One(&t.inventory); err != nil {
 		return err
@@ -151,7 +151,7 @@ func (t *task) populateDetails() error {
 	// get inventory services key
 	if bson.IsObjectIdHex(t.inventory.KeyID.String()) {
 
-		accesskeyc := database.MongoDb.C("access_key")
+		accesskeyc := database.MongoDb.C("access_keys")
 		if err := accesskeyc.FindId(t.inventory.KeyID).One(&t.inventory.Key); err != nil {
 			return err
 		}
@@ -159,20 +159,20 @@ func (t *task) populateDetails() error {
 
 	// get inventory ssh key
 	if bson.IsObjectIdHex(t.inventory.SshKeyID.String()) {
-		accesskeyc := database.MongoDb.C("access_key")
+		accesskeyc := database.MongoDb.C("access_keys")
 		if err := accesskeyc.FindId(t.inventory.SshKeyID).One(&t.inventory.SshKey); err != nil {
 			return err
 		}
 	}
 
 	// get repository
-	projectRepoc := database.MongoDb.C("project_repository")
+	projectRepoc := database.MongoDb.C("project_repositories")
 	if err := projectRepoc.FindId(t.template.RepositoryID).One(&t.repository); err != nil {
 		return err
 	}
 
 	// get repository access key
-	accesskeyc := database.MongoDb.C("access_key")
+	accesskeyc := database.MongoDb.C("access_keys")
 	if err := accesskeyc.FindId(t.repository.SshKeyID).One(&t.repository.SshKey); err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (t *task) populateDetails() error {
 	// get environment
 	if len(t.task.Environment) == 0 && bson.IsObjectIdHex(t.template.EnvironmentID.String()) {
 
-		projectenvc := database.MongoDb.C("project_environment")
+		projectenvc := database.MongoDb.C("project_environments")
 		err := projectenvc.FindId(t.template.EnvironmentID).One(&t.environment)
 		if err != nil {
 			return err

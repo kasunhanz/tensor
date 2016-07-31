@@ -62,7 +62,7 @@ func GetTaskMiddleware(c *gin.Context) {
 
 	var task models.AddHocTask
 
-	col := database.MongoDb.C("addhoc_task")
+	col := database.MongoDb.C("addhoc_tasks")
 
 	if err := col.FindId(bson.ObjectIdHex(taskID)).One(&task); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -80,7 +80,7 @@ func GetTaskWithoutLogMiddleware(c *gin.Context) {
 	taskID := c.Params.ByName("task_id")
 	var task models.AddHocTask
 
-	col := database.MongoDb.C("addhoc_task")
+	col := database.MongoDb.C("addhoc_tasks")
 
 	if err := col.FindId(bson.ObjectIdHex(taskID)).Select(bson.M{"log": 0}).One(&task); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)

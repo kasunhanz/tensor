@@ -17,6 +17,6 @@ type APIToken struct {
 
 // Create a new
 func (apiToken APIToken) Insert() error {
-	c := database.MongoDb.C("user_token")
+	c := database.MongoDb.C("user_tokens")
 	return c.Insert(apiToken)
 }

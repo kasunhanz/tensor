@@ -96,7 +96,7 @@ func (t *task) populateDetails() error {
 
 	// get access key
 	if bson.IsObjectIdHex(t.task.AccessKeyID.Hex()) {
-		accesskeyc := database.MongoDb.C("global_access_key")
+		accesskeyc := database.MongoDb.C("global_access_keys")
 		if err := accesskeyc.FindId(t.task.AccessKeyID).One(&t.accessKey); err != nil {
 			t.log("Global Access Key not found!", models.TaskLogError)
 			return errors.New("Global Access Key not found!")
@@ -159,7 +159,7 @@ func (t *task) runAnsible() error {
 	// connection type to use (default=smart)
 	if len(t.task.Connection) > 0 {
 		if t.task.Connection == "winrm" {
-			args = append(args, "-e", "")
+			args = append(args, "-e", "ansible_winrm_server_cert_validation=ignore")
 		}
 		args = append(args, "-c", t.task.Connection)
 	}
@@ -176,7 +176,7 @@ func (t *task) runAnsible() error {
 	if t.accessKey.Type == "credential" {
 		args = append(args, "-u", t.accessKey.Key)
 		//add ssh password as an extra argument
-		args = append(args, "-e", "ansible_ssh_pass", crypt.Decrypt(t.accessKey.Secret))
+		args = append(args, "-e", "ansible_ssh_pass=" + crypt.Decrypt(t.accessKey.Secret))
 	} else if t.accessKey.Type == "ssh" {
 		args = append(args, "--private-key="+t.accessKey.GetPath())
 	}
@@ -216,6 +216,7 @@ func (t *task) runAnsible() error {
 	cmd := exec.Command("ansible", args...)
 	cmd.Dir = util.Config.TmpPath
 
+	fmt.Print(args)
 	// This is must for Ansible
 	env := os.Environ()
 	env = append(env, "HOME="+util.Config.TmpPath, "PWD="+cmd.Dir, "HS_TASK_ID="+t.task.ID.Hex())

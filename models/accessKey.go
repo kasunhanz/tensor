@@ -25,16 +25,16 @@ func (key AccessKey) GetPath() string {
 }
 
 func (key AccessKey) Insert() error {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 	return c.Insert(key)
 }
 
 func (key AccessKey) Remove() error {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 	return c.RemoveId(key.ID)
 }
 
 func (key AccessKey) Update() error {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 	return c.UpdateId(key.ID, key)
 }

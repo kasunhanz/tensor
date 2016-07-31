@@ -21,7 +21,7 @@ func Authentication(c *gin.Context) {
 	// if authorization header is not available authenticate using session
 	if authHeader := strings.ToLower(c.Request.Header.Get("authorization")); len(authHeader) > 0 {
 		var token models.APIToken
-		col := database.MongoDb.C("user_token")
+		col := database.MongoDb.C("user_tokens")
 
 		if err := col.Find(bson.M{"_id": bson.ObjectIdHex(strings.Replace(authHeader, "bearer ", "", 1)), "expired": false}).One(&token); err != nil {
 			c.Error(errors.New("Cannot find user token for " + strings.Replace(authHeader, "bearer ", "", 1)))
@@ -70,7 +70,7 @@ func Authentication(c *gin.Context) {
 
 		// fetch session
 		var session models.Session
-		col := database.MongoDb.C("session")
+		col := database.MongoDb.C("sessions")
 		if err := col.Find(bson.M{"_id": sessionID, "user_id": userID, "expired": false}).One(&session); err != nil {
 			c.Error(err)
 			// send a informative response to user
@@ -109,7 +109,7 @@ func Authentication(c *gin.Context) {
 
 	// User is authenticated either session or authorization header
 	var user models.User
-	userCol := database.MongoDb.C("user")
+	userCol := database.MongoDb.C("users")
 
 	if err := userCol.FindId(userID).One(&user); err != nil {
 		c.Error(err)

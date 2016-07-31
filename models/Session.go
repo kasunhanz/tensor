@@ -19,6 +19,6 @@ type Session struct {
 }
 
 func (s Session) Insert() error {
-	c := database.MongoDb.C("session")
+	c := database.MongoDb.C("sessions")
 	return c.Insert(s)
 }

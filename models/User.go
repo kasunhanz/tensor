@@ -23,13 +23,13 @@ type User struct {
 func FetchUser(userID bson.ObjectId) (*User, error) {
 	var user User
 
-	c := database.MongoDb.C("user")
+	c := database.MongoDb.C("users")
 	err := c.FindId(userID).One(&user)
 
 	return &user, err
 }
 
 func (usr User) Insert() error {
-	c := database.MongoDb.C("user")
+	c := database.MongoDb.C("users")
 	return c.Insert(usr)
 }

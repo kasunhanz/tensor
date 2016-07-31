@@ -23,7 +23,7 @@ type ProjectUser struct {
 
 // Create a new project
 func (project Project) Insert() error {
-	c := database.MongoDb.C("project")
+	c := database.MongoDb.C("projects")
 	return c.Insert(project)
 }
 
@@ -31,7 +31,7 @@ func (project Project) Insert() error {
 // envs prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetEnvironments() ([]Environment, error) {
-	c := database.MongoDb.C("project_environment")
+	c := database.MongoDb.C("project_environments")
 
 	var envs []Environment
 	err := c.Find(bson.M{"project_id": proj.ID}).All(envs)
@@ -43,7 +43,7 @@ func (proj Project) GetEnvironments() ([]Environment, error) {
 // envId parameter required
 // env parameter need to be reference
 func (proj Project) GetEnvironment(envId bson.ObjectId) (Environment, error) {
-	c := database.MongoDb.C("project_environment")
+	c := database.MongoDb.C("project_environments")
 
 	var env Environment
 
@@ -56,7 +56,7 @@ func (proj Project) GetEnvironment(envId bson.ObjectId) (Environment, error) {
 // invs prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetInventories() ([]Inventory, error) {
-	c := database.MongoDb.C("project_inventory")
+	c := database.MongoDb.C("project_inventories")
 
 	var invs []Inventory
 	err := c.Find(bson.M{"project_id": proj.ID}).All(invs)
@@ -68,7 +68,7 @@ func (proj Project) GetInventories() ([]Inventory, error) {
 // invId parameter required
 // inv parameter need to be reference
 func (proj Project) GetInventory(invId bson.ObjectId) (Environment, error) {
-	c := database.MongoDb.C("project_inventory")
+	c := database.MongoDb.C("project_inventories")
 
 	var inv Environment
 
@@ -81,7 +81,7 @@ func (proj Project) GetInventory(invId bson.ObjectId) (Environment, error) {
 // keys prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetAccessKeysByType(keyType string) ([]AccessKey, error) {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 	m := bson.M{"project_id": proj.ID}
 	if len(keyType) > 0 {
 		m["type"] = keyType
@@ -96,7 +96,7 @@ func (proj Project) GetAccessKeysByType(keyType string) ([]AccessKey, error) {
 // keys prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetAccessKeys() ([]AccessKey, error) {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 
 	var keys []AccessKey
 
@@ -109,7 +109,7 @@ func (proj Project) GetAccessKeys() ([]AccessKey, error) {
 // keyId parameter required
 // key parameter need to be reference
 func (proj Project) GetAccessKey(keyId bson.ObjectId) (AccessKey, error) {
-	c := database.MongoDb.C("access_key")
+	c := database.MongoDb.C("access_keys")
 
 	var key AccessKey
 	err := c.Find(bson.M{"project_id": proj.ID, "_id": keyId}).One(&key)
@@ -121,7 +121,7 @@ func (proj Project) GetAccessKey(keyId bson.ObjectId) (AccessKey, error) {
 // repos prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetRepositories() ([]Repository, error) {
-	c := database.MongoDb.C("project_repository")
+	c := database.MongoDb.C("project_repositories")
 
 	var repos []Repository
 	err := c.Find(bson.M{"project_id": proj.ID}).All(&repos)
@@ -133,7 +133,7 @@ func (proj Project) GetRepositories() ([]Repository, error) {
 // invId parameter required
 // inv parameter need to be reference
 func (proj Project) GetRepository(repoId bson.ObjectId) (Repository, error) {
-	c := database.MongoDb.C("project_repository")
+	c := database.MongoDb.C("project_repositories")
 
 	var repo Repository
 	err := c.Find(bson.M{"project_id": proj.ID, "_id": repoId}).One(&repo)
@@ -145,7 +145,7 @@ func (proj Project) GetRepository(repoId bson.ObjectId) (Repository, error) {
 // repos prameter need to be a reference
 // returns the error returned by mongo driver
 func (proj Project) GetTemplates() ([]Template, error) {
-	c := database.MongoDb.C("project_template")
+	c := database.MongoDb.C("project_templates")
 
 	var repos []Template
 	err := c.Find(bson.M{"project_id": proj.ID}).All(&repos)
@@ -157,7 +157,7 @@ func (proj Project) GetTemplates() ([]Template, error) {
 // invId parameter required
 // inv parameter need to be reference
 func (proj Project) GetTemplate(tempId bson.ObjectId) (Template, error) {
-	c := database.MongoDb.C("project_template")
+	c := database.MongoDb.C("project_templates")
 
 	var tpl Template
 	err := c.Find(bson.M{"project_id": proj.ID, "_id": tempId}).One(&tpl)

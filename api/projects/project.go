@@ -16,7 +16,7 @@ func ProjectMiddleware(c *gin.Context) {
 
 	projectID := c.Params.ByName("project_id")
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	query := bson.M{
 		"_id":           bson.ObjectIdHex(projectID),
@@ -35,5 +35,5 @@ func ProjectMiddleware(c *gin.Context) {
 
 // GetProject returns the project as a JSON object
 func GetProject(c *gin.Context) {
-	c.JSON(200, c.MustGet("project"))
+	c.JSON(200, c.MustGet("projects"))
 }

@@ -23,7 +23,7 @@ func UserMiddleware(c *gin.Context) {
 		userIds = append(userIds, pUser.UserID)
 	}
 
-	col := database.MongoDb.C("user")
+	col := database.MongoDb.C("users")
 
 	if err := col.Find(bson.M{"_id": bson.M{"$in": userIds}}).Select(bson.M{"_id": userID}).One(&user); err != nil {
 		panic(err)
@@ -60,7 +60,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	if err := col.Update(bson.M{"_id": project.ID}, bson.M{"$push": bson.M{"users": bson.M{"user_id": projectUser.UserID, "admin": projectUser.Admin}}}); err != nil {
 		panic(err)
@@ -82,7 +82,7 @@ func RemoveUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	user := c.MustGet("projectUser").(models.User)
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	if err := col.Update(bson.M{"_id": project.ID}, bson.M{"$pull": bson.M{"users.$.user_id": user.ID}}); err != nil {
 		panic(err)
@@ -110,7 +110,7 @@ func MakeUserAdmin(c *gin.Context) {
 		admin = false
 	}
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	if err := col.Update(bson.M{"_id": project.ID, "users.user_id": user.ID}, bson.M{"users.$.admin": admin}); err != nil {
 		panic(err)

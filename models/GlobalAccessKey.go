@@ -27,16 +27,16 @@ func (key GlobalAccessKey) GetPath() string {
 }
 
 func (key GlobalAccessKey) Insert() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.Insert(key)
 }
 
 func (key GlobalAccessKey) Update() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.UpdateId(key.ID, key)
 }
 
 func (key GlobalAccessKey) Remove() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.RemoveId(key.ID)
 }

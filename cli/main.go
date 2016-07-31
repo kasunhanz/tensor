@@ -79,7 +79,7 @@ func doSetup() int {
 
 	var existingUser models.User
 
-	userc := database.MongoDb.C("user")
+	userc := database.MongoDb.C("users")
 	err := userc.Find(bson.M{"email": user.Email, "username": user.Username}).One(&existingUser)
 
 	if err == nil {

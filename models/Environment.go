@@ -16,16 +16,16 @@ type Environment struct {
 }
 
 func (env Environment) Insert() error {
-	c := database.MongoDb.C("project_environment")
+	c := database.MongoDb.C("project_environments")
 	return c.Insert(env)
 }
 
 func (env Environment) Update() error {
-	c := database.MongoDb.C("project_environment")
+	c := database.MongoDb.C("project_environments")
 	return c.UpdateId(env.ID, env)
 }
 
 func (env Environment) Remove() error {
-	c := database.MongoDb.C("project_environment")
+	c := database.MongoDb.C("project_environments")
 	return c.RemoveId(env.ID)
 }

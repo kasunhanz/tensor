@@ -36,16 +36,16 @@ type TaskOutput struct {
 
 // Create a new project
 func (task Task) Insert() error {
-	c := database.MongoDb.C("task")
+	c := database.MongoDb.C("tasks")
 	return c.Insert(task)
 }
 
 func (task Task) Update() error {
-	c := database.MongoDb.C("task")
+	c := database.MongoDb.C("tasks")
 	return c.UpdateId(task.ID, task)
 }
 
 func (tskOutput TaskOutput) Insert() error {
-	c := database.MongoDb.C("task_output")
+	c := database.MongoDb.C("task_outputs")
 	return c.Insert(tskOutput)
 }

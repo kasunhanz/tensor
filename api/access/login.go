@@ -43,7 +43,7 @@ func Login(c *gin.Context) {
 
 	var user models.User
 
-	col := database.MongoDb.C("user")
+	col := database.MongoDb.C("users")
 
 	if err := col.Find(q).One(&user); err != nil {
 		// Give the user an informative error

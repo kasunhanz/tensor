@@ -13,7 +13,7 @@ import (
 func GetProjects(c *gin.Context) {
 	user := c.MustGet("user").(models.User)
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	var projects []models.Project
 	if err := col.Find(bson.M{"users.user_id": user.ID}).Sort("name").All(&projects); err != nil {

@@ -6,6 +6,7 @@ __metaclass__ = type
 import os
 import yaml
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 from ansible.plugins.callback import CallbackBase
 
@@ -49,11 +50,11 @@ class CallbackModule(CallbackBase):
         mongoclient = MongoClient(connection_str)
 
         # Get database
-        self.db = self.mongoclient[self.config['mongodb']['name']]
+        self.db = mongoclient[self.config['mongodb']['name']]
         # authentication using configuration file
         self.db.authenticate(self.config['mongodb']['user'], self.config['mongodb']['pass'])
 
-        self.taskID = os.getenv('HS_TASK_ID')
+        self.taskID = ObjectId(os.getenv('HS_TASK_ID'))
         self.taskType = os.getenv('HS_TASK_TYPE', 1)
 
     def runner_on_failed(self, host, res, ignore_errors=False):

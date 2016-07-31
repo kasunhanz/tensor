@@ -18,7 +18,7 @@ type Event struct {
 }
 
 func (evt Event) Insert() error {
-	c := database.MongoDb.C("event")
+	c := database.MongoDb.C("events")
 	err := c.Insert(evt)
 
 	return err

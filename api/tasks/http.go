@@ -44,7 +44,7 @@ func AddTask(c *gin.Context) {
 func GetAll(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	col := database.MongoDb.C("task")
+	col := database.MongoDb.C("tasks")
 
 	aggregate := []bson.M{
 		{"$lookup": bson.M{
@@ -79,7 +79,7 @@ func GetTaskMiddleware(c *gin.Context) {
 
 	var task models.Task
 
-	col := database.MongoDb.C("task")
+	col := database.MongoDb.C("tasks")
 
 	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task)
 	if err != nil {
@@ -95,7 +95,7 @@ func GetTaskOutput(c *gin.Context) {
 
 	var output []models.TaskOutput
 
-	col := database.MongoDb.C("task_output")
+	col := database.MongoDb.C("task_outputs")
 
 	if err := col.Find(bson.M{"task_id": task.ID}).Sort("time").All(&output); err != nil {
 		panic(err)

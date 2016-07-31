@@ -32,16 +32,16 @@ type TemplateSchedule struct {
 }
 
 func (tpl Template) Insert() error {
-	c := database.MongoDb.C("project_template")
+	c := database.MongoDb.C("project_templates")
 	return c.Insert(tpl)
 }
 
 func (tpl Template) Remove() error {
-	c := database.MongoDb.C("project_template")
+	c := database.MongoDb.C("project_templates")
 	return c.RemoveId(tpl.ID)
 }
 
 func (tpl Template) Update() error {
-	c := database.MongoDb.C("project_template")
+	c := database.MongoDb.C("project_templates")
 	return c.UpdateId(tpl.ID, tpl)
 }

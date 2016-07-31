@@ -40,7 +40,7 @@ type AddHocTask struct {
 	// task status without log
 	// JSON omit (-) is a must, otherwise users will be able to inject log items
 	Log        []TaskLogItem `bson:"log" json:"-"`
-	TaskStatus []bson.M      `bson:"task_status" json:"-"`
+	TaskStatus []bson.M      `bson:"task_status" json:"task_status"`
 
 	Created time.Time `bson:"created" json:"created"`
 	Start   time.Time `bson:"start" json:"start"`
@@ -61,6 +61,6 @@ type TaskLogItem struct {
 // happens while inserting the provided documents, the returned error will
 // be of type *LastError.
 func (task AddHocTask) Insert() error {
-	c := database.MongoDb.C("addhoc_task")
+	c := database.MongoDb.C("addhoc_tasks")
 	return c.Insert(task)
 }
