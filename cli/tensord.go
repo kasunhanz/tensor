@@ -7,17 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gamunu/hilbert-space/api"
-	"github.com/gamunu/hilbert-space/api/addhoctasks"
-	"github.com/gamunu/hilbert-space/api/sockets"
-	"github.com/gamunu/hilbert-space/api/tasks"
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
-	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/tensor/api"
+	"github.com/gamunu/tensor/api/addhoctasks"
+	"github.com/gamunu/tensor/api/sockets"
+	"github.com/gamunu/tensor/api/tasks"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/util"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
+	"log"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 		os.Exit(doSetup())
 	}
 
-	fmt.Printf("Hilbertspace %v\n", util.Version)
+	fmt.Printf("Tensor %v\n", util.Version)
 	fmt.Printf("Port %v\n", util.Config.Port)
 	fmt.Printf("MongoDB %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
@@ -65,7 +66,7 @@ func doSetup() int {
 	fmt.Println("Checking database connectivity.. Please be patient.")
 
 	if err := database.Connect(); err != nil {
-		fmt.Printf("\n Cannot connect to database!\n %v\n", err.Error())
+		log.Fatal("\n Cannot connect to database!\n" + err.Error())
 		os.Exit(1)
 	}
 

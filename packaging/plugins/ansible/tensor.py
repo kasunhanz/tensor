@@ -26,16 +26,16 @@ class CallbackModule(CallbackBase):
     """
     CALLBACK_VERSION = 2.0
     CALLBACK_TYPE = 'aggregate'
-    CALLBACK_NAME = 'hilbertspace'
+    CALLBACK_NAME = 'tensor'
     CALLBACK_NEEDS_WHITELIST = True
 
     def __init__(self):
 
         super(CallbackModule, self).__init__()
 
-        # Get configuration object from hilbertspace
+        # Get configuration object from tensor
         # configuration file
-        with open("/etc/hilbertspace.conf", 'r') as stream:
+        with open("/etc/tensor.conf", 'r') as stream:
             try:
                 self.config = yaml.load(stream)
             except yaml.YAMLError as exc:
