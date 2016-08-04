@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"fmt"
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"

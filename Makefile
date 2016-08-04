@@ -16,7 +16,7 @@
 ########################################################
 # variable section
 
-NAME = hilbertspace
+NAME = tensor
 OS = $(shell uname -s)
 
 # VERSION file provides one place to update the software version
@@ -66,7 +66,7 @@ DEB_DIST = unstable
 default: build
 
 build: vet
-	go build -v -o ./build/$(NAME)-$(VERSION)/hilbertspace ./cli
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./cli
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -79,8 +79,8 @@ debian:	build
 	mkdir -p deb-build/$(NAME)-$(VERSION) ; \
 	mkdir -p deb-build/$(NAME)-$(VERSION)/etc/ ; \
 	mkdir -p deb-build/$(NAME)-$(VERSION)/bin ; \
-	cp packaging/config/hilbertspace.conf deb-build/$(NAME)-$(VERSION)/etc/; \
-	cp build/$(NAME)-$(VERSION)/hilbertspace deb-build/$(NAME)-$(VERSION)/bin; \
+	cp packaging/config/tensor.conf deb-build/$(NAME)-$(VERSION)/etc/; \
+	cp build/$(NAME)-$(VERSION)/tensor deb-build/$(NAME)-$(VERSION)/bin; \
 	cp -a docs deb-build/$(NAME)-$(VERSION)/; \
 	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/ ; \
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog; \
@@ -89,14 +89,14 @@ debian:	build
 deb: debian
 	cd deb-build/$(NAME)-$(VERSION)/ && $(DEBUILD) -b
 	@echo "#############################################"
-	@echo "HilbertSpace DEB artifacts:"
+	@echo "Tensor DEB artifacts:"
 	@echo deb-build/$(NAME)_$(VERSION)-$(DEB_RELEASE)~amd64.changes
 	@echo "#############################################"
 
 deb-src: debian
 	cd deb-build/$(NAME)-$(VERSION)/ && $(DEBUILD) -S
 	@echo "#############################################"
-	@echo "HilbertSpace DEB artifacts:"
+	@echo "Tensor DEB artifacts:"
 	@echo deb-build/$(NAME)_$(VERSION)-$(DEB_RELEASE)~source.changes
 	@echo "#############################################"
 
@@ -114,7 +114,7 @@ lint:
 	golint ./...
 
 run:
-	reflex -r '\.go$$' -s -d none -- sh -c 'go run cli/main.go'
+	reflex -r '\.go$$' -s -d none -- sh -c 'go run cli/tensord.go'
 
 test:
 	go test ./...

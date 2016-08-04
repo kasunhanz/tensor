@@ -32,7 +32,7 @@ func main() {
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 
 	if err := database.Connect(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	defer func() {
@@ -67,7 +67,6 @@ func doSetup() int {
 
 	if err := database.Connect(); err != nil {
 		log.Fatal("\n Cannot connect to database!\n" + err.Error())
-		os.Exit(1)
 	}
 
 	stdin := bufio.NewReader(os.Stdin)

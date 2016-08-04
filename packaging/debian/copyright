@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: hilbertspace
-Source: https://github.com/gamunu/hilbertspace
+Upstream-Name: tensor
+Source: https://github.com/gamunu/tensor
 
 Files: *
 Copyright: 2016 Gamunu Balagalla <gamunu.balagalla@outlook.com>

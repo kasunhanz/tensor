@@ -1,5 +1,5 @@
 FROM centos:centos7
-MAINTAINER Hilbert Space Project <udaya.balagalla@pearson.com>
+MAINTAINER Tensor Space Project <udaya.balagalla@pearson.com>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r mongodb && useradd -r -g mongodb mongodb
@@ -26,9 +26,9 @@ ENV MONGO_ROOT_USER root
 ENV MONGO_ROOT_PASSWORD root123
 
 # mongo app user + database (change me!)
-ENV MONGO_APP_USER hilbert
-ENV MONGO_APP_PASSWORD hilbert
-ENV MONGO_APP_DATABASE hilbertspace
+ENV MONGO_APP_USER tensor
+ENV MONGO_APP_PASSWORD tensor
+ENV MONGO_APP_DATABASE tensordb
 
 RUN mkdir /opt/mongo
 ADD mongodb-keyfile /opt/mongo/mongodb-keyfile

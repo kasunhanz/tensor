@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"errors"
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
-	"github.com/gamunu/hilbert-space/util"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
@@ -34,7 +34,7 @@ func Authentication(c *gin.Context) {
 		userID = token.UserID
 	} else {
 		// fetch session cookie
-		cookie, err := c.Request.Cookie("hilbertspace")
+		cookie, err := c.Request.Cookie("tensor")
 
 		if err != nil {
 			c.Error(err)
@@ -45,7 +45,7 @@ func Authentication(c *gin.Context) {
 		}
 
 		value := make(map[string]interface{})
-		if err = util.Cookie.Decode("hilbertspace", cookie.Value, &value); err != nil {
+		if err = util.Cookie.Decode("tensor", cookie.Value, &value); err != nil {
 
 			c.Error(err)
 			// send a informative response to user

@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 )
 

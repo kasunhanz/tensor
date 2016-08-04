@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
-	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 )

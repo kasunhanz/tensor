@@ -9,7 +9,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"regexp"
 )
+
+const _EXP_DOMAIN_USER = `^[a-z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,4}$`
 
 func isXHR(c *gin.Context) bool {
 	accept := c.Request.Header.Get("Accept")
@@ -30,6 +33,16 @@ func AuthFailed(c *gin.Context) {
 	c.Abort()
 
 	return
+}
+
+func ValidateEmail(email string) bool {
+	exp := regexp.MustCompile(_EXP_DOMAIN_USER)
+
+	if exp.MatchString(email) {
+		return true
+	}
+
+	return false
 }
 
 func GetIntParam(name string, c *gin.Context) (int, error) {
@@ -58,8 +71,8 @@ func GetObjectIdParam(name string, c *gin.Context) (string, error) {
 	return param, nil
 }
 
-func FindHilbertspace() string {
-	cmdPath, _ := exec.LookPath("hilbertspace")
+func FindTensor() string {
+	cmdPath, _ := exec.LookPath("tensor")
 
 	if len(cmdPath) == 0 {
 		cmdPath, _ = filepath.Abs(os.Args[0])

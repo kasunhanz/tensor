@@ -1,7 +1,7 @@
 package models
 
 import (
-	database "github.com/gamunu/hilbert-space/db"
+	database "github.com/gamunu/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -20,7 +20,7 @@ type Template struct {
 	Playbook string `bson:"playbook" json:"playbook"`
 	// to fit into []string
 	Arguments string `bson:"arguments" json:"arguments"`
-	// if true, hilbertspace will not prepend any arguments to `arguments` like inventory, etc
+	// if true, tensor will not prepend any arguments to `arguments` like inventory, etc
 	OverrideArguments bool `bson:"override_args" json:"override_args"`
 }
 

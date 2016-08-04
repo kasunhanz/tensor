@@ -7,16 +7,18 @@ import (
 	"time"
 
 	"errors"
-	"github.com/gamunu/hilbert-space/crypt"
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
-	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/tensor/crypt"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"io"
+	"bytes"
 )
 
 type task struct {
@@ -52,7 +54,7 @@ func (t *task) run() {
 	}()
 
 	if err := t.populateDetails(); err != nil {
-		t.log("Error: "+err.Error(), models.TaskLogError)
+		t.log("Error: " + err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -72,18 +74,30 @@ func (t *task) run() {
 		log.Print(err)
 	}
 
-	t.log("Started: "+t.task.ID.Hex(), models.TaskLogInfo)
+	t.log("Started: " + t.task.ID.Hex(), models.TaskLogInfo)
 
 	if t.accessKey.Type != "credential" {
 		if err := t.installKey(t.accessKey); err != nil {
-			t.log("Failed installing access key for server access: "+err.Error(), models.TaskLogError)
+			t.log("Failed installing access key for server access: " + err.Error(), models.TaskLogError)
 			t.fail()
 			return
+		}
+	} else {
+		// if connection type winrm and
+		if t.task.Connection == "winrm" && util.ValidateEmail(t.accessKey.Key) {
+
+			t.log("Initilizing kerberos authentication", models.TaskLogInfo)
+
+			if err := t.kinitCredentials(); err != nil {
+				t.log("Faild to initialize Kerberos authentication for winrm: " + err.Error(), models.TaskLogError)
+				t.fail()
+				return
+			}
 		}
 	}
 
 	if err := t.runAnsible(); err != nil {
-		t.log("Running ansible failed: "+err.Error(), models.TaskLogError)
+		t.log("Running ansible failed: " + err.Error(), models.TaskLogError)
 		t.fail()
 		return
 	}
@@ -103,7 +117,7 @@ func (t *task) populateDetails() error {
 		}
 
 		if t.accessKey.Type != "ssh" && t.accessKey.Type != "credential" {
-			t.log("Only ssh and credentials currently supported: "+t.accessKey.Type, models.TaskLogError)
+			t.log("Only ssh and credentials currently supported: " + t.accessKey.Type, models.TaskLogError)
 			return errors.New("Unsupported Key")
 		}
 	}
@@ -112,10 +126,63 @@ func (t *task) populateDetails() error {
 }
 
 func (t *task) installKey(key models.GlobalAccessKey) error {
-	t.log("Global access key "+key.Name+" installed", models.TaskLogInfo)
+	t.log("Global access key " + key.Name + " installed", models.TaskLogInfo)
 	err := ioutil.WriteFile(key.GetPath(), []byte(key.Secret), 0600)
 
 	return err
+}
+
+func (t *task) kinitCredentials() error {
+
+	// Create two command structs for echo and kinit
+	echo := exec.Command("echo", "-n", crypt.Decrypt(t.accessKey.Secret))
+	kinit := exec.Command("kinit", t.accessKey.Key)
+	kinit.Env = os.Environ()
+
+	// Create asynchronous in memory pipe
+	r, w := io.Pipe()
+
+	// set pipe writer to echo std out
+	echo.Stdout = w
+	// set pip reader to kinit std in
+	kinit.Stdin = r
+
+	// initialize new buffer
+	var buffer bytes.Buffer
+	kinit.Stdout = &buffer
+
+	// start two commands
+	if err := echo.Start(); err != nil {
+		log.Fatal(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := kinit.Start(); err != nil {
+		log.Fatal(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := echo.Wait(); err != nil {
+		log.Fatal(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		t.log(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := kinit.Wait(); err != nil {
+		t.log(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
+		t.log(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	return nil
 }
 
 // runAnsible is executes the task using Ansible command
@@ -126,7 +193,7 @@ func (t *task) runAnsible() error {
 
 	// specify inventory, comma separated host list
 	if cap(t.task.Inventory) > 0 {
-		args = append(args, "-i", strings.Join(t.task.Inventory, ",")+",")
+		args = append(args, "-i", strings.Join(t.task.Inventory, ",") + ",")
 
 	}
 
@@ -178,11 +245,11 @@ func (t *task) runAnsible() error {
 		//add ssh password as an extra argument
 		args = append(args, "-e", "ansible_ssh_pass=" + crypt.Decrypt(t.accessKey.Secret))
 	} else if t.accessKey.Type == "ssh" {
-		args = append(args, "--private-key="+t.accessKey.GetPath())
+		args = append(args, "--private-key=" + t.accessKey.GetPath())
 	}
 
-	// verbose mode -nasiblevvvv to enable
-	// connection debugging)
+	// verbose mode ansible adding vvvv to enable
+	// debugging
 	if t.task.Debug {
 		args = append(args, "-vvvv")
 	}
@@ -216,10 +283,9 @@ func (t *task) runAnsible() error {
 	cmd := exec.Command("ansible", args...)
 	cmd.Dir = util.Config.TmpPath
 
-	fmt.Print(args)
 	// This is must for Ansible
 	env := os.Environ()
-	env = append(env, "HOME="+util.Config.TmpPath, "PWD="+cmd.Dir, "HS_TASK_ID="+t.task.ID.Hex())
+	env = append(env, "HOME=" + util.Config.TmpPath, "PWD=" + cmd.Dir, "HS_TASK_ID=" + t.task.ID.Hex())
 	cmd.Env = env
 
 	t.logCmd(cmd)

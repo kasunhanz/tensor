@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gamunu/hilbert-space/api/sockets"
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/api/sockets"
+	"github.com/gamunu/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 )
 

@@ -10,13 +10,13 @@ services:
       MONGO_SECONDARY: mongo2
       MONGO_ARBITER: mongo3
       MONGO_ROOT_USER: root
-      MONGO_APP_USER: hilbert
-      MONGO_APP_PASSWORD: hilbert
-      MONGO_APP_DATABASE: hilbertspace
+      MONGO_APP_USER: tensor
+      MONGO_APP_PASSWORD: tensor
+      MONGO_APP_DATABASE: tensordb
     tty: true
     stdin_open: true
     networks:
-      hilbertnet:
+      tensornet:
         aliases:
           - mongo1
 
@@ -28,7 +28,7 @@ services:
     tty: true
     stdin_open: true
     networks:
-      hilbertnet:
+      tensornet:
         aliases:
           - mongo2
 
@@ -42,10 +42,10 @@ services:
     tty: true
     stdin_open: true
     networks:
-      hilbertnet:
+      tensornet:
         aliases:
           - mongo3
 
 networks:
-  hilbertnet:
+  tensornet:
     driver: bridge

@@ -30,7 +30,7 @@ type configType struct {
 	// Format `:port_num` eg, :3000
 	Port string `yaml:"port"`
 
-	// HilbertSpace stores projects here
+	// Tensor stores projects here
 	TmpPath string `yaml:"tmp_path"`
 
 	// cookie hashing & encryption
@@ -62,7 +62,7 @@ func init() {
 		os.Exit(0)
 	}
 
-	conf, err := ioutil.ReadFile("/etc/hilbertspace.conf")
+	conf, err := ioutil.ReadFile("/etc/tensor.conf")
 
 	if err != nil {
 		log.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
@@ -82,7 +82,7 @@ func init() {
 	}
 
 	if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/tmp/hilbertspace"
+		Config.TmpPath = "/tmp/tensor"
 	}
 
 	var encryption []byte

@@ -3,8 +3,8 @@ package tasks
 import (
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )

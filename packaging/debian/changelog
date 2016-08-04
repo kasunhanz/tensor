@@ -1,10 +1,10 @@
-hilbertspace (%VERSION%-%RELEASE%) %DIST%; urgency=low
+tensor (%VERSION%-%RELEASE%) %DIST%; urgency=low
 
   * %VERSION% release
 
- -- HilbertSpace <gamunu.balagalla@outlook.com>  %DATE%
+ -- Tensor <gamunu.balagalla@outlook.com>  %DATE%
 
-hilbertspace (0.0.1) unstable; urgency=low
+tensor (0.0.1) unstable; urgency=low
 
   * Initial Release
 

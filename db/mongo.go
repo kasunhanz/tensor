@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/tensor/util"
 	"gopkg.in/mgo.v2"
 	"time"
 )

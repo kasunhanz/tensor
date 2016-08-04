@@ -1,6 +1,6 @@
-# Dockerized Hilbert Space
+# Dockerized Tensor
 
-This Docker container container is intended to be used to set up Hilbert Space and it's backend services including set up a 3 node MongoDB replica set.
+This Docker container container is intended to be used to set up Tensor and it's backend services including set up a 3 node MongoDB replica set.
 
 Mongo version:  **3.3.9**
 

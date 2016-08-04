@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gopkg.in/mgo.v2/bson"

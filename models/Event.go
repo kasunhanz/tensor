@@ -1,7 +1,7 @@
 package models
 
 import (
-	database "github.com/gamunu/hilbert-space/db"
+	database "github.com/gamunu/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 	"time"
 )

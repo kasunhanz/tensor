@@ -59,9 +59,9 @@ ENV MONGO_ROOT_USER root
 ENV MONGO_ROOT_PASSWORD root123
 
 # mongo app user + database (change me!)
-ENV MONGO_APP_USER hilbert
-ENV MONGO_APP_PASSWORD hilbert
-ENV MONGO_APP_DATABASE hilbertspace
+ENV MONGO_APP_USER tensor
+ENV MONGO_APP_PASSWORD tensor
+ENV MONGO_APP_DATABASE tensordb
 
 RUN mkdir /opt/mongo
 ADD mongodb-keyfile /opt/mongo/mongodb-keyfile

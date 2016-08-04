@@ -1,5 +1,5 @@
 FROM alpine:edge
-MAINTAINER Hilbert Space Project <udaya.balagalla@pearson.com>
+MAINTAINER Tensor Project <udaya.balagalla@pearson.com>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN addgroup -g 82 -S mongodb && adduser -u 82 -D -S -G mongodb mongodb
@@ -22,9 +22,9 @@ ENV MONGO_ROOT_USER root
 ENV MONGO_ROOT_PASSWORD root123
 
 # mongo app user + database (change me!)
-ENV MONGO_APP_USER hilbert
-ENV MONGO_APP_PASSWORD hilbert
-ENV MONGO_APP_DATABASE hilbertspace
+ENV MONGO_APP_USER tensor
+ENV MONGO_APP_PASSWORD tensor
+ENV MONGO_APP_DATABASE tensordb
 
 RUN mkdir -p /opt/mongo
 COPY mongodb-keyfile /opt/mongo/mongodb-keyfile

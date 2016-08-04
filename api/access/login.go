@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
-	"github.com/gamunu/hilbert-space/util"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/util"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
@@ -76,7 +76,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	encoded, err := util.Cookie.Encode("hilbertspace", map[string]interface{}{
+	encoded, err := util.Cookie.Encode("tensor", map[string]interface{}{
 		"user":    user.ID.Hex(),
 		"session": session.ID.Hex(),
 	})
@@ -89,7 +89,7 @@ func Login(c *gin.Context) {
 
 	// set a new cookie
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  "hilbertspace",
+		Name:  "tensor",
 		Value: encoded,
 		Path:  "/",
 	})
@@ -99,6 +99,6 @@ func Login(c *gin.Context) {
 
 // Logout will remove the browser cookie
 func Logout(c *gin.Context) {
-	c.SetCookie("hilbertspace", "", -1, "/", "", false, true)
+	c.SetCookie("tensor", "", -1, "/", "", false, true)
 	c.AbortWithStatus(204)
 }
