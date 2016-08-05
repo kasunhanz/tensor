@@ -66,7 +66,8 @@ DEB_DIST = unstable
 default: build
 
 build: vet
-	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./cli
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./service
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensor ./cmd
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -76,15 +77,24 @@ clean:
 	rm -rf deb-build
 
 debian:	build
-	mkdir -p deb-build/$(NAME)-$(VERSION) ; \
-	mkdir -p deb-build/$(NAME)-$(VERSION)/etc/ ; \
-	mkdir -p deb-build/$(NAME)-$(VERSION)/bin ; \
-	cp packaging/config/tensor.conf deb-build/$(NAME)-$(VERSION)/etc/; \
-	cp build/$(NAME)-$(VERSION)/tensor deb-build/$(NAME)-$(VERSION)/bin; \
-	cp -a docs deb-build/$(NAME)-$(VERSION)/; \
-	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/ ; \
-	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog; \
-	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;" deb-build/$(NAME)-$(VERSION)/debian/control ; \
+    # create directories
+	mkdir -p deb-build/$(NAME)-$(VERSION)/etc/
+	mkdir -p deb-build/$(NAME)-$(VERSION)/bin
+	mkdir -p deb-build/$(NAME)-$(VERSION)/systemd/
+
+	cp packaging/config/tensor.conf deb-build/$(NAME)-$(VERSION)/etc/
+	cp -a packaging/systemd/tensord.service deb-build/$(NAME)-$(VERSION)/systemd/
+	cp build/$(NAME)-$(VERSION)/tensord deb-build/$(NAME)-$(VERSION)/bin
+	cp build/$(NAME)-$(VERSION)/tensor deb-build/$(NAME)-$(VERSION)/bin
+	cp -a docs deb-build/$(NAME)-$(VERSION)/
+	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/
+	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog
+	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;" deb-build/$(NAME)-$(VERSION)/debian/control
+
+	#fix permission issues
+	chmod +x deb-build/$(NAME)-$(VERSION)/systemd/tensord.service
+	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensord
+	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensor
 
 deb: debian
 	cd deb-build/$(NAME)-$(VERSION)/ && $(DEBUILD) -b
