@@ -153,32 +153,32 @@ func (t *task) kinitCredentials() error {
 
 	// start two commands
 	if err := echo.Start(); err != nil {
-		log.Fatal(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
 	if err := kinit.Start(); err != nil {
-		log.Fatal(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
 	if err := echo.Wait(); err != nil {
-		log.Fatal(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		t.log(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
 	if err := kinit.Wait(); err != nil {
-		t.log(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
 	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
-		t.log(err.Error(), models.TaskLogError)
+		log.Print(err.Error(), models.TaskLogError)
 		return err
 	}
 
