@@ -1,8 +1,7 @@
-package main
+package service
 
 import (
 	"fmt"
-	"os"
 	"github.com/gamunu/tensor/api"
 	"github.com/gamunu/tensor/api/addhoctasks"
 	"github.com/gamunu/tensor/api/sockets"
@@ -15,14 +14,10 @@ import (
 )
 
 func main() {
-	if util.InteractiveSetup {
-		os.Exit(doSetup())
-	}
-
-	fmt.Printf("Tensor %v\n", util.Version)
-	fmt.Printf("Port %v\n", util.Config.Port)
-	fmt.Printf("MongoDB %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
-	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
+	fmt.Printf("Tensor : %v\n", util.Version)
+	fmt.Printf("Port : %v\n", util.Config.Port)
+	fmt.Printf("MongoDB : %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
+	fmt.Printf("Tmp Path (projects home) : %v\n", util.Config.TmpPath)
 
 	if err := database.Connect(); err != nil {
 		log.Fatal(err)
