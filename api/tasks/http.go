@@ -3,8 +3,8 @@ package tasks
 import (
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -44,20 +44,20 @@ func AddTask(c *gin.Context) {
 func GetAll(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	col := database.MongoDb.C("task")
+	col := database.MongoDb.C("tasks")
 
 	aggregate := []bson.M{
-		{"$lookup" : bson.M{
-			"from":"project_template",
-			"localField":"template_id",
-			"foreignField":"_id",
-			"as": "project_template",
+		{"$lookup": bson.M{
+			"from":         "project_template",
+			"localField":   "template_id",
+			"foreignField": "_id",
+			"as":           "project_template",
 		}},
 		{"$match": bson.M{
-			"$project_template._id":project.ID,
+			"$project_template._id": project.ID,
 		}},
 		{"$sort": bson.M{
-			"created":-1,
+			"created": -1,
 		}},
 	}
 
@@ -79,9 +79,9 @@ func GetTaskMiddleware(c *gin.Context) {
 
 	var task models.Task
 
-	col := database.MongoDb.C("task")
+	col := database.MongoDb.C("tasks")
 
-	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task);
+	err := col.Find(bson.M{"_id": bson.ObjectIdHex(taskID)}).One(&task)
 	if err != nil {
 		panic(err)
 	}
@@ -95,9 +95,9 @@ func GetTaskOutput(c *gin.Context) {
 
 	var output []models.TaskOutput
 
-	col := database.MongoDb.C("task_output")
+	col := database.MongoDb.C("task_outputs")
 
-	if err := col.Find(bson.M{"task_id": task.ID, }).Sort("time").All(&output); err != nil {
+	if err := col.Find(bson.M{"task_id": task.ID}).Sort("time").All(&output); err != nil {
 		panic(err)
 	}
 

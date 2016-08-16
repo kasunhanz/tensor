@@ -1,0 +1,51 @@
+version: '2'
+services:
+  mongo1:
+    build: .
+    ports:
+      - '27017:27017'
+    restart: always
+    environment:
+      MONGO_ROLE: primary
+      MONGO_SECONDARY: mongo2
+      MONGO_ARBITER: mongo3
+      MONGO_ROOT_USER: root
+      MONGO_APP_USER: tensor
+      MONGO_APP_PASSWORD: tensor
+      MONGO_APP_DATABASE: tensordb
+    tty: true
+    stdin_open: true
+    networks:
+      tensornet:
+        aliases:
+          - mongo1
+
+  mongo2:
+    build: .
+    ports:
+      - '27018:27017'
+    restart: always
+    tty: true
+    stdin_open: true
+    networks:
+      tensornet:
+        aliases:
+          - mongo2
+
+  mongo3:
+    build: .
+    ports:
+       - '27019:27017'
+    restart: always
+    environment:
+      JOURNALING: 'no'
+    tty: true
+    stdin_open: true
+    networks:
+      tensornet:
+        aliases:
+          - mongo3
+
+networks:
+  tensornet:
+    driver: bridge

@@ -8,9 +8,9 @@ When creating a pull-request you should:
 
 # Installing dependencies
 
-Clone the project to `$GOPATH/src/github.com/gamunu/hilbert-space` (more on GOPATHS below)
+Clone the project to `$GOPATH/src/github.com/gamunu/tensor` (more on GOPATHS below)
 
-> note: You should clone hilbertspace with all submodules
+> note: You should clone Tensor with all submodules
 > - you should have latest go installed and node with ES6 (used to be a special `harmony` flag) capability
 
 ```
@@ -28,9 +28,9 @@ To develop in Go, you need to setup a gopath where go code, libraries & executab
 
 Follow either of these ([go wiki](https://github.com/golang/go/wiki/GOPATH), [tutorial](http://www.ryanday.net/2012/10/01/installing-go-and-gopath/), [SO question](https://stackoverflow.com/questions/21001387/how-do-i-set-the-gopath-environment-variable-on-ubuntu-what-file-must-i-edit)).
 
-1. `mkdir -p $GOPATH/src/github.com/ansible-hilbertspace`
-2. `cd $GOPATH/src/github.com/ansible-hilbertspace`
-3. `git clone --recursive git@github.com:ansible-hilbertspace/hilbertspace.git`
+1. `mkdir -p $GOPATH/src/github.com/tensor`
+2. `cd $GOPATH/src/github.com/tensor`
+3. `git clone --recursive git@github.com:gamunu/tensor.git`
 4. Now install dependencies above
 
 # Running in development

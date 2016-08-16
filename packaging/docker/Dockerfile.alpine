@@ -1,0 +1,45 @@
+FROM alpine:edge
+MAINTAINER Tensor Project <udaya.balagalla@pearson.com>
+
+# add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
+RUN addgroup -g 82 -S mongodb && adduser -u 82 -D -S -G mongodb mongodb
+
+RUN echo http://dl-4.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories && \
+  apk add --no-cache mongodb
+
+RUN mkdir -p /data/db && chown -R mongodb:mongodb /data/db
+
+# mongod config
+ENV AUTH yes
+ENV STORAGE_ENGINE wiredTiger
+ENV JOURNALING yes
+ENV REP_SET rs0
+ENV MONGO_SECONDARY mongo2:27017
+ENV MONGO_ARBITER mongo3:27017
+
+# mongo root user (change me!)
+ENV MONGO_ROOT_USER root
+ENV MONGO_ROOT_PASSWORD root123
+
+# mongo app user + database (change me!)
+ENV MONGO_APP_USER tensor
+ENV MONGO_APP_PASSWORD tensor
+ENV MONGO_APP_DATABASE tensordb
+
+RUN mkdir -p /opt/mongo
+COPY mongodb-keyfile /opt/mongo/mongodb-keyfile
+COPY mongo_setup_users.sh /opt/mongo/mongo_setup_users.sh
+COPY mongo_setup_repset.sh /opt/mongo/mongo_setup_repset.sh
+COPY check-keyfile.sh /opt/mongo/check-keyfile.sh
+
+RUN chmod +x /opt/mongo/check-keyfile.sh
+RUN sh /opt/mongo/check-keyfile.sh
+COPY run.sh /run.sh
+RUN chown -R mongodb:mongodb /opt/mongo
+RUN chmod 600 /opt/mongo/mongodb-keyfile
+
+VOLUME /data/db
+
+EXPOSE 27017 28017
+
+CMD ["sh", "/run.sh"]

@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/gamunu/hilbert-space/models"
 )
 
 func (t *task) log(msg string, logType string) {
@@ -16,11 +16,11 @@ func (t *task) log(msg string, logType string) {
 
 	go func() {
 
-		c := database.MongoDb.C("addhoc_task")
+		c := database.MongoDb.C("addhoc_tasks")
 
 		if _, err := c.Upsert(bson.M{"_id": t.task.ID},
 			bson.M{
-				"$push": bson.M{"log": models.TaskLogItem{Record:msg, Type: logType, Time: time.Now()}},
+				"$push": bson.M{"log": models.TaskLogItem{Record: msg, Type: logType, Time: time.Now()}},
 			}); err != nil {
 			panic(err)
 		}
@@ -29,13 +29,12 @@ func (t *task) log(msg string, logType string) {
 
 func (t *task) updateStatus() {
 
-	c := database.MongoDb.C("addhoc_task")
+	c := database.MongoDb.C("addhoc_tasks")
 
-	if err := c.UpdateId(t.task.ID, bson.M{"$set":
-	bson.M{
-		"status":t.task.Status,
-		"start":t.task.Start,
-		"end":t.task.End,
+	if err := c.UpdateId(t.task.ID, bson.M{"$set": bson.M{
+		"status": t.task.Status,
+		"start":  t.task.Start,
+		"end":    t.task.End,
 	},
 	}); err != nil {
 		fmt.Println("Failed to update task status")

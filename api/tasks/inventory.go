@@ -1,10 +1,10 @@
 package tasks
 
 import (
-	"io/ioutil"
-	"github.com/gamunu/hilbert-space/util"
-	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
+	"github.com/gamunu/tensor/util"
+	"gopkg.in/mgo.v2/bson"
+	"io/ioutil"
 )
 
 func (t *task) installInventory() error {
@@ -32,5 +32,5 @@ func (t *task) installStaticInventory() error {
 		return err
 	}
 	// create inventory file
-	return ioutil.WriteFile(util.Config.TmpPath + "/inventory_" + t.task.ID.String(), bytes, 0664)
+	return ioutil.WriteFile(util.Config.TmpPath+"/inventory_"+t.task.ID.String(), bytes, 0664)
 }

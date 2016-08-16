@@ -1,12 +1,12 @@
 package addhoctasks
 
 import (
-	"time"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
-	database "github.com/gamunu/hilbert-space/db"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
+	"time"
 )
 
 // AddTask creates a new add-hoc task
@@ -34,16 +34,16 @@ func AddTask(c *gin.Context) {
 
 	// add newly created task in to addHocTaskPool
 	pool.register <- &task{
-		task:      taskObj,
+		task: taskObj,
 	}
 
 	// Create new event ins the database
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		ObjectType:  "addhoc_task",
 		ObjectID:    taskObj.ID,
 		Description: "Add-Hoc Task ID " + taskObj.ID.Hex() + " queued for running",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		// We don't inform client about this error
 		// do not ever panic :D
@@ -62,7 +62,7 @@ func GetTaskMiddleware(c *gin.Context) {
 
 	var task models.AddHocTask
 
-	col := database.MongoDb.C("addhoc_task")
+	col := database.MongoDb.C("addhoc_tasks")
 
 	if err := col.FindId(bson.ObjectIdHex(taskID)).One(&task); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -80,9 +80,9 @@ func GetTaskWithoutLogMiddleware(c *gin.Context) {
 	taskID := c.Params.ByName("task_id")
 	var task models.AddHocTask
 
-	col := database.MongoDb.C("addhoc_task")
+	col := database.MongoDb.C("addhoc_tasks")
 
-	if err := col.FindId(bson.ObjectIdHex(taskID)).Select(bson.M{"log":0}).One(&task); err != nil {
+	if err := col.FindId(bson.ObjectIdHex(taskID)).Select(bson.M{"log": 0}).One(&task); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}

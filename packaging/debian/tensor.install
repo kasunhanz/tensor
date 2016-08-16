@@ -1,0 +1,3 @@
+bin/* usr/bin
+etc/tensor.conf etc/
+systemd/tensord.service /lib/systemd/system/

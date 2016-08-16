@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
-  title: HILBERT SPACE
-  description: Hilbert SPACE API
+  title: Tensor
+  description: Tensor API
   version: "2.0.2"
 
 host: localhost:3000
@@ -289,7 +289,7 @@ paths:
       #   - bearer: []
   /info:
     get:
-      summary: Fetches information about hilbertspace
+      summary: Fetches information about tensor
       description: you must be authenticated to use this
       responses:
         200:
@@ -419,7 +419,7 @@ paths:
           description: Created project
   /events:
     get:
-      summary: Get Events related to Hilbertspace and projects you are part of
+      summary: Get Events related to Tensor and projects you are part of
       responses:
         200:
           description: Array of events in chronological order

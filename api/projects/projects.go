@@ -1,22 +1,22 @@
 package projects
 
 import (
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 	"net/http"
+	"time"
 )
 
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
 	user := c.MustGet("user").(models.User)
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	var projects []models.Project
-	if err := col.Find(bson.M{ "users.user_id": user.ID }).Sort("name").All(&projects); err != nil {
+	if err := col.Find(bson.M{"users.user_id": user.ID}).Sort("name").All(&projects); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -37,7 +37,7 @@ func AddProject(c *gin.Context) {
 
 	project.ID = bson.NewObjectId()
 	project.Created = time.Now()
-	project.Users = []models.ProjectUser{{Admin:true, UserID:user.ID}}
+	project.Users = []models.ProjectUser{{Admin: true, UserID: user.ID}}
 
 	if err := project.Insert(); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -45,11 +45,11 @@ func AddProject(c *gin.Context) {
 	}
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		ProjectID:   project.ID,
 		ObjectType:  "project",
 		Description: "Project Created",
-		Created: project.Created,
+		Created:     project.Created,
 	}.Insert()); err != nil {
 		// We don't inform client about this error
 		// do not ever panic :D

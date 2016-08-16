@@ -3,8 +3,8 @@ package api
 import (
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -23,7 +23,7 @@ func getAPITokens(c *gin.Context) {
 
 	var tokens []models.APIToken
 
-	col := database.MongoDb.C("user_token")
+	col := database.MongoDb.C("user_tokens")
 
 	if err := col.Find(bson.M{"user_id": user.ID}).All(&tokens); err != nil {
 		panic(err)
@@ -54,9 +54,9 @@ func expireAPIToken(c *gin.Context) {
 
 	tokenID := c.Param("token_id")
 
-	col := database.MongoDb.C("user_token")
+	col := database.MongoDb.C("user_tokens")
 
-	if err := col.Update(bson.M{"_id": tokenID, "user_id":user.ID}, bson.M{"expired": true}); err != nil {
+	if err := col.Update(bson.M{"_id": tokenID, "user_id": user.ID}, bson.M{"expired": true}); err != nil {
 		c.AbortWithStatus(400)
 		panic(err)
 	}

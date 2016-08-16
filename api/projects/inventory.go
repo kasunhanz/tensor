@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -10,7 +10,7 @@ func InventoryMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	inventoryID := c.Params.ByName("inventory_id")
 
-	inventory, err := project.GetInventory(bson.ObjectIdHex(inventoryID));
+	inventory, err := project.GetInventory(bson.ObjectIdHex(inventoryID))
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +22,7 @@ func InventoryMiddleware(c *gin.Context) {
 func GetInventory(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	inv, err := project.GetInventories();
+	inv, err := project.GetInventories()
 	if err != nil {
 		panic(err)
 	}

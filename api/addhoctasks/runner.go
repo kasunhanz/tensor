@@ -6,17 +6,19 @@ import (
 	"strconv"
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
-	"strings"
 	"errors"
-	"io/ioutil"
-	"os/exec"
-	"github.com/gamunu/hilbert-space/util"
-	"github.com/gamunu/hilbert-space/crypt"
+	"github.com/gamunu/tensor/crypt"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/util"
 	"gopkg.in/mgo.v2/bson"
-	"os"
+	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
+	"strings"
+	"io"
+	"bytes"
 )
 
 type task struct {
@@ -42,7 +44,7 @@ func (t *task) run() {
 		t.updateStatus()
 
 		if err := (models.Event{
-			ID: bson.NewObjectId(),
+			ID:          bson.NewObjectId(),
 			ObjectType:  "addhoc_task",
 			ObjectID:    t.task.ID,
 			Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " finished",
@@ -63,11 +65,11 @@ func (t *task) run() {
 	t.updateStatus()
 
 	if err := (models.Event{
-		ID: bson.NewObjectId(),
+		ID:          bson.NewObjectId(),
 		ObjectType:  "addhoc_task",
 		ObjectID:    t.task.ID,
 		Description: "Add-Hoc Task ID " + t.task.ID.Hex() + " is running",
-		Created: time.Now(),
+		Created:     time.Now(),
 	}.Insert()); err != nil {
 		log.Print(err)
 	}
@@ -79,6 +81,18 @@ func (t *task) run() {
 			t.log("Failed installing access key for server access: " + err.Error(), models.TaskLogError)
 			t.fail()
 			return
+		}
+	} else {
+		// if connection type winrm and
+		if t.task.Connection == "winrm" && util.ValidateEmail(t.accessKey.Key) {
+
+			t.log("Initilizing kerberos authentication", models.TaskLogInfo)
+
+			if err := t.kinitCredentials(); err != nil {
+				t.log("Faild to initialize Kerberos authentication for winrm: " + err.Error(), models.TaskLogError)
+				t.fail()
+				return
+			}
 		}
 	}
 
@@ -96,7 +110,7 @@ func (t *task) populateDetails() error {
 
 	// get access key
 	if bson.IsObjectIdHex(t.task.AccessKeyID.Hex()) {
-		accesskeyc := database.MongoDb.C("global_access_key")
+		accesskeyc := database.MongoDb.C("global_access_keys")
 		if err := accesskeyc.FindId(t.task.AccessKeyID).One(&t.accessKey); err != nil {
 			t.log("Global Access Key not found!", models.TaskLogError)
 			return errors.New("Global Access Key not found!")
@@ -118,11 +132,64 @@ func (t *task) installKey(key models.GlobalAccessKey) error {
 	return err
 }
 
+func (t *task) kinitCredentials() error {
+
+	// Create two command structs for echo and kinit
+	echo := exec.Command("echo", "-n", crypt.Decrypt(t.accessKey.Secret))
+	kinit := exec.Command("kinit", t.accessKey.Key)
+	kinit.Env = os.Environ()
+
+	// Create asynchronous in memory pipe
+	r, w := io.Pipe()
+
+	// set pipe writer to echo std out
+	echo.Stdout = w
+	// set pip reader to kinit std in
+	kinit.Stdin = r
+
+	// initialize new buffer
+	var buffer bytes.Buffer
+	kinit.Stdout = &buffer
+
+	// start two commands
+	if err := echo.Start(); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := kinit.Start(); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := echo.Wait(); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if err := kinit.Wait(); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
+		log.Print(err.Error(), models.TaskLogError)
+		return err
+	}
+
+	return nil
+}
+
 // runAnsible is executes the task using Ansible command
 func (t *task) runAnsible() error {
 
 	// arguments for Ansible command
-	args := []string{"all" }
+	args := []string{"all"}
 
 	// specify inventory, comma separated host list
 	if cap(t.task.Inventory) > 0 {
@@ -159,7 +226,7 @@ func (t *task) runAnsible() error {
 	// connection type to use (default=smart)
 	if len(t.task.Connection) > 0 {
 		if t.task.Connection == "winrm" {
-			args = append(args, "-e", "")
+			args = append(args, "-e", "ansible_winrm_server_cert_validation=ignore")
 		}
 		args = append(args, "-c", t.task.Connection)
 	}
@@ -176,13 +243,13 @@ func (t *task) runAnsible() error {
 	if t.accessKey.Type == "credential" {
 		args = append(args, "-u", t.accessKey.Key)
 		//add ssh password as an extra argument
-		args = append(args, "-e", "ansible_ssh_pass", crypt.Decrypt(t.accessKey.Secret))
+		args = append(args, "-e", "ansible_ssh_pass=" + crypt.Decrypt(t.accessKey.Secret))
 	} else if t.accessKey.Type == "ssh" {
 		args = append(args, "--private-key=" + t.accessKey.GetPath())
 	}
 
-	// verbose mode -nasiblevvvv to enable
-	// connection debugging)
+	// verbose mode ansible adding vvvv to enable
+	// debugging
 	if t.task.Debug {
 		args = append(args, "-vvvv")
 	}

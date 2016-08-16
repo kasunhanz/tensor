@@ -10,6 +10,6 @@ func TestDecrypt(t *testing.T) {
 	actual := Decrypt(cryptvalue)
 
 	if actual != expected {
-		t.Errorf("Decrypt(%d): expected %d, actual %d", expected, expected, actual)
+		t.Errorf("Decrypt(%s): expected %s, actual %s", expected, expected, actual)
 	}
 }

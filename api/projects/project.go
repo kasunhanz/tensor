@@ -1,8 +1,8 @@
 package projects
 
 import (
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
@@ -16,10 +16,10 @@ func ProjectMiddleware(c *gin.Context) {
 
 	projectID := c.Params.ByName("project_id")
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
 	query := bson.M{
-		"_id": bson.ObjectIdHex(projectID),
+		"_id":           bson.ObjectIdHex(projectID),
 		"users.user_id": user.ID,
 	}
 
@@ -35,5 +35,5 @@ func ProjectMiddleware(c *gin.Context) {
 
 // GetProject returns the project as a JSON object
 func GetProject(c *gin.Context) {
-	c.JSON(200, c.MustGet("project"))
+	c.JSON(200, c.MustGet("projects"))
 }

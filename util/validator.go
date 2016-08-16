@@ -4,19 +4,19 @@ import (
 	"reflect"
 	"sync"
 
-	"gopkg.in/go-playground/validator.v8"
 	"github.com/gin-gonic/gin/binding"
+	"gopkg.in/go-playground/validator.v8"
 	"regexp"
 )
 
 const (
-	domainServerRegexString = "^[a-zA-Z0-9-]{1,61}\\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\\.[a-zA-Z]{2,}$"
+	domainServerRegexString        = "^[a-zA-Z0-9-]{1,61}\\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\\.[a-zA-Z]{2,}$"
 	ansibleBecomeMethodRegexString = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
 )
 
 var (
 	ansibleBecomeMethodRegex = regexp.MustCompile(ansibleBecomeMethodRegexString)
-	domainServerRegex = regexp.MustCompile(domainServerRegexString)
+	domainServerRegex        = regexp.MustCompile(domainServerRegexString)
 )
 
 type SpaceValidator struct {

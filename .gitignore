@@ -22,11 +22,23 @@ _testmain.go
 *.exe
 *.test
 *.prof
+*.pyc
 
-#ignore binaries
-cli/hilbertspace_linux_386
-cli/hilbertspace_linux_amd64
+#ignore build artifacts
+build
+dist
+deb-build
 
 #ignore project vs code
 .vscode/
 .idea/
+
+#nodeingore
+node_modules
+
+#ignore jade gens less gens and bundle.js
+client/html/*.html
+client/html/*/*.html
+client/html/*/*/*.html
+client/css/tensor.css
+client/js/bundle.js

@@ -4,18 +4,18 @@ import (
 	"database/sql"
 	"time"
 
-	database "github.com/gamunu/hilbert-space/db"
-	"github.com/gamunu/hilbert-space/models"
+	"fmt"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
-	"fmt"
 )
 
 func getUsers(c *gin.Context) {
 	var users []models.User
 
-	col := database.MongoDb.C("user_token")
+	col := database.MongoDb.C("user_tokens")
 
 	if err := col.Find(nil).All(&users); err != nil {
 		panic(err)
@@ -45,7 +45,7 @@ func getUserMiddleware(c *gin.Context) {
 
 	var user models.User
 
-	col := database.MongoDb.C("user")
+	col := database.MongoDb.C("users")
 
 	if err := col.FindId(userID).One(&user); err != nil {
 		if err == sql.ErrNoRows {
@@ -68,9 +68,9 @@ func updateUser(c *gin.Context) {
 		return
 	}
 
-	col := database.MongoDb.C("user")
+	col := database.MongoDb.C("users")
 
-	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username":user.Username, "email":user.Email}); err != nil {
+	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username": user.Username, "email": user.Email}); err != nil {
 		panic(err)
 	}
 
@@ -89,9 +89,9 @@ func updateUserPassword(c *gin.Context) {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
 
-	col := database.MongoDb.C("user")
+	col := database.MongoDb.C("users")
 
-	if err := col.UpdateId(user.ID, bson.M{"password":string(password)}); err != nil {
+	if err := col.UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
 		panic(err)
 	}
 
@@ -101,16 +101,16 @@ func updateUserPassword(c *gin.Context) {
 func deleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 
-	col := database.MongoDb.C("project")
+	col := database.MongoDb.C("projects")
 
-	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users" : bson.M{"user_id": user.ID}}});
+	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println(info.Matched)
 
-	userCol := database.MongoDb.C("user")
+	userCol := database.MongoDb.C("users")
 
 	if err := userCol.RemoveId(user.ID); err != nil {
 		panic(err)

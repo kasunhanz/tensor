@@ -1,0 +1,23 @@
+Source: tensor
+Maintainer: Gamunu Balagalla <gamunu.balagalla@outlook.com>
+Homepage: https://gamunu.github.io/tensor/
+Vcs-Git: git://github.com/gamunu/tensor.git
+Vcs-Browser: https://github.com/gamunu/tensor.git
+
+Package: tensor
+Architecture: amd64
+Depends: ${shlibs:Depends}, python3-pymongo (>= 3.2), python-pip (>= 8.1), libkrb5-dev (>= 1.13), krb5-user (>= 1.13), python-dev (>= 2.7), ansible (>= 2.2), adduser
+Section: admin
+Priority: optional
+Homepage: https://gamunu.github.io/tensor/
+Description: Comprehensive web-based automation framework and
+ Centralized infrastructure management REST API, based on ansible,
+ provides role-based access control, job scheduling, inventory management.
+ .
+ MongoDB features:
+  * Configuration Management
+  * Provisioning
+  * Code Deployments
+  * Continuous Integration & Continuous Delivery
+  * Security & Compliance
+  * Orchestration

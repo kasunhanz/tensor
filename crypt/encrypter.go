@@ -3,10 +3,10 @@ package crypt
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
-	"encoding/base64"
-	"crypto/rand"
 )
 
 /*
@@ -22,7 +22,7 @@ fmt.Println(cryptoText)
 // encrypt base64 crypto to original value
 text := Decrypt(cryptoText)
 fmt.Printf(text)
- */
+*/
 
 var key []byte = []byte("8m86pie1ef8bghbq41ru!de4")
 
@@ -38,7 +38,7 @@ func Encrypt(text string) string {
 
 	// The IV needs to be unique, but not secure. Therefore it's common to
 	// include it at the beginning of the ciphertext.
-	ciphertext := make([]byte, aes.BlockSize + len(plaintext))
+	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
 	iv := ciphertext[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		panic(err)

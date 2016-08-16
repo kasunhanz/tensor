@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -10,7 +10,7 @@ func TemplatesMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	templateID := c.Params.ByName("template_id")
 
-	template, err := project.GetTemplate(bson.ObjectIdHex(templateID));
+	template, err := project.GetTemplate(bson.ObjectIdHex(templateID))
 
 	if err != nil {
 		panic(err)
@@ -23,7 +23,7 @@ func TemplatesMiddleware(c *gin.Context) {
 func GetTemplates(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
-	templates, err := project.GetTemplates();
+	templates, err := project.GetTemplates()
 
 	if err != nil {
 		panic(err)

@@ -3,14 +3,14 @@ package api
 import (
 	"time"
 
-	"github.com/gamunu/hilbert-space/api/cors"
-	"github.com/gamunu/hilbert-space/api/projects"
-	"github.com/gamunu/hilbert-space/api/sockets"
-	"github.com/gamunu/hilbert-space/api/tasks"
-	"github.com/gamunu/hilbert-space/util"
+	"github.com/gamunu/tensor/api/access"
+	"github.com/gamunu/tensor/api/addhoctasks"
+	"github.com/gamunu/tensor/api/cors"
+	"github.com/gamunu/tensor/api/projects"
+	"github.com/gamunu/tensor/api/sockets"
+	"github.com/gamunu/tensor/api/tasks"
+	"github.com/gamunu/tensor/util"
 	"github.com/gin-gonic/gin"
-	"github.com/gamunu/hilbert-space/api/addhoctasks"
-	"github.com/gamunu/hilbert-space/api/access"
 	"strings"
 )
 
@@ -134,7 +134,7 @@ func getSystemInfo(c *gin.Context) {
 			"dbName":  util.Config.MongoDB.DbName,
 			"dbUser":  util.Config.MongoDB.Username,
 			"path":    util.Config.TmpPath,
-			"cmdPath": util.FindHilbertspace(),
+			"cmdPath": util.FindTensor(),
 		},
 	}
 

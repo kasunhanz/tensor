@@ -1,21 +1,21 @@
 package models
 
 import (
-	"github.com/gamunu/hilbert-space/util"
+	database "github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/util"
 	"gopkg.in/mgo.v2/bson"
-	database "github.com/gamunu/hilbert-space/db"
 )
 
 // GlobalAccessKey is the model for
 // global_access_key collection
 type GlobalAccessKey struct {
-	ID     bson.ObjectId    `bson:"_id" json:"id"`
-	Name   string `bson:"name" json:"name" binding:"required"`
+	ID   bson.ObjectId `bson:"_id" json:"id"`
+	Name string        `bson:"name" json:"name" binding:"required"`
 	// 'aws/do/gcloud/ssh/credential',
-	Type   string `bson:"type" json:"type" binding:"required"`
+	Type string `bson:"type" json:"type" binding:"required"`
 
 	// username
-	Key    string `bson:"key" json:"key"`
+	Key string `bson:"key" json:"key"`
 	// password
 	Secret string `bson:"secret" json:"secret"`
 }
@@ -27,16 +27,16 @@ func (key GlobalAccessKey) GetPath() string {
 }
 
 func (key GlobalAccessKey) Insert() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.Insert(key)
 }
 
 func (key GlobalAccessKey) Update() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.UpdateId(key.ID, key)
 }
 
 func (key GlobalAccessKey) Remove() error {
-	c := database.MongoDb.C("global_access_key")
+	c := database.MongoDb.C("global_access_keys")
 	return c.RemoveId(key.ID)
 }

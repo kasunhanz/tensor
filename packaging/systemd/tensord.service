@@ -1,0 +1,10 @@
+[Unit]
+Description=High-performance, Centralized infrastructure management
+After=network.target
+
+[Service]
+User=tensor
+ExecStart=/usr/bin/tensord
+
+[Install]
+WantedBy=multi-user.target

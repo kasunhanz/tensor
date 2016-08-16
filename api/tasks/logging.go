@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gamunu/hilbert-space/api/sockets"
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/api/sockets"
+	"github.com/gamunu/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -34,10 +34,10 @@ func (t *task) log(msg string) {
 	go func() {
 
 		if err := (models.TaskOutput{
-			ID: bson.NewObjectId(),
+			ID:     bson.NewObjectId(),
 			Output: msg,
-			Time: now,
-			TaskID:t.task.ID,
+			Time:   now,
+			TaskID: t.task.ID,
 		}.Insert()); err != nil {
 			panic(err)
 		}

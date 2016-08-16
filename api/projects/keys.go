@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"github.com/gamunu/hilbert-space/models"
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -10,7 +10,7 @@ func KeyMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	keyID := c.Params.ByName("key_id")
 
-	key, err := project.GetAccessKey(bson.ObjectIdHex(keyID));
+	key, err := project.GetAccessKey(bson.ObjectIdHex(keyID))
 
 	if err != nil {
 		panic(err)
@@ -24,7 +24,7 @@ func GetKeys(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 
 	if len(c.Query("type")) > 0 {
-		keys, err := project.GetAccessKeysByType(c.Query("type"));
+		keys, err := project.GetAccessKeysByType(c.Query("type"))
 
 		if err != nil {
 			panic(err)
@@ -33,7 +33,7 @@ func GetKeys(c *gin.Context) {
 		return
 	}
 
-	keys, err := project.GetAccessKeys();
+	keys, err := project.GetAccessKeys()
 	if err != nil {
 		panic(err)
 	}
