@@ -29,6 +29,7 @@ type configType struct {
 	MongoDB MongoDBConfig `yaml:"mongodb"`
 	// Format `:port_num` eg, :3000
 	Port string `yaml:"port"`
+	UiPort string `yaml:"uiport"`
 
 	// Tensor stores projects here
 	TmpPath string `yaml:"tmp_path"`
@@ -79,6 +80,10 @@ func init() {
 	}
 	if len(Config.Port) == 0 {
 		Config.Port = ":3000"
+	}
+
+	if len(Config.UiPort) == 0 {
+		Config.Port = ":8080"
 	}
 
 	if len(Config.TmpPath) == 0 {

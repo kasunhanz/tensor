@@ -32,3 +32,13 @@ deb-build
 #ignore project vs code
 .vscode/
 .idea/
+
+#nodeingore
+node_modules
+
+#ignore jade gens less gens and bundle.js
+client/html/*.html
+client/html/*/*.html
+client/html/*/*/*.html
+client/css/tensor.css
+client/js/bundle.js

@@ -1,20 +1,4 @@
 #!/usr/bin/make
-# WARN: gmake syntax
-########################################################
-# Makefile for Ansible
-#
-# useful targets:
-#   make sdist ---------------- produce a tarball
-#   make srpm ----------------- produce a SRPM
-#   make rpm  ----------------- produce RPMs
-#   make deb-src -------------- produce a DEB source
-#   make deb ------------------ produce a DEB
-#   make docs ----------------- rebuild the manpages (results are checked in)
-#   make tests ---------------- run the tests (see test/README.md for requirements)
-#   make pyflakes, make pep8 -- source code checks
-
-########################################################
-# variable section
 
 NAME = tensor
 OS = $(shell uname -s)
@@ -65,9 +49,17 @@ DEB_DIST = unstable
 
 default: build
 
-build: vet
-	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./service
-	go build -v -o ./build/$(NAME)-$(VERSION)/tensor ./cmd
+build64:
+	export GOARCH="amd64"
+	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensord ./tensord/...
+	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensor ./cmd/...
+
+build386:
+	export GOARCH="386"
+	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensord ./tensord/...
+	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensor ./cmd/...
+
+build: vet build64 build386
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -77,11 +69,10 @@ clean:
 	rm -rf deb-build
 
 debian:	build
-    # create directories
+	# create directories
 	mkdir -p deb-build/$(NAME)-$(VERSION)/etc/
 	mkdir -p deb-build/$(NAME)-$(VERSION)/bin
 	mkdir -p deb-build/$(NAME)-$(VERSION)/systemd/
-
 	cp packaging/config/tensor.conf deb-build/$(NAME)-$(VERSION)/etc/
 	cp -a packaging/systemd/tensord.service deb-build/$(NAME)-$(VERSION)/systemd/
 	cp build/$(NAME)-$(VERSION)/tensord deb-build/$(NAME)-$(VERSION)/bin
@@ -90,7 +81,6 @@ debian:	build
 	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;" deb-build/$(NAME)-$(VERSION)/debian/control
-
 	#fix permission issues
 	chmod +x deb-build/$(NAME)-$(VERSION)/systemd/tensord.service
 	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensord
@@ -121,10 +111,11 @@ fmt:
 # https://github.com/golang/lint
 # go get github.com/golang/lint/golint
 lint:
-	golint ./...
+	@golint ./... || true
+	@eslint client || true
 
-run:
-	reflex -r '\.go$$' -s -d none -- sh -c 'go run cli/tensord.go'
+serve:
+	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
 
 test:
 	go test ./...
