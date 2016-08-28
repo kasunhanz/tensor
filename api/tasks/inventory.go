@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
-	"github.com/gamunu/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 )

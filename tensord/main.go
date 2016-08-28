@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/gamunu/tensor/api"
-	"github.com/gamunu/tensor/api/addhoctasks"
-	"github.com/gamunu/tensor/api/sockets"
-	"github.com/gamunu/tensor/api/tasks"
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/api"
+	"bitbucket.pearson.com/apseng/tensor/api/addhoctasks"
+	"bitbucket.pearson.com/apseng/tensor/api/sockets"
+	"bitbucket.pearson.com/apseng/tensor/api/tasks"
+	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"log"

@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	database "github.com/gamunu/tensor/db"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 )
 

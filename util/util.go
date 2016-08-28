@@ -60,6 +60,21 @@ func GetIntParam(name string, c *gin.Context) (int, error) {
 	return intParam, nil
 }
 
+func GetU64IntParam(name string, c *gin.Context) (uint64, error) {
+	intParam, err := strconv.ParseUint(c.Params.ByName(name), 20, 64)
+	if err != nil {
+		if isXHR(c) == false {
+			c.Redirect(302, "/404")
+		} else {
+			c.AbortWithStatus(400)
+		}
+
+		return 0, err
+	}
+
+	return intParam, nil
+}
+
 // GetObjectIdParam is to Get ObjectID url parameter
 // If the parameter is not an ObjectId it will terminate the request
 func GetObjectIdParam(name string, c *gin.Context) (string, error) {

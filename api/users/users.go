@@ -1,7 +1,6 @@
-package api
+package users
 
 import (
-	"database/sql"
 	"time"
 
 	"fmt"
@@ -10,22 +9,36 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
+	mdlusr "bitbucket.pearson.com/apseng/tensor/models/user"
 )
 
-func getUsers(c *gin.Context) {
-	var users []models.User
+func GetUsers(c *gin.Context) {
+	var users []mdlusr.User
 
-	col := database.MongoDb.C("user_tokens")
+	col := database.MongoDb.C("users")
 
 	if err := col.Find(nil).All(&users); err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, users)
+	resp := models.Response{}
+	resp.Count = len(users)
+	resp.Results = users
+
+	if users != nil {
+		for k, v := range users {
+			(&v).IncludeMetadata()
+			users[k] = v
+		}
+
+		resp.Results = users
+	}
+
+	c.JSON(200, resp)
 }
 
-func addUser(c *gin.Context) {
-	var user models.User
+func AddUser(c *gin.Context) {
+	var user mdlusr.User
 	if err := c.Bind(&user); err != nil {
 		return
 	}
@@ -40,45 +53,41 @@ func addUser(c *gin.Context) {
 	c.JSON(201, user)
 }
 
-func getUserMiddleware(c *gin.Context) {
+func GetUserMiddleware(c *gin.Context) {
 	userID := c.Params.ByName("user_id")
 
-	var user models.User
+	var u mdlusr.User
 
 	col := database.MongoDb.C("users")
 
-	if err := col.FindId(userID).One(&user); err != nil {
-		if err == sql.ErrNoRows {
-			c.AbortWithStatus(404)
-			return
-		}
-
+	if err := col.FindId(bson.ObjectIdHex(userID)).One(&u); err != nil {
 		panic(err)
 	}
 
-	c.Set("_user", user)
+	c.Set("_user", u)
 	c.Next()
 }
 
-func updateUser(c *gin.Context) {
-	oldUser := c.MustGet("_user").(models.User)
+func UpdateUser(c *gin.Context) {
+	oldUser := c.MustGet("_user").(mdlusr.User)
 
-	var user models.User
+	var user mdlusr.User
 	if err := c.Bind(&user); err != nil {
 		return
 	}
 
 	col := database.MongoDb.C("users")
 
-	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.Name, "username": user.Username, "email": user.Email}); err != nil {
+	if err := col.UpdateId(oldUser.ID,
+		bson.M{"first_name": user.FirstName, "last_name":user.LastName, "username": user.Username, "email": user.Email}); err != nil {
 		panic(err)
 	}
 
 	c.AbortWithStatus(204)
 }
 
-func updateUserPassword(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
+func UpdateUserPassword(c *gin.Context) {
+	user := c.MustGet("_user").(mdlusr.User)
 	var pwd struct {
 		Pwd string `json:"password"`
 	}
@@ -98,8 +107,8 @@ func updateUserPassword(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func deleteUser(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
+func DeleteUser(c *gin.Context) {
+	user := c.MustGet("_user").(mdlusr.User)
 
 	col := database.MongoDb.C("projects")
 

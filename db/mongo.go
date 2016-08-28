@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/gamunu/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	"gopkg.in/mgo.v2"
 	"time"
 )

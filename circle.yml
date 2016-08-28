@@ -1,6 +1,6 @@
 machine:
   environment:
-    CPATH: "/home/ubuntu/.go_workspace/src/github.com/gamunu/tensor/"
+    CPATH: "/home/ubuntu/.go_workspace/src/bitbucket.pearson.com/apseng/tensor/"
 
 dependencies:
   pre:

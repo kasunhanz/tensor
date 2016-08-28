@@ -3,7 +3,7 @@ Tensor Debian Package
 
 To create an Tensor DEB package:
 
-    git clone git://github.com/gamunu/tensor.git
+    git clone git://pearson.com/tensor.git
     cd tensor
     make deb
 

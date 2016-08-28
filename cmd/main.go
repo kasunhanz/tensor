@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/gamunu/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	"os"
 	"fmt"
 	"log"
 	"bufio"
-	"github.com/gamunu/tensor/models"
-	database "github.com/gamunu/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 	"strings"
 	"gopkg.in/mgo.v2/bson"
 	"golang.org/x/crypto/bcrypt"

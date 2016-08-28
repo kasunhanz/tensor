@@ -1,8 +1,8 @@
 package projects
 
 import (
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
+	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"

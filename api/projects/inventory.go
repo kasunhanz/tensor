@@ -1,7 +1,7 @@
 package projects
 
 import (
-	"github.com/gamunu/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )

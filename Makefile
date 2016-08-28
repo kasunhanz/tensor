@@ -49,17 +49,10 @@ DEB_DIST = unstable
 
 default: build
 
-build64:
+build: vet
 	export GOARCH="amd64"
-	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensord ./tensord/...
-	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensor ./cmd/...
-
-build386:
-	export GOARCH="386"
-	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensord ./tensord/...
-	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensor ./cmd/...
-
-build: vet build64 build386
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./tensord/...
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensor ./cmd/...
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -81,10 +74,6 @@ debian:	build
 	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;" deb-build/$(NAME)-$(VERSION)/debian/control
-	#fix permission issues
-	chmod +x deb-build/$(NAME)-$(VERSION)/systemd/tensord.service
-	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensord
-	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensor
 
 deb: debian
 	cd deb-build/$(NAME)-$(VERSION)/ && $(DEBUILD) -b
