@@ -3,13 +3,12 @@ package api
 import (
 	"database/sql"
 	"time"
-
-	"fmt"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
+	"golang.org/x/crypto/bcrypt"
+	"fmt"
 )
 
 func getUsers(c *gin.Context) {

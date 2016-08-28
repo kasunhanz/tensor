@@ -2,9 +2,8 @@ package models
 
 import (
 	"time"
-
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 // User is model for user collection

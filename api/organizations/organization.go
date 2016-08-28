@@ -1,10 +1,10 @@
 package organizations
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 	mdlorg "bitbucket.pearson.com/apseng/tensor/models/organization"
 	"bitbucket.pearson.com/apseng/tensor/models/user"
 )
@@ -68,9 +68,9 @@ func GetOrganizationUsers(c *gin.Context) {
 		{"$match": bson.M{
 			"_id": org.ID,
 		}},
-		{"$project": bson.M{ //performance enhancement I guess
+		{"$project": bson.M{//performance enhancement I guess
 			"_id":0,
-			"users":1,}},
+			"users":1, }},
 		{"$unwind": "$users"},
 		{"$lookup": bson.M{
 			"from":         "users",

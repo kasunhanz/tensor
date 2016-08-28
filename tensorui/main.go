@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"bitbucket.pearson.com/apseng/tensor/util"
 	"github.com/gin-gonic/gin"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/tensorui/support"
 )
 

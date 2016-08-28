@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"

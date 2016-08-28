@@ -2,11 +2,11 @@ package tasks
 
 import (
 	"time"
-
-	database "bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+
 )
 
 func AddTask(c *gin.Context) {

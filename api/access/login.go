@@ -5,13 +5,12 @@ import (
 	"net/mail"
 	"strings"
 	"time"
-
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Login creates a session for a requested user

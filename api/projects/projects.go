@@ -1,12 +1,12 @@
 package projects
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
 	"time"
+	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
 )
 
 // GetProjects returns a JSON array of projects

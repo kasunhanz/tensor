@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
 	"encoding/json"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"

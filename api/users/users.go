@@ -2,7 +2,6 @@ package users
 
 import (
 	"time"
-
 	"fmt"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"

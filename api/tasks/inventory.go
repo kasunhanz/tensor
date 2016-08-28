@@ -2,9 +2,9 @@ package tasks
 
 import (
 	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
+	"bitbucket.pearson.com/apseng/tensor/util"
 )
 
 func (t *task) installInventory() error {

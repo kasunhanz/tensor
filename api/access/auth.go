@@ -3,14 +3,13 @@ package access
 import (
 	"strings"
 	"time"
-
-	"errors"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
+	"errors"
 )
 
 func Authentication(c *gin.Context) {
@@ -79,7 +78,7 @@ func Authentication(c *gin.Context) {
 			return
 		}
 
-		if time.Now().Sub(session.LastActive).Hours() > 7*24 {
+		if time.Now().Sub(session.LastActive).Hours() > 7 * 24 {
 			// more than week old unused session
 			// destroy.
 

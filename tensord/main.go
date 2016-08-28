@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/api"
 	"bitbucket.pearson.com/apseng/tensor/api/addhoctasks"
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/api/tasks"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"log"
 )
 
 func main() {

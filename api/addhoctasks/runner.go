@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
 	"errors"
 	"bitbucket.pearson.com/apseng/tensor/crypt"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
-	"io/ioutil"
 	"log"
-	"os"
+	"io/ioutil"
 	"os/exec"
-	"strings"
+	"os"
 	"io"
 	"bytes"
+	"strings"
 )
 
 type task struct {

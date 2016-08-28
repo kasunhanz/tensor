@@ -5,6 +5,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+
 // Inventory is the model for
 // project_inventory collection
 type Inventory struct {

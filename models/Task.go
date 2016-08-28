@@ -1,27 +1,27 @@
 package models
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 	"time"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 // Task is the model for project_task
 // collection
 type Task struct {
-	ID         bson.ObjectId `bson:"_id" json:"id"`
-	TemplateID bson.ObjectId `bson:"template_id" json:"template_id" binding:"required"`
+	ID          bson.ObjectId `bson:"_id" json:"id"`
+	TemplateID  bson.ObjectId `bson:"template_id" json:"template_id" binding:"required"`
 
-	Status string `bson:"status" json:"status"`
-	Debug  bool   `bson:"debug" json:"debug"`
+	Status      string `bson:"status" json:"status"`
+	Debug       bool   `bson:"debug" json:"debug"`
 
 	// override variables
 	Playbook    string `bson:"playbook" json:"playbook"`
 	Environment string `bson:"environment" json:"environment"`
 
-	Created time.Time `bson:"created" json:"created"`
-	Start   time.Time `bson:"start" json:"start"`
-	End     time.Time `bson:"end" json:"end"`
+	Created     time.Time `bson:"created" json:"created"`
+	Start       time.Time `bson:"start" json:"start"`
+	End         time.Time `bson:"end" json:"end"`
 }
 
 // TaskOutput is the model for project_task_output

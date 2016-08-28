@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/exec"
 	"time"
-
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"gopkg.in/mgo.v2/bson"

@@ -2,7 +2,6 @@ package user
 
 import (
 	"time"
-
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 )

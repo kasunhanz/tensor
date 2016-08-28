@@ -1,9 +1,9 @@
 package projects
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	"bitbucket.pearson.com/apseng/tensor/models"
 )
 
 func TemplatesMiddleware(c *gin.Context) {

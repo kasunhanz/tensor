@@ -6,8 +6,8 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
 	"net/http"
+	"gopkg.in/mgo.v2/bson"
 	"time"
 )
 

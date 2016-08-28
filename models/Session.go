@@ -1,9 +1,9 @@
 package models
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 	"time"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 // Session is the model for session

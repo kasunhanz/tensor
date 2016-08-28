@@ -1,12 +1,12 @@
 package addhoctasks
 
 import (
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
-	"net/http"
-	"time"
 )
 
 // AddTask creates a new add-hoc task

@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+
 // APIToken is the model for token
 // collection
 type APIToken struct {

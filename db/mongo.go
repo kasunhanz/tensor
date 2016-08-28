@@ -1,9 +1,9 @@
 package db
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/util"
 	"gopkg.in/mgo.v2"
 	"time"
+	"bitbucket.pearson.com/apseng/tensor/util"
 )
 
 var MongoDb *mgo.Database

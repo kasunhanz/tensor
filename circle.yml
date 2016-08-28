@@ -1,6 +1,10 @@
 machine:
   environment:
+<<<<<<< HEAD
     CPATH: "/home/ubuntu/.go_workspace/src/bitbucket.pearson.com/apseng/tensor/"
+=======
+    CPATH: "/home/ubuntu/.go_workspace/src/pearson.com/tensor/"
+>>>>>>> dc2dae24d01d264dc332dc511ff852d56b007d3c
 
 dependencies:
   pre:

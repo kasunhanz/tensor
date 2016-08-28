@@ -2,11 +2,10 @@ package users
 
 import (
 	"time"
-
-	database "bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	pkguser "bitbucket.pearson.com/apseng/tensor/models/user"
 )
 

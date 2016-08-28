@@ -1,12 +1,12 @@
 package organizations
 
 import (
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
-	"net/http"
-	"time"
 	mdlorg "bitbucket.pearson.com/apseng/tensor/models/organization"
 	mdlusr "bitbucket.pearson.com/apseng/tensor/models/user"
 )

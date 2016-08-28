@@ -1,9 +1,9 @@
 package models
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 	"time"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 type Event struct {
@@ -14,7 +14,7 @@ type Event struct {
 	Description string        `bson:"description" json:"description"`
 	Created     time.Time     `bson:"created" json:"created"`
 
-	ObjectName string `bson:"-" json:"object_name"`
+	ObjectName  string `bson:"-" json:"object_name"`
 }
 
 func (evt Event) Insert() error {

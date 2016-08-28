@@ -2,7 +2,8 @@ package api
 
 import (
 	"time"
-
+	"github.com/gin-gonic/gin"
+	"strings"
 	"bitbucket.pearson.com/apseng/tensor/api/access"
 	"bitbucket.pearson.com/apseng/tensor/api/addhoctasks"
 	"bitbucket.pearson.com/apseng/tensor/api/cors"
@@ -10,8 +11,6 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/api/tasks"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"github.com/gin-gonic/gin"
-	"strings"
 )
 
 // Route declare all routes

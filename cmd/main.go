@@ -1,17 +1,17 @@
 package main
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/util"
 	"os"
 	"fmt"
 	"log"
 	"bufio"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"strings"
 	"gopkg.in/mgo.v2/bson"
 	"golang.org/x/crypto/bcrypt"
 	"time"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func main() {
