@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
+	database "pearson.com/tensor/db"
+	"pearson.com/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 )
 

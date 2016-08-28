@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gamunu/tensor/util"
+	"pearson.com/tensor/util"
 	"github.com/gin-gonic/gin"
-	"github.com/gamunu/tensor/tensorui/support"
+	"pearson.com/tensor/tensorui/support"
 )
 
 func main() {

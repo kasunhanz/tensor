@@ -1,8 +1,8 @@
 Source: tensor
 Maintainer: Gamunu Balagalla <gamunu.balagalla@outlook.com>
 Homepage: https://gamunu.github.io/tensor/
-Vcs-Git: git://github.com/gamunu/tensor.git
-Vcs-Browser: https://github.com/gamunu/tensor.git
+Vcs-Git: git://pearson.com/tensor.git
+Vcs-Browser: https://pearson.com/tensor.git
 
 Package: tensor
 Architecture: amd64

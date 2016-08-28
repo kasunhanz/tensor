@@ -1,8 +1,8 @@
 package models
 
 import (
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/util"
+	database "pearson.com/tensor/db"
+	"pearson.com/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 

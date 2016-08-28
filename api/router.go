@@ -3,13 +3,13 @@ package api
 import (
 	"time"
 
-	"github.com/gamunu/tensor/api/access"
-	"github.com/gamunu/tensor/api/addhoctasks"
-	"github.com/gamunu/tensor/api/cors"
-	"github.com/gamunu/tensor/api/projects"
-	"github.com/gamunu/tensor/api/sockets"
-	"github.com/gamunu/tensor/api/tasks"
-	"github.com/gamunu/tensor/util"
+	"pearson.com/tensor/api/access"
+	"pearson.com/tensor/api/addhoctasks"
+	"pearson.com/tensor/api/cors"
+	"pearson.com/tensor/api/projects"
+	"pearson.com/tensor/api/sockets"
+	"pearson.com/tensor/api/tasks"
+	"pearson.com/tensor/util"
 	"github.com/gin-gonic/gin"
 	"strings"
 )

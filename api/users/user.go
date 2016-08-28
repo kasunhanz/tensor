@@ -1,4 +1,4 @@
-package api
+package users
 
 import (
 	"time"
@@ -7,19 +7,23 @@ import (
 	"pearson.com/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	pkguser "pearson.com/tensor/models/user"
 )
 
-func getUser(c *gin.Context) {
+func GetUser(c *gin.Context) {
+	var user pkguser.User
 	if u, exists := c.Get("_user"); exists {
-		c.JSON(200, u)
-		return
+		user = u.(pkguser.User)
+	} else {
+		user = c.MustGet("user").(pkguser.User)
 	}
 
-	c.JSON(200, c.MustGet("user"))
+	(&user).IncludeMetadata()
+	c.JSON(200, user)
 }
 
-func getAPITokens(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+func GetAPITokens(c *gin.Context) {
+	user := c.MustGet("user").(pkguser.User)
 
 	var tokens []models.APIToken
 
@@ -32,8 +36,8 @@ func getAPITokens(c *gin.Context) {
 	c.JSON(200, tokens)
 }
 
-func createAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+func CreateAPIToken(c *gin.Context) {
+	user := c.MustGet("user").(pkguser.User)
 
 	token := models.APIToken{
 		ID:      bson.NewObjectId(),
@@ -49,8 +53,8 @@ func createAPIToken(c *gin.Context) {
 	c.JSON(201, token)
 }
 
-func expireAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+func ExpireAPIToken(c *gin.Context) {
+	user := c.MustGet("user").(pkguser.User)
 
 	tokenID := c.Param("token_id")
 

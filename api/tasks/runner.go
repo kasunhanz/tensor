@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"encoding/json"
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
-	"github.com/gamunu/tensor/util"
+	database "pearson.com/tensor/db"
+	"pearson.com/tensor/models"
+	"pearson.com/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"os"

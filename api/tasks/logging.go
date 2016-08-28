@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/gamunu/tensor/api/sockets"
-	"github.com/gamunu/tensor/models"
+	"pearson.com/tensor/api/sockets"
+	"pearson.com/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 )
 
