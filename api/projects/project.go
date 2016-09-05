@@ -12,7 +12,7 @@ import (
 // fetches project data from the database
 // it set project data under key project in gin.Context
 func ProjectMiddleware(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+	//user := c.MustGet("user").(models.User)
 
 	projectID := c.Params.ByName("project_id")
 
@@ -20,7 +20,6 @@ func ProjectMiddleware(c *gin.Context) {
 
 	query := bson.M{
 		"_id":           bson.ObjectIdHex(projectID),
-		"users.user_id": user.ID,
 	}
 
 	var project models.Project
@@ -35,5 +34,7 @@ func ProjectMiddleware(c *gin.Context) {
 
 // GetProject returns the project as a JSON object
 func GetProject(c *gin.Context) {
-	c.JSON(200, c.MustGet("projects"))
+	c.JSON(200, c.MustGet("project"))
 }
+
+

@@ -6,23 +6,10 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	pkguser "bitbucket.pearson.com/apseng/tensor/models/user"
 )
 
-func GetUser(c *gin.Context) {
-	var user pkguser.User
-	if u, exists := c.Get("_user"); exists {
-		user = u.(pkguser.User)
-	} else {
-		user = c.MustGet("user").(pkguser.User)
-	}
-
-	(&user).IncludeMetadata()
-	c.JSON(200, user)
-}
-
 func GetAPITokens(c *gin.Context) {
-	user := c.MustGet("user").(pkguser.User)
+	user := c.MustGet("user").(models.User)
 
 	var tokens []models.APIToken
 
@@ -36,7 +23,7 @@ func GetAPITokens(c *gin.Context) {
 }
 
 func CreateAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(pkguser.User)
+	user := c.MustGet("user").(models.User)
 
 	token := models.APIToken{
 		ID:      bson.NewObjectId(),
@@ -53,7 +40,7 @@ func CreateAPIToken(c *gin.Context) {
 }
 
 func ExpireAPIToken(c *gin.Context) {
-	user := c.MustGet("user").(pkguser.User)
+	user := c.MustGet("user").(models.User)
 
 	tokenID := c.Param("token_id")
 

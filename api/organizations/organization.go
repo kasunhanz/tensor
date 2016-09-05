@@ -5,8 +5,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"net/http"
 	database "bitbucket.pearson.com/apseng/tensor/db"
-	mdlorg "bitbucket.pearson.com/apseng/tensor/models/organization"
-	"bitbucket.pearson.com/apseng/tensor/models/user"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/api/users"
 )
 
 // OrganizationMiddleware takes project_id parameter from gin.Context and
@@ -17,7 +17,7 @@ func OrganizationMiddleware(c *gin.Context) {
 
 	col := database.MongoDb.C("organizations")
 
-	var org mdlorg.Organization
+	var org models.Organization
 	if err := col.Find(bson.M{"_id": bson.ObjectIdHex(projectID), }).One(&org); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -36,7 +36,7 @@ func GetOrganization(c *gin.Context) {
 
 func AddOrganizationUser(c *gin.Context) {
 	// get organization
-	org := c.MustGet("organization").(mdlorg.Organization)
+	org := c.MustGet("organization").(models.Organization)
 
 	//get the request payload
 	var playload struct {
@@ -60,7 +60,7 @@ func AddOrganizationUser(c *gin.Context) {
 
 func GetOrganizationUsers(c *gin.Context) {
 	// get organization
-	org := c.MustGet("organization").(mdlorg.Organization)
+	org := c.MustGet("organization").(models.Organization)
 
 	col := database.MongoDb.C("organizations")
 
@@ -94,22 +94,22 @@ func GetOrganizationUsers(c *gin.Context) {
 			"username":"$users.username",
 		}},
 	}
-	var users []user.User
+	var usrs []models.User
 
-	if err := col.Pipe(aggregate).All(&users); err != nil {
+	if err := col.Pipe(aggregate).All(&usrs); err != nil {
 		panic(err)
 	}
 
-	olen := len(users)
+	olen := len(usrs)
 
 	resp := make(map[string]interface{})
 	resp["count"] = olen
-	resp["results"] = users
+	resp["results"] = usrs
 
 	for i := 0; i < olen; i++ {
-		(&users[i]).IncludeMetadata()
+		users.SetMetadata(&usrs[i])
 	}
 
-	c.JSON(200, users)
+	c.JSON(200, usrs)
 
 }

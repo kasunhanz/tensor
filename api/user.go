@@ -6,15 +6,21 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/api/users"
 )
 
 func getUser(c *gin.Context) {
+	var u models.User
+
 	if u, exists := c.Get("_user"); exists {
-		c.JSON(200, u)
-		return
+		u = u.(models.User)
+	} else {
+		u = c.MustGet("user").(models.User)
 	}
 
-	c.JSON(200, c.MustGet("user"))
+	users.SetMetadata(&u)
+
+	c.JSON(200, u)
 }
 
 func getAPITokens(c *gin.Context) {

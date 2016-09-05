@@ -4,19 +4,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"net/http"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func KeyMiddleware(c *gin.Context) {
-	project := c.MustGet("project").(models.Project)
-	keyID := c.Params.ByName("key_id")
+	col := database.MongoDb.C("credentials")
 
-	key, err := project.GetAccessKey(bson.ObjectIdHex(keyID))
-
-	if err != nil {
-		panic(err)
+	var org models.Organization
+	if err := col.Find(nil).One(&org); err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
-	c.Set("accessKey", key)
+	(&org).IncludeMetadata()
+
+	c.Set("organization", org)
 	c.Next()
 }
 

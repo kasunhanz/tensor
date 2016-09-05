@@ -1,39 +1,54 @@
-package api
+package users
 
 import (
-	"time"
-	database "bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	"gopkg.in/mgo.v2/bson"
 	"golang.org/x/crypto/bcrypt"
 	"fmt"
-	"bitbucket.pearson.com/apseng/tensor/api/users"
+	"time"
+	database "bitbucket.pearson.com/apseng/tensor/db"
 )
 
-func getUsers(c *gin.Context) {
-	var usrs []models.User
+func GetUser(c *gin.Context) {
+	var usr models.User
+	if u, exists := c.Get("_user"); exists {
+		usr = u.(models.User)
+	} else {
+		usr = c.MustGet("user").(models.User)
+	}
+
+	SetMetadata(&usr)
+
+	c.JSON(200, usr)
+}
+
+func GetUsers(c *gin.Context) {
+	var users []models.User
 
 	col := database.MongoDb.C("users")
 
-	if err := col.Find(nil).All(&usrs); err != nil {
+	if err := col.Find(nil).All(&users); err != nil {
 		panic(err)
 	}
 
-	ulen := len(usrs)
+	resp := models.Response{}
+	resp.Count = len(users)
+	resp.Results = users
 
-	resp := make(map[string]interface{})
-	resp["count"] = ulen
-	resp["results"] = usrs
+	if users != nil {
+		for k, v := range users {
+			SetMetadata(&v)
+			users[k] = v
+		}
 
-	for i := 0; i < ulen; i++ {
-		users.SetMetadata(&usrs[i])
+		resp.Results = users
 	}
 
 	c.JSON(200, resp)
 }
 
-func addUser(c *gin.Context) {
+func AddUser(c *gin.Context) {
 	var user models.User
 	if err := c.Bind(&user); err != nil {
 		return
@@ -49,22 +64,22 @@ func addUser(c *gin.Context) {
 	c.JSON(201, user)
 }
 
-func getUserMiddleware(c *gin.Context) {
+func GetUserMiddleware(c *gin.Context) {
 	userID := c.Params.ByName("user_id")
 
-	var user models.User
+	var u models.User
 
 	col := database.MongoDb.C("users")
 
-	if err := col.FindId(bson.ObjectIdHex(userID)).One(&user); err != nil {
+	if err := col.FindId(bson.ObjectIdHex(userID)).One(&u); err != nil {
 		panic(err)
 	}
 
-	c.Set("_user", user)
+	c.Set("_user", u)
 	c.Next()
 }
 
-func updateUser(c *gin.Context) {
+func UpdateUser(c *gin.Context) {
 	oldUser := c.MustGet("_user").(models.User)
 
 	var user models.User
@@ -74,14 +89,15 @@ func updateUser(c *gin.Context) {
 
 	col := database.MongoDb.C("users")
 
-	if err := col.UpdateId(oldUser.ID, bson.M{"name": user.FirstName, "username": user.Username, "email": user.Email}); err != nil {
+	if err := col.UpdateId(oldUser.ID,
+		bson.M{"first_name": user.FirstName, "last_name":user.LastName, "username": user.Username, "email": user.Email}); err != nil {
 		panic(err)
 	}
 
 	c.AbortWithStatus(204)
 }
 
-func updateUserPassword(c *gin.Context) {
+func UpdateUserPassword(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -102,7 +118,7 @@ func updateUserPassword(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func deleteUser(c *gin.Context) {
+func DeleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 
 	col := database.MongoDb.C("projects")

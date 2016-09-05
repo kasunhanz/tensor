@@ -7,8 +7,6 @@ import (
 	"time"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	mdlorg "bitbucket.pearson.com/apseng/tensor/models/organization"
-	mdlusr "bitbucket.pearson.com/apseng/tensor/models/user"
 )
 
 // GetOrganizations returns a JSON array of projects
@@ -16,7 +14,7 @@ func GetOrganizations(c *gin.Context) {
 
 	col := database.MongoDb.C("organizations")
 
-	var orgs []mdlorg.Organization
+	var orgs []models.Organization
 
 	if err := col.Find(nil).Sort("name").All(&orgs); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -38,8 +36,8 @@ func GetOrganizations(c *gin.Context) {
 
 // AddOrganization creates a new project
 func AddOrganization(c *gin.Context) {
-	var org mdlorg.Organization
-	user := c.MustGet("user").(mdlusr.User)
+	var org models.Organization
+	user := c.MustGet("user").(models.User)
 
 	if err := c.Bind(&org); err != nil {
 		// Return 400 if request has bad JSON format

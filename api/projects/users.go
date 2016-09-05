@@ -5,9 +5,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"bitbucket.pearson.com/apseng/tensor/util"
 )
-
+/*
 func UserMiddleware(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	userID, err := util.GetIntParam("user_id", c)
@@ -51,7 +50,7 @@ func GetUsers(c *gin.Context) {
 
 	c.JSON(200, users)
 }
-
+*/
 func AddUser(c *gin.Context) {
 	project := c.MustGet("project").(models.Project)
 	var projectUser models.ProjectUser
