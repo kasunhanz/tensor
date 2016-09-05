@@ -1,10 +1,9 @@
-package organization
+package models
 
 import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
 	database "bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models/user"
 )
 
 // Organization is the model for organization
@@ -22,6 +21,24 @@ type Organization struct {
 	Created       time.Time     `bson:"created" json:"created"`
 	Modified      time.Time     `bson:"modified" json:"modified"`
 	Users         []OrganizationUser `bson:"users" json:"-"`
+}
+
+type OrgRelated struct {
+	CreatedBy               string `json:"created_by"`
+	ModifiedBy              string `json:"modified_by"`
+	NotificationTempError   string `json:"notification_templates_error"`
+	NotificationTempSuccess string `json:"notification_templates_success"`
+	Users                   string `json:"users"`
+	ObjectRoles             string `json:"object_roles"`
+	NotificationTempAny     string `json:"notification_templates_any"`
+	Teams                   string `json:"teams"`
+	AccessList              string `json:"access_list"`
+	NotificationTemplates   string `json:"notification_templates"`
+	Admins                  string `json:"admins"`
+	Credentials             string `json:"credentials"`
+	Inventories             string `json:"inventories"`
+	ActivityStream          string `json:"activity_stream"`
+	Projects                string `json:"projects"`
 }
 
 type OrganizationUser struct {
@@ -91,7 +108,7 @@ func (org *Organization) setSummaryFields() {
 		},
 	}
 
-	var u user.User
+	var u User
 
 	c := database.MongoDb.C("users")
 
