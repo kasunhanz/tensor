@@ -3,54 +3,84 @@ package pagination
 import (
 	"strconv"
 	"github.com/gin-gonic/gin"
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"math"
 )
 
 var (
-	DefaultLimit = uint64(10)
-	MinLimit = uint64(1)
-	MaxLimit = uint64(20)
-	LimitParam = "l"
-	DefaultPage = uint64(0)
-	PageParam = "p"
+	DefaultLimit = int(10)
+	MinLimit = int(1)
+	MaxLimit = int(500)
+	LimitParam = "page_size"
+	DefaultPage = int(1)
+	PageParam = "page"
 )
 
 type Pagination struct {
-	Limit uint64
-	Page  uint64
+	Limit     int
+	Page      int
+	ItemCount int
 }
 
-func NewPagination(c *gin.Context) *Pagination {
-
-	pagination := Pagination{}
-
-	if page, err := util.GetU64IntParam("p", c); err == nil {
-		pagination.Page = page;
+func NewPagination(c *gin.Context, n int) *Pagination {
+	p := Pagination{
+		Page : pageParser(c.Request.URL.Query().Get(PageParam)),
+		Limit : limitParser(c.Request.URL.Query().Get(LimitParam)),
+		ItemCount: n,
 	}
 
-	if limit, err := util.GetU64IntParam("l", c); err == nil {
-		pagination.Limit = limit;
+	return &p;
+}
+
+func (p *Pagination) Offset() int {
+	//minimum offset is zero
+	if p.Limit < 1 || p.Page <= 1 {
+		return 0
 	}
 
-	return &pagination;
+	//-1 because mongodb offset starts with 0
+	return int((p.Limit * p.Page) - 1)
 }
 
-func (pagi Pagination) Offset() uint64 {
-	return pagi.Limit * pagi.Page
-}
-
-func limitParser(limit string) uint64 {
+func limitParser(limit string) int {
 	l, err := strconv.ParseUint(limit, 10, 64)
-	if err == nil && l >= MinLimit && l <= MaxLimit {
-		return l
+	lm := int(l)
+	if err == nil && lm >= MinLimit && lm <= MaxLimit {
+		return lm
 	}
 	return DefaultLimit
 }
 
-func pageParser(page string) uint64 {
+func pageParser(page string) int {
 	p, err := strconv.ParseUint(page, 10, 64)
 	if err == nil {
-		return p
+		return int(p)
 	}
 	return DefaultPage
+}
+
+func (p *Pagination) totalPages() int {
+	return int(math.Floor(float64(p.ItemCount) / float64(p.Limit)))
+}
+
+func (p *Pagination) NextPage() interface{} {
+	if (p.totalPages() <= p.Page) {
+		return nil
+	} else if (p.Page < 1) {
+		return DefaultPage
+	}
+	return (p.Page + 1)
+}
+
+func (p *Pagination) PreviousPage() interface{} {
+	if p.Page <= 1 || p.totalPages() < p.Page {
+		return nil
+	}
+	return (p.Page - 1)
+}
+
+func (p *Pagination) HasPage() bool {
+	if p.totalPages() <= 0 {
+		return false
+	}
+	return (p.Page <= 0 || p.Page > p.totalPages())
 }

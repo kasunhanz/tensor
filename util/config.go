@@ -83,7 +83,7 @@ func init() {
 	}
 
 	if len(Config.UiPort) == 0 {
-		Config.Port = ":8080"
+		Config.UiPort = ":8080"
 	}
 
 	if len(Config.TmpPath) == 0 {
