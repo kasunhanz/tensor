@@ -44,8 +44,7 @@ else
 endif
 DEBUILD = $(DEBUILD_BIN) $(DEBUILD_OPTS)
 DEB_PPA ?= ppa#
-Choose the desired Ubuntu release: lucid precise saucy trusty xenial
-DEB_DIST = unstable
+DEB_DIST = all
 
 default: build
 
@@ -103,7 +102,7 @@ lint:
 	@golint ./... || true
 	@eslint client || true
 
-serve:
+run:
 	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
 
 test:
