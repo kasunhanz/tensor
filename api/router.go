@@ -5,14 +5,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"strings"
 	"bitbucket.pearson.com/apseng/tensor/api/access"
-	"bitbucket.pearson.com/apseng/tensor/api/addhoctasks"
 	"bitbucket.pearson.com/apseng/tensor/api/cors"
 	"bitbucket.pearson.com/apseng/tensor/api/projects"
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/api/organizations"
-	"bitbucket.pearson.com/apseng/tensor/api/tasks"
-	"bitbucket.pearson.com/apseng/tensor/api/credential"
+	"bitbucket.pearson.com/apseng/tensor/api/credentials"
+	"bitbucket.pearson.com/apseng/tensor/api/users"
+	"bitbucket.pearson.com/apseng/tensor/api/teams"
+	"bitbucket.pearson.com/apseng/tensor/api/dashboard"
+	"bitbucket.pearson.com/apseng/tensor/api/inventories"
 )
 
 // Route declare all routes
@@ -39,6 +41,7 @@ func Route(r *gin.Engine) {
 	v1 := r.Group("/v1")
 	{
 		v1.GET("/", util.GetAPIInfo)
+		v1.GET("/ping", util.GetPing)
 
 		auth := v1.Group("/auth")
 		{
@@ -49,15 +52,16 @@ func Route(r *gin.Engine) {
 		//authenticated user
 		v1.Use(access.Authentication)
 
+		v1.GET("/config", getSystemInfo)
+		v1.GET("/dashboard", dashboard.GetInfo)
+
 		v1.GET("/ws", sockets.Handler)
 
-		v1.GET("/info", getSystemInfo)
-
-		v1.GET("/me", getUser)
+		v1.GET("/me", users.GetUser)
 
 		user := v1.Group("/user")
 		{
-			user.GET("", getUser)
+			user.GET("", users.GetUser)
 			// api.PUT("/user", misc.UpdateUser)
 			user.GET("/tokens", getAPITokens)
 			user.POST("/tokens", createAPIToken)
@@ -66,19 +70,20 @@ func Route(r *gin.Engine) {
 
 		v1.GET("/events", getEvents)
 
-		//users
-		v1.GET("/users", getUsers)
-		v1.POST("/users", addUser)
-		v1.GET("/users/:user_id", getUserMiddleware, getUser)
-		v1.PUT("/users/:user_id", getUserMiddleware, updateUser)
-		v1.POST("/users/:user_id/password", getUserMiddleware, updateUserPassword)
-		v1.DELETE("/users/:user_id", getUserMiddleware, deleteUser)
-
 		//organizations
 		v1.GET("/organizations", organizations.GetOrganizations)
 		v1.POST("/organizations", organizations.AddOrganization)
 		v1.GET("/organizations/:organization_id", organizations.OrganizationMiddleware, organizations.GetOrganization)
 		v1.PUT("/organizations/:organization_id", organizations.OrganizationMiddleware, organizations.UpdateOrganization)
+
+		//users
+		v1.GET("/users", users.GetUsers)
+		v1.POST("/users", users.AddUser)
+		v1.GET("/users/:user_id", users.GetUserMiddleware, users.GetUser)
+		v1.PUT("/users/:user_id", users.GetUserMiddleware, users.UpdateUser)
+
+		v1.POST("/users/:user_id/password", users.GetUserMiddleware, users.UpdateUserPassword)
+		v1.DELETE("/users/:user_id", users.GetUserMiddleware, users.DeleteUser)
 
 		//projects
 		v1.GET("/projects", projects.GetProjects)
@@ -88,62 +93,45 @@ func Route(r *gin.Engine) {
 
 
 		//credentials
-		v1.GET("/credentials", credential.GetCredentials)
-		v1.POST("/credentials", credential.AddCredential)
-		v1.GET("/credentials/:credential_id", credential.CredentialMiddleware, credential.GetCredential)
-		v1.PUT("/credentials/:credential_id", credential.CredentialMiddleware, credential.UpdateCredential)
-		v1.DELETE("/credentials/:credential_id", credential.CredentialMiddleware, credential.RemoveCredential)
+		v1.GET("/credentials", credentials.GetCredentials)
+		v1.POST("/credentials", credentials.AddCredential)
+		v1.GET("/credentials/:credential_id", credentials.CredentialMiddleware, credentials.GetCredential)
+		v1.PUT("/credentials/:credential_id", credentials.CredentialMiddleware, credentials.UpdateCredential)
+		v1.DELETE("/credentials/:credential_id", credentials.CredentialMiddleware, credentials.RemoveCredential)
 
-		p := v1.Group("/project/:project_id")
-		{
-			p.Use(projects.ProjectMiddleware)
+		//teams
+		v1.GET("/teams", teams.GetTeams)
+		v1.POST("/teams", teams.AddTeam)
+		v1.GET("/teams/:team_id", teams.TeamMiddleware, teams.GetTeam)
+		v1.PUT("/teams/:team_id", teams.TeamMiddleware, teams.UpdateTeam)
+		v1.DELETE("/teams/:team_id", teams.TeamMiddleware, teams.RemoveTeam)
 
-			p.GET("", projects.GetProject)
+		//inventories
+		v1.GET("/inventories", inventories.GetInventories)
+		v1.POST("/inventories", inventories.AddInventory)
+		v1.GET("/inventories/:inventory_id", inventories.InventoryMiddleware, inventories.GetInventory)
+		v1.PUT("/inventories/:inventory_id", inventories.InventoryMiddleware, inventories.UpdateInventory)
+		v1.DELETE("/inventories/:inventory_id", inventories.InventoryMiddleware, inventories.RemoveInventory)
 
-			p.GET("/events", getEvents)
+		/*	p := v1.Group("/project/:project_id")
+			{
+				p.Use(projects.ProjectMiddleware)
 
-			/*p.GET("/users", projects.GetUsers)
-			p.POST("/users", projects.AddUser)
-			p.POST("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
-			p.DELETE("/users/:user_id/admin", projects.UserMiddleware, projects.MakeUserAdmin)
-			p.DELETE("/users/:user_id", projects.UserMiddleware, projects.RemoveUser)*/
+				p.GET("", projects.GetProject)
 
-			p.GET("/keys", projects.GetKeys)
-			p.POST("/keys", projects.AddKey)
-			p.PUT("/keys/:key_id", projects.KeyMiddleware, projects.UpdateKey)
-			p.DELETE("/keys/:key_id", projects.KeyMiddleware, projects.RemoveKey)
+				p.GET("/events", getEvents)
+				p.GET("/tasks", tasks.GetAll)
+				p.POST("/tasks", tasks.AddTask)
+				p.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
+			}
 
-			p.GET("/repositories", projects.GetRepositories)
-			p.POST("/repositories", projects.AddRepository)
-			p.DELETE("/repositories/:repository_id", projects.RepositoryMiddleware, projects.RemoveRepository)
-
-			p.GET("/inventory", projects.GetInventory)
-			p.POST("/inventory", projects.AddInventory)
-			p.PUT("/inventory/:inventory_id", projects.InventoryMiddleware, projects.UpdateInventory)
-			p.DELETE("/inventory/:inventory_id", projects.InventoryMiddleware, projects.RemoveInventory)
-
-			p.GET("/environment", projects.GetEnvironment)
-			p.POST("/environment", projects.AddEnvironment)
-			p.PUT("/environment/:environment_id", projects.EnvironmentMiddleware, projects.UpdateEnvironment)
-			p.DELETE("/environment/:environment_id", projects.EnvironmentMiddleware, projects.RemoveEnvironment)
-
-			p.GET("/templates", projects.GetTemplates)
-			p.POST("/templates", projects.AddTemplate)
-			p.PUT("/templates/:template_id", projects.TemplatesMiddleware, projects.UpdateTemplate)
-			p.DELETE("/templates/:template_id", projects.TemplatesMiddleware, projects.RemoveTemplate)
-
-			p.GET("/tasks", tasks.GetAll)
-			p.POST("/tasks", tasks.AddTask)
-			p.GET("/tasks/:task_id/output", tasks.GetTaskMiddleware, tasks.GetTaskOutput)
-		}
-
-		at := v1.Group("/addhoc")
-		{
-			at.POST("/tasks", addhoctasks.AddTask)
-			at.GET("/tasks/:task_id", addhoctasks.GetTaskWithoutLogMiddleware, addhoctasks.GetTaskWithoutLog)
-			at.GET("/tasks/:task_id/log", addhoctasks.GetTaskMiddleware, addhoctasks.GetTaskOutput)
-		}
-
+			at := v1.Group("/addhoc")
+			{
+				at.POST("/tasks", addhoctasks.AddTask)
+				at.GET("/tasks/:task_id", addhoctasks.GetTaskWithoutLogMiddleware, addhoctasks.GetTaskWithoutLog)
+				at.GET("/tasks/:task_id/log", addhoctasks.GetTaskMiddleware, addhoctasks.GetTaskOutput)
+			}
+	*/
 		k := v1.Group("access")
 		{
 			k.GET("/keys", access.GetKeys)

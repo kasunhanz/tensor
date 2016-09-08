@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"fmt"
 	"time"
 	"strconv"
 )
@@ -21,7 +20,7 @@ func CredentialMiddleware(c *gin.Context) {
 
 	ID := c.Params.ByName(_CTX_CREDENTIAL_ID)
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
+	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	var crd models.Credential
 
@@ -48,7 +47,7 @@ func GetCredential(c *gin.Context) {
 
 func GetCredentials(c *gin.Context) {
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
+	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	parser := util.NewQueryParser(c)
 
@@ -64,7 +63,6 @@ func GetCredentials(c *gin.Context) {
 		}
 	}
 
-	fmt.Println(match)
 	query := dbc.Find(match)
 
 	count, err := query.Count();
@@ -120,8 +118,8 @@ func AddCredential(c *gin.Context) {
 	}
 
 	crd.ID = bson.NewObjectId()
-	crd.CreatedBy = u.ID
-	crd.ModifiedBy = u.ID
+	crd.CreatedByID = u.ID
+	crd.ModifiedByID = u.ID
 	crd.Created = time.Now()
 	crd.Modified = time.Now()
 	crd.Password = "$encrypted$"
@@ -131,7 +129,7 @@ func AddCredential(c *gin.Context) {
 	crd.VaultPassword = "$encrypted$"
 	crd.AuthorizePassword = "$encrypted$"
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
+	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 	dbacl := database.MongoDb.C(models.DBC_ACl)
 
 	if err := dbc.Insert(crd); err != nil {
@@ -191,7 +189,7 @@ func UpdateCredential(c *gin.Context) {
 	crd.Type = req.Type
 	crd.Secret = req.Secret
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
+	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	if err := dbc.UpdateId(crd.ID, crd); err != nil {
 		panic(err)
@@ -214,7 +212,7 @@ func UpdateCredential(c *gin.Context) {
 func RemoveCredential(c *gin.Context) {
 	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
+	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	if err := dbc.RemoveId(crd.ID); err != nil {
 		panic(err)

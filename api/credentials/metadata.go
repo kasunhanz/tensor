@@ -1,4 +1,4 @@
-package credential
+package credentials
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
@@ -12,16 +12,23 @@ func setMetadata(cred *models.Credential) error {
 
 	cred.Type = "credential"
 	cred.Url = "/v1/credentials/" + cred.ID.Hex() + "/"
-	cred.Related = gin.H{
-		"created_by": "/v1/users/" + cred.CreatedBy.Hex() + "/",
-		"modified_by": "/v1/users/" + cred.ModifiedBy.Hex() + "/",
-		"owner_teams": "/v1/organizations/" + cred.ID.Hex() + "/users/",
-		"owner_users": "/v1/organizations/" + cred.ID.Hex() + "/object_roles/",
-		"activity_stream": "/v1/organizations/" + cred.ID.Hex() + "/activity_stream/",
-		"access_list": "/v1/organizations/" + cred.ID.Hex() + "/access_list/",
-		"object_roles": "/api/v1/credentials/" + cred.ID.Hex() + "/object_roles/",
-		"user": "/api/v1/users/" + cred.CreatedBy.Hex() + "/",
+	r := gin.H{
+		"created_by": "/v1/users/" + cred.CreatedByID + "/",
+		"modified_by": "/v1/users/" + cred.ModifiedByID + "/",
+		"owner_teams": "/v1/organizations/" + cred.ID + "/users/",
+		"owner_users": "/v1/organizations/" + cred.ID + "/object_roles/",
+		"activity_stream": "/v1/organizations/" + cred.ID + "/activity_stream/",
+		"access_list": "/v1/organizations/" + cred.ID + "/access_list/",
+		"object_roles": "/api/v1/credentials/" + cred.ID + "/object_roles/",
+		"user": "/api/v1/users/" + cred.CreatedByID + "/",
 	}
+
+	if cred.OrganizationID != "" {
+		r["organization"] = "/api/v1/organizations/" + cred.OrganizationID + "/"
+	}
+
+	cred.Related = r
+
 	if err := setSummaryFields(cred); err != nil {
 		return err
 	}
@@ -35,13 +42,14 @@ func setSummaryFields(cred *models.Credential) error {
 
 	var modified models.User
 	var created models.User
+	var org models.Organization
 	var owners []models.User
 
-	if err := dbu.FindId(cred.CreatedBy).One(&created); err != nil {
+	if err := dbu.FindId(cred.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(cred.ModifiedBy).One(&modified); err != nil {
+	if err := dbu.FindId(cred.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
@@ -70,9 +78,9 @@ func setSummaryFields(cred *models.Credential) error {
 		return err
 	}
 
-	//TODO: include teams to woners list
+	//TODO: include teams to owners list
 
-	cred.SummaryFields = gin.H{
+	o := gin.H{
 		"object_roles": []gin.H{
 			{
 				"Description": "Can manage all aspects of the credential",
@@ -100,6 +108,19 @@ func setSummaryFields(cred *models.Credential) error {
 			"last_name":  modified.LastName,
 		},
 		"owners": owners,
+	}
+
+	if cred.OrganizationID != "" {
+
+		if err := dbu.FindId(cred.OrganizationID).One(&org); err != nil {
+			return err
+		}
+
+		o["organization"] = gin.H{
+			"id": org.ID,
+			"name": org.Name,
+			"description": org.Description,
+		}
 	}
 
 	return nil

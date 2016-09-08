@@ -8,11 +8,37 @@ import (
 	"fmt"
 	"time"
 	database "bitbucket.pearson.com/apseng/tensor/db"
+	"log"
+	"net/http"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/util/pagination"
+	"strconv"
 )
+
+const _CTX_USER = "_user"
+const _CTX_USER_ID = "user_id"
+
+func GetUserMiddleware(c *gin.Context) {
+	userID := c.Params.ByName(_CTX_USER_ID)
+
+	var usr models.User
+
+	dbc := database.MongoDb.C(models.DBC_USERS)
+
+	if err := dbc.FindId(bson.ObjectIdHex(userID)).One(&usr); err != nil {
+		log.Print(err) // log error to the system log
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	c.Set(_CTX_USER, usr)
+	c.Next()
+}
 
 func GetUser(c *gin.Context) {
 	var usr models.User
-	if u, exists := c.Get("_user"); exists {
+
+	if u, exists := c.Get(_CTX_USER); exists {
 		usr = u.(models.User)
 	} else {
 		usr = c.MustGet("user").(models.User)
@@ -24,28 +50,50 @@ func GetUser(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	var users []models.User
+	dbc := database.MongoDb.C(models.DBC_USERS)
 
-	col := database.MongoDb.C("users")
+	parser := util.NewQueryParser(c)
 
-	if err := col.Find(nil).All(&users); err != nil {
-		panic(err)
+	match := bson.M{}
+
+	if con := parser.IContains([]string{"username", "first_name", "last_name"}); con != nil {
+		match = con
 	}
 
-	resp := models.Response{}
-	resp.Count = len(users)
-	resp.Results = users
+	query := dbc.Find(match)
 
-	if users != nil {
-		for k, v := range users {
-			SetMetadata(&v)
-			users[k] = v
-		}
-
-		resp.Results = users
+	count, err := query.Count();
+	if err != nil {
+		log.Println("Unable to count users from the db", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
-	c.JSON(200, resp)
+	pgi := pagination.NewPagination(c, count)
+
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		return
+	}
+
+	if order := parser.OrderBy(); order != "" {
+		query.Sort(order)
+	}
+
+	var usrs []models.User
+
+	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&usrs); err != nil {
+		log.Println("Unable to retrive users from the db", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	for i, v := range usrs {
+		SetMetadata(&v);
+		usrs[i] = v
+	}
+
+	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": usrs, })
 }
 
 func AddUser(c *gin.Context) {
@@ -62,21 +110,6 @@ func AddUser(c *gin.Context) {
 	}
 
 	c.JSON(201, user)
-}
-
-func GetUserMiddleware(c *gin.Context) {
-	userID := c.Params.ByName("user_id")
-
-	var u models.User
-
-	col := database.MongoDb.C("users")
-
-	if err := col.FindId(bson.ObjectIdHex(userID)).One(&u); err != nil {
-		panic(err)
-	}
-
-	c.Set("_user", u)
-	c.Next()
 }
 
 func UpdateUser(c *gin.Context) {
