@@ -6,9 +6,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/api"
-	"bitbucket.pearson.com/apseng/tensor/api/addhoctasks"
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
-	"bitbucket.pearson.com/apseng/tensor/api/tasks"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/util"
 )
@@ -37,8 +35,8 @@ func main() {
 
 	api.Route(r)
 
-	go tasks.StartRunner()
-	go addhoctasks.StartRunner()
+	//go tasks.StartRunner()
+	//go addhoctasks.StartRunner()
 
 	r.Run(util.Config.Port)
 

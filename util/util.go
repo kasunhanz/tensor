@@ -141,3 +141,16 @@ func GetAPIInfo(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, info)
 }
+
+func GetPing(c *gin.Context) {
+	pinfo := gin.H{
+		"instances": gin.H{
+			"primary": "localhost",
+			"secondaries": []gin.H{},
+		},
+		"ha": false,
+		"role": "primary",
+		"version": "3.0.1",
+	}
+	c.JSON(http.StatusOK, pinfo)
+}
