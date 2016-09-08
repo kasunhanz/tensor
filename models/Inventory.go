@@ -1,41 +1,37 @@
 package models
 
 import (
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/gin-gonic/gin"
+	"time"
 )
 
+const DBC_INVENTORIES = "inventories"
 
 // Inventory is the model for
-// project_inventory collection
+// Inventory collection
 type Inventory struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	Name      string        `bson:"name" json:"name" binding:"required"`
-	ProjectID bson.ObjectId `bson:"project_id" json:"project_id"`
-	Inventory bson.M        `bson:"inventory" json:"inventory"`
+	ID                           bson.ObjectId `bson:"_id" json:"id"`
 
-	// accesses dynamic inventory
-	KeyID bson.ObjectId `bson:"key_id" json:"key_id"`
-	// accesses hosts in inventory
-	SshKeyID bson.ObjectId `bson:"ssh_key_id" json:"ssh_key_id"`
-	// static/aws/do/gcloud
-	Type string `bson:"type" json:"type"`
+	Type                         string        `bson:"-" json:"type"`
+	Url                          string        `bson:"-" json:"url"`
+	Related                      gin.H         `bson:"-" json:"related"`
+	SummaryFields                gin.H         `bson:"-" json:"summary_fields"`
 
-	SshKey AccessKey `bson:"-" json:"-"`
-	Key    AccessKey `bson:"-" json:"-"`
-}
-
-func (inv Inventory) Insert() error {
-	c := database.MongoDb.C("project_inventories")
-	return c.Insert(inv)
-}
-
-func (inv Inventory) Remove() error {
-	c := database.MongoDb.C("project_inventories")
-	return c.RemoveId(inv.ID)
-}
-
-func (inv Inventory) Update() error {
-	c := database.MongoDb.C("project_inventories")
-	return c.UpdateId(inv.ID, inv)
+	Name                         string        `bson:"name" json:"name" binding:"required"`
+	Description                  string        `bson:"description" json:"description"`
+	Variables                    string        `bson:"variables" json:"variables"`
+	HasActiveFailures            bool          `bson:"has_active_failures" json:"has_active_failures"`
+	TotalHosts                   uint32        `bson:"total_hosts" json:"total_hosts"`
+	HostsWithActiveFailures      uint32        `bson:"hosts_with_active_failures" json:"hosts_with_active_failures"`
+	TotalGroups                  uint32        `bson:"total_groups" json:"total_groups"`
+	GroupsWithActiveFailures     uint32        `bson:"groups_with_active_failures" json:"groups_with_active_failures"`
+	HasInventorySources          bool          `bson:"has_inventory_sources" json:"has_inventory_sources"`
+	TotalInventorySources        uint32        `bson:"total_inventory_sources" json:"total_inventory_sources"`
+	InventorySourcesWithFailures uint32        `bson:"inventory_sources_with_failures" json:"inventory_sources_with_failures"`
+	Organization                 bson.ObjectId `bson:"organization" json:"organization"`
+	CreatedBy                    bson.ObjectId `bson:"created_by" json:"created_by"`
+	ModifiedBy                   bson.ObjectId `bson:"modified_by" json:"modified_by"`
+	Created                      time.Time     `bson:"created" json:"created"`
+	Modified                     time.Time     `bson:"modified" json:"modified"`
 }

@@ -17,7 +17,7 @@ func KeyMiddleware(c *gin.Context) {
 		return
 	}
 
-	(&org).IncludeMetadata()
+	//(&org).IncludeMetadata()
 
 	c.Set("organization", org)
 	c.Next()

@@ -86,9 +86,9 @@ func UpdateInventory(c *gin.Context) {
 
 	oldInventory.Name = inventory.Name
 	oldInventory.Name = inventory.Type
-	oldInventory.KeyID = inventory.KeyID
+	/*oldInventory.KeyID = inventory.KeyID
 	oldInventory.SshKeyID = inventory.SshKeyID
-	oldInventory.Inventory = inventory.Inventory
+	oldInventory.Inventory = inventory.Inventory*/
 
 	if err := oldInventory.Update(); err != nil {
 		panic(err)
@@ -97,7 +97,7 @@ func UpdateInventory(c *gin.Context) {
 	desc := "Inventory " + inventory.Name + " updated"
 	objType := "inventory"
 	if err := (models.Event{
-		ProjectID:   oldInventory.ProjectID,
+		//ProjectID:   oldInventory.ProjectID,
 		Description: desc,
 		ObjectID:    oldInventory.ID,
 		ObjectType:  objType,
@@ -117,7 +117,7 @@ func RemoveInventory(c *gin.Context) {
 
 	desc := "Inventory " + inventory.Name + " deleted"
 	if err := (models.Event{
-		ProjectID:   inventory.ProjectID,
+		//ProjectID:   inventory.ProjectID,
 		Description: desc,
 	}.Insert()); err != nil {
 		panic(err)

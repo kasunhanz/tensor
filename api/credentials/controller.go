@@ -1,4 +1,4 @@
-package credential
+package credentials
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
@@ -18,6 +18,7 @@ const _CTX_CREDENTIAL = "credential"
 const _CTX_CREDENTIAL_ID = "credential_id"
 
 func CredentialMiddleware(c *gin.Context) {
+
 	ID := c.Params.ByName(_CTX_CREDENTIAL_ID)
 
 	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
@@ -34,7 +35,19 @@ func CredentialMiddleware(c *gin.Context) {
 	c.Next()
 }
 
+// GetProject returns the project as a JSON object
+func GetCredential(c *gin.Context) {
+
+	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+
+	hideEncrypted(&crd)
+	setMetadata(&crd)
+
+	c.JSON(200, crd)
+}
+
 func GetCredentials(c *gin.Context) {
+
 	dbc := database.MongoDb.C(models.DBC_CREDENTIAL)
 
 	parser := util.NewQueryParser(c)
@@ -216,14 +229,4 @@ func RemoveCredential(c *gin.Context) {
 	}
 
 	c.AbortWithStatus(204)
-}
-
-// GetProject returns the project as a JSON object
-func GetCredential(c *gin.Context) {
-	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
-
-	hideEncrypted(&crd)
-	setMetadata(&crd)
-
-	c.JSON(200, crd)
 }

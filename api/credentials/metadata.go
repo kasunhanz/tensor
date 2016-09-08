@@ -30,7 +30,7 @@ func setMetadata(cred *models.Credential) error {
 }
 
 func setSummaryFields(cred *models.Credential) error {
-	dbu := database.MongoDb.C(models.DBC_USER)
+	dbu := database.MongoDb.C(models.DBC_USERS)
 	dbacl := database.MongoDb.C(models.DBC_ACl)
 
 	var modified models.User

@@ -6,16 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_CREDENTIAL = "credentials"
+const DBC_CREDENTIALS = "credentials"
 
 // Organization is the model for organization
 // collection
 type Credential struct {
 	ID                bson.ObjectId  `bson:"_id" json:"id"`
-	Type              string         `bson:"-" json:"type"`
-	Url               string         `bson:"-" json:"url"`
-	Related           gin.H          `bson:"-" json:"related"`
-	SummaryFields     gin.H          `bson:"-" json:"summary_fields"`
 	Name              string         `bson:"name" json:"name" binding:"required"`
 	Description       string         `bson:"description" json:"description"`
 	Kind              string         `bson:"kind" json:"kind" binding:"required"`
@@ -38,8 +34,14 @@ type Credential struct {
 	Client            string         `bson:"client" json:"client"`
 	Authorize         bool           `bson:"authorize" json:"authorize"`
 	AuthorizePassword string         `bson:"authorize_password" json:"authorize_password"`
-	CreatedBy         bson.ObjectId  `bson:"created_by" json:"created_by"`
-	ModifiedBy        bson.ObjectId  `bson:"modified_by" json:"modified_by"`
+	OrganizationID    bson.ObjectId  `bson:"organization_id,omitempty" json:"organization_id"`
+	CreatedByID       bson.ObjectId  `bson:"created_by_id" json:"created_by"`
+	ModifiedByID      bson.ObjectId  `bson:"modified_by_id" json:"modified_by"`
 	Created           time.Time      `bson:"created" json:"created"`
 	Modified          time.Time      `bson:"modified" json:"modified"`
+
+	Type              string         `bson:"-" json:"type"`
+	Url               string         `bson:"-" json:"url"`
+	Related           gin.H          `bson:"-" json:"related"`
+	SummaryFields     gin.H          `bson:"-" json:"summary_fields"`
 }

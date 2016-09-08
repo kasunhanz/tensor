@@ -6,12 +6,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const DBC_USER  = "users"
+const DBC_USERS = "users"
 
 // User is model for user collection
 type User struct {
 	ID              bson.ObjectId `bson:"_id" json:"id"`
-	Type            string        `bson:"-" json:"user"`
+	Type            string        `bson:"-" json:"type"`
 	Url             string        `bson:"-" json:"url"`
 	Related         map[string]string   `bson:"-" json:"related"`
 	Created         time.Time     `bson:"created" json:"created"`
