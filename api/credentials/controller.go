@@ -7,24 +7,24 @@ import (
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"net/http"
-	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"time"
 	"strconv"
+	"bitbucket.pearson.com/apseng/tensor/crypt"
 )
 
 const _CTX_CREDENTIAL = "credential"
 const _CTX_CREDENTIAL_ID = "credential_id"
+const _CTX_USER = "user"
 
 func CredentialMiddleware(c *gin.Context) {
-
 	ID := c.Params.ByName(_CTX_CREDENTIAL_ID)
 
-	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
+	collection := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	var crd models.Credential
 
-	if err := dbc.FindId(bson.ObjectIdHex(ID)).One(&crd); err != nil {
+	if err := collection.FindId(bson.ObjectIdHex(ID)).One(&crd); err != nil {
 		log.Print(err) // log error to the system log
 		c.AbortWithStatus(http.StatusNotFound) // send not found code if an error
 		return
@@ -36,13 +36,12 @@ func CredentialMiddleware(c *gin.Context) {
 
 // GetProject returns the project as a JSON object
 func GetCredential(c *gin.Context) {
-
 	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	hideEncrypted(&crd)
 	setMetadata(&crd)
 
-	c.JSON(200, crd)
+	c.JSON(http.StatusOK, crd)
 }
 
 func GetCredentials(c *gin.Context) {
@@ -72,7 +71,7 @@ func GetCredentials(c *gin.Context) {
 		return
 	}
 
-	pgi := pagination.NewPagination(c, count)
+	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
@@ -102,32 +101,56 @@ func GetCredentials(c *gin.Context) {
 		crds[i] = v
 	}
 
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": crds, })
+	c.JSON(http.StatusOK, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": crds, })
 }
 
 func AddCredential(c *gin.Context) {
 	u := c.MustGet("user").(models.User)
 
-	var crd models.Credential
+	var req models.Credential
 
-	if err := c.Bind(&crd); err != nil {
+	if err := c.Bind(&req); err != nil {
 		log.Println("Failed to parse payload", err)
 		c.JSON(http.StatusBadRequest,
 			gin.H{"status": "Bad Request", "message": "Failed to parse payload"})
 		return
 	}
 
-	crd.ID = bson.NewObjectId()
-	crd.CreatedByID = u.ID
-	crd.ModifiedByID = u.ID
-	crd.Created = time.Now()
-	crd.Modified = time.Now()
-	crd.Password = "$encrypted$"
-	crd.SshKeyData = "$encrypted$"
-	crd.SshKeyUnlock = "$encrypted$"
-	crd.BecomePassword = "$encrypted$"
-	crd.VaultPassword = "$encrypted$"
-	crd.AuthorizePassword = "$encrypted$"
+	// create new object to omit unnecessary fields
+	crd := models.Credential{
+		Name:req.Name,
+		Description:req.Description,
+		Kind:req.Kind,
+		OrganizationID:req.OrganizationID,
+		Username:req.Username,
+		BecomeMethod:req.BecomeMethod,
+		BecomeUsername: req.BecomeUsername,
+
+		ID : bson.NewObjectId(),
+		CreatedByID : u.ID,
+		ModifiedByID : u.ID,
+		Created : time.Now(),
+		Modified : time.Now(),
+	}
+
+	if len(req.Password) > 0 {
+		crd.Password = crypt.Encrypt(req.Password)
+	}
+
+	if len(req.SshKeyData) > 0 {
+		crd.SshKeyData = crypt.Encrypt(req.SshKeyData)
+
+		if len(req.SshKeyUnlock) > 0 {
+			crd.SshKeyUnlock = crypt.Encrypt(crd.SshKeyUnlock)
+		}
+	}
+
+	if len(req.BecomePassword) > 0 {
+		crd.BecomeUsername = crypt.Encrypt(req.BecomePassword)
+	}
+	if len(req.VaultPassword) > 0 {
+		crd.VaultPassword = crypt.Encrypt(req.VaultPassword)
+	}
 
 	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 	dbacl := database.MongoDb.C(models.DBC_ACl)
@@ -178,21 +201,55 @@ func AddCredential(c *gin.Context) {
 func UpdateCredential(c *gin.Context) {
 	var req models.Credential
 
+	u := c.MustGet(_CTX_USER).(models.User)
 	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	if err := c.Bind(&req); err != nil {
 		return
 	}
 
-	//update necessary fields
+	//required fields
 	crd.Name = req.Name
-	crd.Type = req.Type
-	crd.Secret = req.Secret
+	crd.Kind = req.Kind
+	crd.Description = req.Description
+	crd.OrganizationID = req.OrganizationID
+	crd.Username = req.Username
+	crd.Kind = req.Kind
+	crd.BecomeMethod = req.BecomeMethod
+	crd.BecomeUsername = req.BecomeUsername
+
+	if len(req.Password) > 0 {
+		crd.Password = crypt.Encrypt(req.Password)
+	}
+
+	if len(req.SshKeyData) > 0 {
+		crd.SshKeyData = crypt.Encrypt(req.SshKeyData)
+
+		if len(req.SshKeyUnlock) > 0 {
+			crd.SshKeyUnlock = crypt.Encrypt(crd.SshKeyUnlock)
+		}
+	}
+
+	if len(req.BecomePassword) > 0 {
+		crd.BecomeUsername = crypt.Encrypt(req.BecomePassword)
+	}
+	if len(req.VaultPassword) > 0 {
+		crd.VaultPassword = crypt.Encrypt(req.VaultPassword)
+	}
+
+	// system generated
+	crd.ID = crd.ID
+	crd.ModifiedByID = u.ID
+	crd.Modified = time.Now()
 
 	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	if err := dbc.UpdateId(crd.ID, crd); err != nil {
-		panic(err)
+		log.Println("Failed to update Credential", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to update Credential"})
+		return
 	}
 
 	if err := (models.Event{
@@ -215,7 +272,11 @@ func RemoveCredential(c *gin.Context) {
 	dbc := database.MongoDb.C(models.DBC_CREDENTIALS)
 
 	if err := dbc.RemoveId(crd.ID); err != nil {
-		panic(err)
+		log.Println("Failed to remove Credential", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to remove Credential"})
+		return
 	}
 
 	if err := (models.Event{

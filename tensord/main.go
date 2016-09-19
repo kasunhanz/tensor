@@ -9,6 +9,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/runners"
 )
 
 func main() {
@@ -35,7 +36,7 @@ func main() {
 
 	api.Route(r)
 
-	//go tasks.StartRunner()
+	go runners.StartAnsibleRunner()
 	//go addhoctasks.StartRunner()
 
 	r.Run(util.Config.Port)

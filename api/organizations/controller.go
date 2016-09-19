@@ -7,10 +7,9 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/api/users"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"strconv"
 )
 
@@ -23,7 +22,7 @@ const _CTX_ORGANIZATION_ID = "organization_id"
 func OrganizationMiddleware(c *gin.Context) {
 	projectID := c.Params.ByName(_CTX_ORGANIZATION_ID)
 
-	dbc := database.MongoDb.C(models.DBC_ORGANIZATIONS)
+	dbc := db.C(models.DBC_ORGANIZATIONS)
 
 	var org models.Organization
 	if err := dbc.FindId(bson.ObjectIdHex(projectID)).One(&org); err != nil {
@@ -47,7 +46,7 @@ func GetOrganization(c *gin.Context) {
 
 // GetOrganizations returns a JSON array of projects
 func GetOrganizations(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_ORGANIZATIONS)
+	dbc := db.C(models.DBC_ORGANIZATIONS)
 
 	parser := util.NewQueryParser(c)
 
@@ -66,7 +65,7 @@ func GetOrganizations(c *gin.Context) {
 		return
 	}
 
-	pgi := pagination.NewPagination(c, count)
+	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
@@ -114,7 +113,7 @@ func AddOrganizationUser(c *gin.Context) {
 
 	ou := bson.M{"user_id":playload.UserId}
 
-	col := database.MongoDb.C(models.DBC_ORGANIZATIONS)
+	col := db.C(models.DBC_ORGANIZATIONS)
 
 	if err := col.UpdateId(org.ID, bson.M{"$addToSet": bson.M{"users": ou}}); err != nil {
 		panic(err)
@@ -127,7 +126,7 @@ func GetOrganizationUsers(c *gin.Context) {
 	// get organization
 	org := c.MustGet("organization").(models.Organization)
 
-	col := database.MongoDb.C("organizations")
+	col := db.C("organizations")
 
 	aggregate := []bson.M{
 		{"$match": bson.M{
@@ -228,7 +227,7 @@ func AddOrganization(c *gin.Context) {
 func UpdateOrganization(c *gin.Context) {
 	req := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
 
-	col := database.MongoDb.C("organizations")
+	col := db.C("organizations")
 	var org models.Organization
 	if err := c.Bind(&org); err != nil {
 		return

@@ -1,4 +1,4 @@
-package inventories
+package hosts
 
 import (
 	"gopkg.in/mgo.v2/bson"
@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"strconv"
 )
 
 const _CTX_HOST = "host"
+const _CTX_USER = "user"
 const _CTX_HOST_ID = "host_id"
 
 // HostMiddleware takes host_id parameter from gin.Context and
@@ -22,7 +22,7 @@ const _CTX_HOST_ID = "host_id"
 func HostMiddleware(c *gin.Context) {
 	ID := c.Params.ByName(_CTX_HOST_ID)
 
-	dbc := database.MongoDb.C(models.DBC_HOSTS)
+	dbc := db.C(models.DBC_HOSTS)
 
 	var h models.Host
 	if err := dbc.FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
@@ -37,16 +37,16 @@ func HostMiddleware(c *gin.Context) {
 
 // GetHost returns the hsot as a JSON object
 func GetHost(c *gin.Context) {
-	o := c.MustGet(_CTX_HOST).(models.Inventory)
-	setMetadata(&o)
+	h := c.MustGet(_CTX_HOST).(models.Host)
+	setMetadata(&h)
 
-	c.JSON(200, o)
+	c.JSON(200, h)
 }
 
 
 // GetHosts returns a JSON array of projects
 func GetHosts(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_HOSTS)
+	dbc := db.C(models.DBC_HOSTS)
 
 	parser := util.NewQueryParser(c)
 
@@ -67,12 +67,12 @@ func GetHosts(c *gin.Context) {
 
 	count, err := query.Count();
 	if err != nil {
-		log.Println("Unable to count inventories from the db", err)
+		log.Println("Unable to count Hosts from the db", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	pgi := pagination.NewPagination(c, count)
+	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
@@ -84,31 +84,31 @@ func GetHosts(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var invs []models.Inventory
+	var hosts []models.Host
 
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&invs); err != nil {
-		log.Println("Unable to retrive inventories from the db", err)
+	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&hosts); err != nil {
+		log.Println("Unable to retrive Hosts from the db", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	for i, v := range invs {
+	for i, v := range hosts {
 		if err := setMetadata(&v); err != nil {
 			log.Println("Unable to set metadata", err)
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		invs[i] = v
+		hosts[i] = v
 	}
 
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": invs, })
+	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": hosts, })
 
 }
 
 // AddInventory creates a new project
-func AddInventory(c *gin.Context) {
-	var req models.Inventory
-	user := c.MustGet("user").(models.User)
+func AddHost(c *gin.Context) {
+	var req models.Host
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	if err := c.Bind(&req); err != nil {
 		// Return 400 if request has bad JSON format
@@ -116,21 +116,22 @@ func AddInventory(c *gin.Context) {
 		return
 	}
 
-	var inv models.Inventory
+	var host models.Host
 
-	inv.ID = bson.NewObjectId()
-	inv.Name = req.Name
-	inv.Description = req.Description
-	inv.Organization = req.Organization
-	inv.Variables = req.Variables
-	inv.Created = time.Now()
-	inv.Modified = time.Now()
-	inv.CreatedBy = user.ID
-	inv.ModifiedBy = user.ID
+	host.ID = bson.NewObjectId()
+	host.Name = req.Name
+	host.Description = req.Description
+	host.InventoryID = req.InventoryID
+	host.Variables = req.Variables
+	host.Enabled = req.Enabled
+	host.Created = time.Now()
+	host.Modified = time.Now()
+	host.CreatedByID = user.ID
+	host.ModifiedByID = user.ID
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_HOSTS)
 
-	if err := dbc.Insert(inv); err != nil {
+	if err := dbc.Insert(host); err != nil {
 		log.Println("Failed to create Project", err)
 
 		c.JSON(http.StatusInternalServerError,
@@ -141,13 +142,13 @@ func AddInventory(c *gin.Context) {
 	if err := (models.Event{
 		ID: bson.NewObjectId(),
 		ObjectType:  _CTX_HOST,
-		ObjectID:    inv.ID,
-		Description: "Inventory " + inv.Name + " created",
+		ObjectID:    host.ID,
+		Description: "Host " + host.Name + " created",
 	}.Insert()); err != nil {
 		log.Println("Failed to create Event", err)
 	}
 
-	if err := setMetadata(&inv); err != nil {
+	if err := setMetadata(&host); err != nil {
 		log.Println("Failed to fetch metadata", err)
 
 		c.JSON(http.StatusInternalServerError,
@@ -155,28 +156,39 @@ func AddInventory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, inv)
+	c.JSON(http.StatusCreated, host)
 }
 
-func UpdateInventory(c *gin.Context) {
-	oldTemplate := c.MustGet("template").(models.Template)
+func UpdateHost(c *gin.Context) {
+	h := c.MustGet(_CTX_HOST).(models.Host)
+	u := c.MustGet(_CTX_USER).(models.User)
 
-	var template models.Template
-	if err := c.Bind(&template); err != nil {
+	var req models.Host
+
+	if err := c.Bind(&req); err != nil {
 		return
 	}
 
-	template.ID = oldTemplate.ID
+	var host models.Host
+	host.Name = req.Name
+	host.Description = req.Description
+	host.Variables = req.Variables
+	host.Enabled = req.Enabled
+	host.Created = time.Now()
+	host.Modified = time.Now()
+	host.ModifiedByID = u.ID
 
-	if err := template.Update(); err != nil {
+	dbc := db.C(models.DBC_HOSTS)
+
+	if err := dbc.UpdateId(h.ID, host); err != nil {
 		panic(err)
 	}
 
 	if err := (models.Event{
-		ProjectID:   oldTemplate.ProjectID,
-		Description: "Template ID " + template.ID.String() + " updated",
-		ObjectID:    oldTemplate.ID,
-		ObjectType:  "template",
+		ProjectID:   host.ID,
+		Description: "Host ID " + host.ID.Hex() + " updated",
+		ObjectID:    host.ID,
+		ObjectType:  "host",
 	}.Insert()); err != nil {
 		panic(err)
 	}
@@ -184,18 +196,18 @@ func UpdateInventory(c *gin.Context) {
 	c.AbortWithStatus(204)
 }
 
-func RemoveInventory(c *gin.Context) {
-	crd := c.MustGet(_CTX_HOST).(models.Team)
+func RemoveHost(c *gin.Context) {
+	host := c.MustGet(_CTX_HOST).(models.Host)
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.MongoDb.C(models.DBC_HOSTS)
 
-	if err := dbc.RemoveId(crd.ID); err != nil {
+	if err := dbc.RemoveId(host.ID); err != nil {
 		panic(err)
 	}
 
 	if err := (models.Event{
-		Description: "Inventory " + crd.Name + " deleted",
-		ObjectID:    crd.ID,
+		Description: "Host " + host.Name + " deleted",
+		ObjectID:    host.ID,
 		ObjectType:  _CTX_HOST,
 	}.Insert()); err != nil {
 		panic(err)

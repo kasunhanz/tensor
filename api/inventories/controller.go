@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"strconv"
 )
 
@@ -22,7 +21,7 @@ const _CTX_INVENTORY_ID = "inventory_id"
 func InventoryMiddleware(c *gin.Context) {
 	projectID := c.Params.ByName(_CTX_INVENTORY_ID)
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_INVENTORIES)
 
 	var inv models.Inventory
 	if err := dbc.FindId(bson.ObjectIdHex(projectID)).One(&inv); err != nil {
@@ -46,12 +45,11 @@ func GetInventory(c *gin.Context) {
 
 // GetInventories returns a JSON array of projects
 func GetInventories(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_INVENTORIES)
 
 	parser := util.NewQueryParser(c)
 
 	match := parser.Match([]string{"has_inventory_sources", "has_active_failures", })
-	//TODO: sync failures `gt` 0
 
 	if con := parser.IContains([]string{"name", "organization"}); con != nil {
 		if match != nil {
@@ -72,7 +70,7 @@ func GetInventories(c *gin.Context) {
 		return
 	}
 
-	pgi := pagination.NewPagination(c, count)
+	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
@@ -128,7 +126,7 @@ func AddInventory(c *gin.Context) {
 	inv.CreatedBy = user.ID
 	inv.ModifiedBy = user.ID
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_INVENTORIES)
 
 	if err := dbc.Insert(inv); err != nil {
 		log.Println("Failed to create Project", err)
@@ -159,9 +157,10 @@ func AddInventory(c *gin.Context) {
 }
 
 func UpdateInventory(c *gin.Context) {
-	req := c.MustGet("template").(models.Inventory)
+	//TODO: this is not the request inv is the request
+	req := c.MustGet(_CTX_INVENTORY).(models.Inventory)
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_INVENTORIES)
 
 	var inv models.Inventory
 	if err := c.Bind(&inv); err != nil {
@@ -189,7 +188,7 @@ func UpdateInventory(c *gin.Context) {
 func RemoveInventory(c *gin.Context) {
 	crd := c.MustGet(_CTX_INVENTORY).(models.Team)
 
-	dbc := database.MongoDb.C(models.DBC_INVENTORIES)
+	dbc := db.C(models.DBC_INVENTORIES)
 
 	if err := dbc.RemoveId(crd.ID); err != nil {
 		panic(err)
@@ -199,6 +198,94 @@ func RemoveInventory(c *gin.Context) {
 		Description: "Inventory " + crd.Name + " deleted",
 		ObjectID:    crd.ID,
 		ObjectType:  _CTX_INVENTORY,
+	}.Insert()); err != nil {
+		panic(err)
+	}
+
+	c.AbortWithStatus(204)
+}
+//TODO: performance enhancements of queries
+func Script(c *gin.Context) {
+	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+
+	cgroups := db.C(models.DBC_GROUPS)
+	chosts := db.C(models.DBC_HOSTS)
+
+	qall := c.Query("all")
+	qhostvars := c.Query("hostvars")
+
+	//single host vars
+	qhost := c.Query("host")
+
+
+	// First Get all groups for inventory ID
+	var parents []models.Group
+
+	q := bson.M{"inventory_id": inv.ID}
+
+	if err := cgroups.Find(q).All(&parents); err != nil {
+		log.Println("Error while getting groups", err)
+		// send a brief error description to client
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"message": "Error while getting Hosts",
+		})
+		return
+	}
+
+	// loop through parent groups and get their hosts and
+	// child groups
+	// suppress key since we wont modify the array
+	for _, v := range parents {
+		//get hosts for parent group
+		var hosts []models.Host
+		q := bson.M{"inventory_id": inv.ID, "group_id": v.ID}
+
+		if err := chosts.Find(q).All(&hosts); err != nil {
+			log.Println("Error while getting host for group", err)
+			// send a brief error description to client
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting Hosts",
+			})
+			return
+		}
+
+		// Second get all child groups
+		var children []models.Group
+
+		q = bson.M{"inventory_id": inv.ID, "parent_group_id": v.ID}
+
+		if err := cgroups.Find(q).All(&children); err != nil {
+			log.Println("Error while getting child groups", err)
+			// send a brief error description to client
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting Hosts",
+			})
+			return
+		}
+		//TODO: we have child groups and hosts :D loop through them
+		//and construct the final
+
+	}
+
+	var req models.Inventory
+	if err := c.Bind(&inv); err != nil {
+		return
+	}
+
+	inv.ID = req.ID
+
+	if err := dbc.UpdateId(inv.ID, inv); err != nil {
+		panic(err)
+	}
+
+	if err := (models.Event{
+		ProjectID:   req.ID,
+		Description: "Template ID " + inv.ID.Hex() + " updated",
+		ObjectID:    req.ID,
+		ObjectType:  "template",
 	}.Insert()); err != nil {
 		panic(err)
 	}

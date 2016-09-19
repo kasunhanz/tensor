@@ -6,11 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_CUSTOM_INVENTORY_SCRIPT = "custom_inventory_script"
+const DBC_INVENTORY_SCRIPT = "inventory_scripts"
 
 // CustomInventoryScript is the model for organization
 // collection
-type CustomInventoryScript struct {
+type InventoryScript struct {
 	ID                bson.ObjectId  `bson:"_id" json:"id"`
 	Name              string         `bson:"name" json:"name" binding:"required"`
 	Description       string         `bson:"description" json:"description"`
@@ -24,4 +24,8 @@ type CustomInventoryScript struct {
 	Url               string         `bson:"-" json:"url"`
 	Related           gin.H          `bson:"-" json:"related"`
 	SummaryFields     gin.H          `bson:"-" json:"summary_fields"`
+}
+
+func (c InventoryScript) CreateIndexes()  {
+
 }

@@ -2,7 +2,7 @@ package credentials
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -10,35 +10,36 @@ import (
 // Create a new organization
 func setMetadata(cred *models.Credential) error {
 
+	ID := cred.ID.Hex()
 	cred.Type = "credential"
-	cred.Url = "/v1/credentials/" + cred.ID.Hex() + "/"
-	r := gin.H{
-		"created_by": "/v1/users/" + cred.CreatedByID + "/",
-		"modified_by": "/v1/users/" + cred.ModifiedByID + "/",
-		"owner_teams": "/v1/organizations/" + cred.ID + "/users/",
-		"owner_users": "/v1/organizations/" + cred.ID + "/object_roles/",
-		"activity_stream": "/v1/organizations/" + cred.ID + "/activity_stream/",
-		"access_list": "/v1/organizations/" + cred.ID + "/access_list/",
-		"object_roles": "/api/v1/credentials/" + cred.ID + "/object_roles/",
-		"user": "/api/v1/users/" + cred.CreatedByID + "/",
+	cred.Url = "/v1/credentials/" + ID + "/"
+	related := gin.H{
+		"created_by": "/v1/users/" + cred.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + cred.ModifiedByID.Hex() + "/",
+		"owner_teams": "/v1/organizations/" + ID + "/users/",
+		"owner_users": "/v1/organizations/" + ID + "/object_roles/",
+		"activity_stream": "/v1/organizations/" + ID + "/activity_stream/",
+		"access_list": "/v1/organizations/" + ID + "/access_list/",
+		"object_roles": "/api/v1/credentials/" + ID + "/object_roles/",
+		"user": "/api/v1/users/" + cred.CreatedByID.Hex() + "/",
 	}
 
 	if cred.OrganizationID != "" {
-		r["organization"] = "/api/v1/organizations/" + cred.OrganizationID + "/"
+		related["organization"] = "/api/v1/organizations/" + cred.OrganizationID + "/"
 	}
 
-	cred.Related = r
+	cred.Related = related
 
-	if err := setSummaryFields(cred); err != nil {
+	if err := setSummary(cred); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(cred *models.Credential) error {
-	dbu := database.MongoDb.C(models.DBC_USERS)
-	dbacl := database.MongoDb.C(models.DBC_ACl)
+func setSummary(cred *models.Credential) error {
+	dbu := db.C(models.DBC_USERS)
+	dbacl := db.C(models.DBC_ACl)
 
 	var modified models.User
 	var created models.User
@@ -80,7 +81,7 @@ func setSummaryFields(cred *models.Credential) error {
 
 	//TODO: include teams to owners list
 
-	o := gin.H{
+	summary := gin.H{
 		"object_roles": []gin.H{
 			{
 				"Description": "Can manage all aspects of the credential",
@@ -116,12 +117,14 @@ func setSummaryFields(cred *models.Credential) error {
 			return err
 		}
 
-		o["organization"] = gin.H{
+		summary["organization"] = gin.H{
 			"id": org.ID,
 			"name": org.Name,
 			"description": org.Description,
 		}
 	}
+
+	cred.Summary = summary;
 
 	return nil
 }

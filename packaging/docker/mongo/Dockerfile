@@ -69,9 +69,13 @@ ADD mongo_setup_users.sh /opt/mongo/mongo_setup_users.sh
 ADD mongo_setup_repset.sh /opt/mongo/mongo_setup_repset.sh
 ADD check-keyfile.sh /opt/mongo/check-keyfile.sh
 
+RUN chmod +x /opt/mongo/mongo_setup_users.sh
+RUN chmod +x /opt/mongo/mongo_setup_repset.sh
 RUN chmod +x /opt/mongo/check-keyfile.sh
+
 RUN /opt/mongo/check-keyfile.sh
 ADD run.sh /run.sh
+RUN chmod +x /run.sh
 RUN chown -R mongodb:mongodb /opt/mongo
 RUN chmod 600 /opt/mongo/mongodb-keyfile
 

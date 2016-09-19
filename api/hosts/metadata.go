@@ -1,4 +1,4 @@
-package inventories
+package hosts
 
 import (
 	"github.com/gin-gonic/gin"
@@ -9,94 +9,74 @@ import (
 
 
 // Create a new organization
-func setMetadata(i *models.Inventory) error {
+func setMetadata(host *models.Host) error {
 
-	ID := i.ID.Hex()
-	i.Type = "inventory"
-	i.Url = "/v1/inventories/" + ID + "/"
-	i.Related = gin.H{
-		"created_by": "/v1/users/" + i.CreatedBy.Hex() + "/",
-		"job_templates": "/v1/inventories/" + ID + "/job_templates/",
-		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates/",
-		"variable_data": "/v1/inventories/" + ID + "/variable_data/",
-		"root_groups": "/v1/inventories/" + ID + "/root_groups/",
-		"object_roles": "/v1/inventories/" + ID + "/object_roles/",
-		"ad_hoc_commands": "/v1/inventories/" + ID + "/ad_hoc_commands/",
-		"script": "/v1/inventories/" + ID + "/script/",
-		"tree": "/v1/inventories/" + ID + "/tree/",
-		"access_list": "/v1/inventories/" + ID + "/access_list/",
-		"hosts": "/v1/inventories/" + ID + "/hosts/",
-		"groups": "/v1/inventories/" + ID + "/groups/",
-		"activity_stream": "/v1/inventories/" + ID + "/activity_stream/",
-		"inventory_sources": "/v1/inventories/" + ID + "/inventory_sources/",
-		"organization": "/v1/organizations/" + i.Organization.Hex() + "/",
+	ID := host.ID.Hex()
+	host.Type = "inventory"
+	host.Url = "/v1/inventories/" + ID + "/"
+	host.Related = gin.H{
+		"created_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",
+		"modified_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",
+		"job_host_summaries": "/api/v1/hosts/" + ID + "/job_host_summaries/",
+		"variable_data": "/api/v1/hosts/" + ID + "/variable_data/",
+		"job_events": "/api/v1/hosts/" + ID + "/job_events/",
+		"ad_hoc_commands": "/api/v1/hosts/" + ID + "/ad_hoc_commands/",
+		"fact_versions": "/api/v1/hosts/" + ID + "/fact_versions/",
+		"inventory_sources": "/api/v1/hosts/" + ID + "/inventory_sources/",
+		"groups": "/api/v1/hosts/" + ID + "/groups/",
+		"activity_stream": "/api/v1/hosts/" + ID + "/activity_stream/",
+		"all_groups": "/api/v1/hosts/" + ID + "/all_groups/",
+		"ad_hoc_command_events": "/api/v1/hosts/" + ID + "/ad_hoc_command_events/",
+		"inventory": "/api/v1/inventories/" + host.InventoryID + "/",
 	}
 
-	if err := setSummaryFields(i); err != nil {
+	if err := setSummaryFields(host); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(i *models.Inventory) error {
+func setSummaryFields(host *models.Host) error {
 
 	dbu := db.MongoDb.C(models.DBC_USERS)
-	dbco := db.MongoDb.C(models.DBC_ORGANIZATIONS)
+	dbci := db.MongoDb.C(models.DBC_INVENTORIES)
 
 	var modified models.User
 	var created models.User
-	var org models.Organization
+	var inv models.Inventory
 
-	if err := dbu.FindId(i.CreatedBy).One(&created); err != nil {
+	if err := dbu.FindId(host.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(i.ModifiedBy).One(&modified); err != nil {
+	if err := dbu.FindId(host.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbco.FindId(i.Organization).One(&org); err != nil {
+	if err := dbci.FindId(host.InventoryID).One(&inv); err != nil {
 		return err
 	}
 
-	//TODO: fill these from database
-	i.HasActiveFailures = false
-	i.TotalHosts = 6
-	i.HostsWithActiveFailures = 0
-	i.TotalGroups = 2
-	i.GroupsWithActiveFailures = 0
-	i.HasInventorySources = false
-	i.TotalInventorySources = 0
-	i.InventorySourcesWithFailures = 0
-
-	i.SummaryFields = gin.H{
-		"object_roles": []gin.H{
-			{
-				"description": "Can use the inventory in a job template",
-				"name": "use",
-			},
-			{
-				"description": "Can manage all aspects of the inventory",
-				"name": "admin",
-			},
-			{
-				"description": "May run ad hoc commands on an inventory",
-				"name": "adhoc",
-			},
-			{
-				"description": "May update project or inventory or group using the configured source update system",
-				"name": "update",
-			},
-			{
-				"description": "May view settings for the inventory",
-				"name": "read",
-			},
+	host.SummaryFields = gin.H{
+		"inventory": gin.H{
+			"id": inv.ID,
+			"name": inv.Name,
+			"description": inv.Description,
+			"has_active_failures": inv.HasActiveFailures,
+			"total_hosts": inv.TotalHosts,
+			"hosts_with_active_failures": inv.HostsWithActiveFailures,
+			"total_groups": inv.TotalGroups,
+			"groups_with_active_failures": inv.GroupsWithActiveFailures,
+			"has_inventory_sources": inv.HasInventorySources,
+			"total_inventory_sources": inv.TotalInventorySources,
+			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
 		},
-		"organization": gin.H{
-			"id": org.ID.Hex(),
-			"name": org.Name,
-			"description": org.Description,
+		"modified_by": gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
 		},
 		"created_by": gin.H{
 			"id":         created.ID.Hex(),
@@ -104,6 +84,7 @@ func setSummaryFields(i *models.Inventory) error {
 			"first_name": created.FirstName,
 			"last_name":  created.LastName,
 		},
+		"recent_jobs": []gin.H{},
 	}
 
 	return nil

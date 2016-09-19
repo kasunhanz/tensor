@@ -6,13 +6,15 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 )
 
 const _CTX_TEAM = "team"
+// _CTX_USER is the key name of the User in gin.Context
+const _CTX_USER = "user"
 const _CTX_TEAM_ID = "team_id"
 
 // TeamMiddleware takes project_id parameter from gin.Context and
@@ -21,7 +23,7 @@ const _CTX_TEAM_ID = "team_id"
 func TeamMiddleware(c *gin.Context) {
 	id := c.Params.ByName(_CTX_TEAM_ID)
 
-	dbc := database.MongoDb.C(models.DBC_TEAMS)
+	dbc := db.C(models.DBC_TEAMS)
 
 	var org models.Team
 	if err := dbc.FindId(bson.ObjectIdHex(id)).One(&org); err != nil {
@@ -45,7 +47,7 @@ func GetTeam(c *gin.Context) {
 
 // GetTeams returns a JSON array of teams
 func GetTeams(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_TEAMS)
+	dbc := db.C(models.DBC_TEAMS)
 
 	parser := util.NewQueryParser(c)
 
@@ -100,11 +102,11 @@ func GetTeams(c *gin.Context) {
 
 // AddTeam creates a new team
 func AddTeam(c *gin.Context) {
-	var request models.Team
+	var req models.Team
 
 	u := c.MustGet("user").(models.User)
 
-	if err := c.Bind(&request); err != nil {
+	if err := c.Bind(&req); err != nil {
 		log.Println("Failed to parse payload", err)
 		c.JSON(http.StatusBadRequest,
 			gin.H{"status": "Bad Request", "message": "Failed to parse payload"})
@@ -113,17 +115,17 @@ func AddTeam(c *gin.Context) {
 
 	tm := models.Team{
 		ID:bson.NewObjectId(),
-		Name:request.Name,
-		Description:request.Description,
-		Organization: request.Organization,
+		Name:req.Name,
+		Description:req.Description,
+		Organization: req.Organization,
 		Created:time.Now(),
 		Modified:time.Now(),
 		CreatedBy: u.ID,
 		ModifiedBy: u.ID,
 	}
 
-	dbc := database.MongoDb.C(models.DBC_TEAMS)
-	dbacl := database.MongoDb.C(models.DBC_ACl)
+	dbc := db.C(models.DBC_TEAMS)
+	dbacl := db.C(models.DBC_ACl)
 
 	if err := dbc.Insert(tm); err != nil {
 		log.Println("Failed to create Team", err)
@@ -166,49 +168,90 @@ func AddTeam(c *gin.Context) {
 	c.JSON(http.StatusCreated, tm)
 }
 
-func UpdateTeam(c *gin.Context) {
-	oldTemplate := c.MustGet(models.DBC_TEAMS).(models.Team)
 
-	dbc := database.MongoDb.C(models.DBC_TEAMS)
-	var tm models.Team
-	if err := c.Bind(&tm); err != nil {
+// UpdateTeam will update the Job Template
+func UpdateTeam(c *gin.Context) {
+	// get Team from the gin.Context
+	otm := c.MustGet(_CTX_TEAM).(models.Team)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.Team
+
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	tm.ID = oldTemplate.ID
+	// create new object to omit unnecessary fields
+	tm := models.Team{
+		ID:otm.ID,
+		Name:req.Name,
+		Description:req.Description,
+		Organization: req.Organization,
+		Modified:time.Now(),
+		ModifiedBy: user.ID,
+	}
 
-	if err := dbc.UpdateId(tm.ID, tm); err != nil {
-		panic(err)
+	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+
+	// update object
+	if err := collection.UpdateId(otm.ID, tm); err != nil {
+		log.Println("Failed to update Team", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to update Team"})
+		return
 	}
 
 	if err := (models.Event{
-		ProjectID:   oldTemplate.ID,
-		Description: "Template ID " + tm.Name + " updated",
-		ObjectID:    oldTemplate.ID,
-		ObjectType:  "template",
+		ProjectID:   tm.ID,
+		Description: "Team ID " + tm.ID.Hex() + " updated",
+		ObjectID:    tm.ID,
+		ObjectType:  "team",
 	}.Insert()); err != nil {
-		panic(err)
+		log.Println("Failed to create Event", err)
 	}
 
-	c.AbortWithStatus(204)
+	// set `related` and `summary` feilds
+	if err := setMetadata(&tm); err != nil {
+		log.Println("Failed to fetch metadata", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+		return
+	}
+
+	// render JSON with 200 status code
+	c.JSON(http.StatusOK, tm)
 }
 
+// RemoveTeam will remove the Team
+// from the models.DBC_TEAMS collection
 func RemoveTeam(c *gin.Context) {
-	crd := c.MustGet(_CTX_TEAM).(models.Team)
+	// get Team from the gin.Context
+	tm := c.MustGet(_CTX_TEAM).(models.Team)
 
-	dbc := database.MongoDb.C(models.DBC_TEAMS)
+	collection := db.MongoDb.C(models.DBC_TEAMS)
 
-	if err := dbc.RemoveId(crd.ID); err != nil {
-		panic(err)
+	// remove object from the collection
+	if err := collection.RemoveId(tm.ID); err != nil {
+		log.Println("Failed to remove Team", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to remove Team"})
+		return
 	}
 
 	if err := (models.Event{
-		Description: "Team " + crd.Name + " deleted",
-		ObjectID:    crd.ID,
+		Description: "Team " + tm.Name + " deleted",
+		ObjectID:    tm.ID,
 		ObjectType:  _CTX_TEAM,
 	}.Insert()); err != nil {
-		panic(err)
+		log.Println("Failed to create Event", err)
 	}
 
-	c.AbortWithStatus(204)
+	// abort with 204 status code
+	c.AbortWithStatus(http.StatusNoContent)
 }

@@ -11,7 +11,7 @@ import (
 func SetMetadata(u *models.User) {
 	u.Type = "user"
 	u.Url = "/v1/users/" + u.ID.Hex() + "/"
-	u.Related = map[string]string{
+	u.Related = gin.H{
 		"admin_of_organizations": "/api/v1/users/" + u.ID.Hex() + "/admin_of_organizations/",
 		"organizations": "/api/v1/users/" + u.ID.Hex() + "/organizations/",
 		"roles": "/api/v1/users/" + u.ID.Hex() + "/roles/",

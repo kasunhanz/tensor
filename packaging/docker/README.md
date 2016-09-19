@@ -107,3 +107,7 @@ MONGO_APP_USER myAppUser
 MONGO_APP_PASSWORD myAppPassword
 MONGO_APP_DATABASE myAppDatabase
 ```
+
+#Windows
+
+Remove all containers ```FOR /f "tokens=*" %i IN ('docker ps -a -q') DO docker rm %i```

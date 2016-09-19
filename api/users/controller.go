@@ -7,7 +7,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"fmt"
 	"time"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util"
@@ -22,7 +22,7 @@ func GetUserMiddleware(c *gin.Context) {
 
 	var usr models.User
 
-	dbc := database.MongoDb.C(models.DBC_USERS)
+	dbc := db.C(models.DBC_USERS)
 
 	if err := dbc.FindId(bson.ObjectIdHex(userID)).One(&usr); err != nil {
 		log.Print(err) // log error to the system log
@@ -49,7 +49,7 @@ func GetUser(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_USERS)
+	dbc := db.C(models.DBC_USERS)
 
 	parser := util.NewQueryParser(c)
 
@@ -104,7 +104,7 @@ func AddUser(c *gin.Context) {
 	user.ID = bson.NewObjectId()
 	user.Created = time.Now()
 
-	col := database.MongoDb.C(models.DBC_USERS)
+	col := db.C(models.DBC_USERS)
 
 	if err := col.Insert(user); err != nil {
 		panic(err)
@@ -121,7 +121,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	col := database.MongoDb.C("users")
+	col := db.C("users")
 
 	if err := col.UpdateId(oldUser.ID,
 		bson.M{"first_name": user.FirstName, "last_name":user.LastName, "username": user.Username, "email": user.Email}); err != nil {
@@ -143,7 +143,7 @@ func UpdateUserPassword(c *gin.Context) {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
 
-	col := database.MongoDb.C(models.DBC_USERS)
+	col := db.C(models.DBC_USERS)
 
 	if err := col.UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
 		panic(err)
@@ -155,7 +155,7 @@ func UpdateUserPassword(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 
-	col := database.MongoDb.C("projects")
+	col := db.C("projects")
 
 	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
 	if err != nil {
@@ -164,7 +164,7 @@ func DeleteUser(c *gin.Context) {
 
 	fmt.Println(info.Matched)
 
-	userCol := database.MongoDb.C(models.DBC_USERS)
+	userCol := db.C(models.DBC_USERS)
 
 	if err := userCol.RemoveId(user.ID); err != nil {
 		panic(err)

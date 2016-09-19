@@ -1,7 +1,8 @@
 version: '2'
 services:
   mongo1:
-    build: .
+    build:
+      context: ./mongo
     ports:
       - '27017:27017'
     restart: always
@@ -21,7 +22,8 @@ services:
           - mongo1
 
   mongo2:
-    build: .
+    build:
+      context: ./mongo
     ports:
       - '27018:27017'
     restart: always
@@ -33,7 +35,8 @@ services:
           - mongo2
 
   mongo3:
-    build: .
+    build:
+      context: ./mongo
     ports:
        - '27019:27017'
     restart: always
@@ -45,6 +48,21 @@ services:
       tensornet:
         aliases:
           - mongo3
+
+  tensor:
+    build:
+      context: ./tensor
+    volumes:
+      - ../../:/go/src/bitbucket.pearson.com/apseng/tensor
+    ports:
+      - '8010:8010'
+    restart: always
+    tty: true
+    stdin_open: true
+    networks:
+      tensornet:
+        aliases:
+          - tensor
 
 networks:
   tensornet:

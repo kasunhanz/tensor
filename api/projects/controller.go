@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"gopkg.in/mgo.v2/bson"
 	"time"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/util/pagination"
 	"strconv"
 )
 
@@ -23,7 +22,7 @@ const _CTX_PROJECT_ID = "project_id"
 func ProjectMiddleware(c *gin.Context) {
 	projectID := c.Params.ByName(_CTX_PROJECT_ID)
 
-	dbcp := database.MongoDb.C(models.DBC_PROJECTS)
+	dbcp := db.C(models.DBC_PROJECTS)
 
 	var project models.Project
 	if err := dbcp.FindId(bson.ObjectIdHex(projectID)).One(&project); err != nil {
@@ -46,7 +45,7 @@ func GetProject(c *gin.Context) {
 
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
-	dbc := database.MongoDb.C(models.DBC_PROJECTS)
+	dbc := db.C(models.DBC_PROJECTS)
 
 	parser := util.NewQueryParser(c)
 
@@ -71,7 +70,7 @@ func GetProjects(c *gin.Context) {
 		return
 	}
 
-	pgi := pagination.NewPagination(c, count)
+	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
@@ -107,7 +106,7 @@ func GetProjects(c *gin.Context) {
 func AddProject(c *gin.Context) {
 	var req models.Project
 
-	u := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	if err := c.Bind(&req); err != nil {
 		// Return 400 if request has bad JSON format
@@ -115,30 +114,29 @@ func AddProject(c *gin.Context) {
 		return
 	}
 
-	var p models.Project
+	proj := models.Project{
+		ID: bson.NewObjectId(),
+		Name:req.Name,
+		Description:req.Description,
+		LocalPath:req.LocalPath,
+		ScmType:req.ScmType,
+		ScmUrl:req.ScmUrl,
+		ScmBranch:req.ScmBranch,
+		ScmClean:req.ScmClean,
+		ScmDeleteOnUpdate:req.ScmDeleteOnUpdate,
+		ScmCredential:req.ScmCredential,
+		Organization:req.Organization,
+		ScmUpdateOnLaunch:req.ScmUpdateOnLaunch,
+		ScmUpdateCacheTimeout:req.ScmUpdateCacheTimeout,
+		CreatedBy:user.ID,
+		ModifiedBy:user.ID,
+		Created: time.Now(),
+		Modified: time.Now(),
+	}
 
-	p.Name = req.Name
-	p.Description = req.Description
-	p.LocalPath = req.LocalPath
-	p.ScmType = req.ScmType
-	p.ScmUrl = req.ScmUrl
-	p.ScmBranch = req.ScmBranch
-	p.ScmClean = req.ScmClean
-	p.ScmDeleteOnUpdate = req.ScmDeleteOnUpdate
-	p.ScmCredential = req.ScmCredential
-	p.Organization = req.Organization
-	p.ScmUpdateOnLaunch = req.ScmUpdateOnLaunch
-	p.ScmUpdateCacheTimeout = req.ScmUpdateCacheTimeout
-	p.CreatedBy = u.ID
-	p.ModifiedBy = u.ID
+	dbc := db.C(models.DBC_PROJECTS)
 
-	p.ID = bson.NewObjectId()
-	p.Created = time.Now()
-	p.Modified = time.Now()
-
-	dbc := database.MongoDb.C(models.DBC_PROJECTS)
-
-	if err := dbc.Insert(p); err != nil {
+	if err := dbc.Insert(proj); err != nil {
 		log.Println("Failed to create Project", err)
 
 		c.JSON(http.StatusInternalServerError,
@@ -149,13 +147,13 @@ func AddProject(c *gin.Context) {
 	if err := (models.Event{
 		ID: bson.NewObjectId(),
 		ObjectType:  _CTX_PROJECT,
-		ObjectID:    p.ID,
-		Description: "Project " + p.Name + " created",
+		ObjectID:    proj.ID,
+		Description: "Project " + proj.Name + " created",
 	}.Insert()); err != nil {
 		log.Println("Failed to create Event", err)
 	}
 
-	if err := setMetadata(&p); err != nil {
+	if err := setMetadata(&proj); err != nil {
 		log.Println("Failed to fetch metadata", err)
 
 		c.JSON(http.StatusInternalServerError,
@@ -163,5 +161,103 @@ func AddProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, p)
+	c.JSON(201, proj)
+}
+
+
+// UpdateProject will update the Project
+func UpdateProject(c *gin.Context) {
+	// get Project from the gin.Context
+	oproj := c.MustGet(_CTX_PROJECT).(models.Project)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.Project
+
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	proj := models.Project{
+		ID: bson.NewObjectId(),
+		Name:oproj.Name,
+		Description:oproj.Description,
+		LocalPath:oproj.LocalPath,
+		ScmType:oproj.ScmType,
+		ScmUrl:oproj.ScmUrl,
+		ScmBranch:oproj.ScmBranch,
+		ScmClean:oproj.ScmClean,
+		ScmDeleteOnUpdate:oproj.ScmDeleteOnUpdate,
+		ScmCredential:oproj.ScmCredential,
+		Organization:oproj.Organization,
+		ScmUpdateOnLaunch:oproj.ScmUpdateOnLaunch,
+		ScmUpdateCacheTimeout:oproj.ScmUpdateCacheTimeout,
+		CreatedBy:user.ID,
+		ModifiedBy:user.ID,
+		Created: time.Now(),
+		Modified: time.Now(),
+	}
+
+	collection := db.MongoDb.C(models.DBC_PROJECTS)
+
+	// update object
+	if err := collection.UpdateId(proj.ID, proj); err != nil {
+		log.Println("Failed to update Project", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to update Project"})
+		return
+	}
+
+	if err := (models.Event{
+		ProjectID:   proj.ID,
+		Description: "Project ID " + proj.ID.Hex() + " updated",
+		ObjectID:    proj.ID,
+		ObjectType:  "project",
+	}.Insert()); err != nil {
+		log.Println("Failed to create Event", err)
+	}
+
+	// set `related` and `summary` feilds
+	if err := setMetadata(&proj); err != nil {
+		log.Println("Failed to fetch metadata", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+		return
+	}
+
+	// render JSON with 200 status code
+	c.JSON(http.StatusOK, proj)
+}
+
+// RemoveProject will remove the Project
+// from the models.DBC_PROJECTS collection
+func RemoveProject(c *gin.Context) {
+	// get Project from the gin.Context
+	proj := c.MustGet(_CTX_PROJECT).(models.Project)
+
+	collection := db.MongoDb.C(models.DBC_PROJECTS)
+
+	// remove object from the collection
+	if err := collection.RemoveId(proj.ID); err != nil {
+		log.Println("Failed to remove Project", err)
+
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"status": "error", "message": "Failed to remove Project"})
+		return
+	}
+
+	if err := (models.Event{
+		Description: "Project " + proj.Name + " deleted",
+		ObjectID:    proj.ID,
+		ObjectType:  _CTX_PROJECT,
+	}.Insert()); err != nil {
+		log.Println("Failed to create Event", err)
+	}
+
+	// abort with 204 status code
+	c.AbortWithStatus(http.StatusNoContent)
 }
