@@ -10,6 +10,7 @@ import (
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 )
 
 const _CTX_GROUP = "group"
@@ -19,42 +20,47 @@ const _CTX_GROUP_ID = "group_id"
 // GroupMiddleware takes host_id parameter from gin.Context and
 // fetches host data from the database
 // it set host data under key host in gin.Context
-func GroupMiddleware(c *gin.Context) {
+func Middleware(c *gin.Context) {
+
 	ID := c.Params.ByName(_CTX_GROUP_ID)
+	collection := db.C(db.GROUPS)
+	var group models.Group
+	err := collection.FindId(bson.ObjectIdHex(ID)).One(&group);
 
-	dbc := db.C(models.DBC_GROUPS)
-
-	var grp models.Group
-	if err := dbc.FindId(bson.ObjectIdHex(ID)).One(&grp); err != nil {
-		log.Print(err) // log error to the system log
-		c.AbortWithStatus(http.StatusNotFound)
+	if err != nil {
+		log.Print("Error while getting the Group:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
 		return
 	}
 
-	c.Set(_CTX_GROUP, grp)
+	c.Set(_CTX_GROUP, group)
 	c.Next()
 }
 
 // GetHost returns the host as a serialized JSON object
 func GetGroup(c *gin.Context) {
-	grp := c.MustGet(_CTX_GROUP).(models.Group)
-	setMetadata(&grp)
+	group := c.MustGet(_CTX_GROUP).(models.Group)
+	metadata.GroupMetadata(&group)
 
-	c.JSON(200, grp)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:group,
+	})
 }
-
 
 // GetGroups returns groups as a serialized JSON object
 func GetGroups(c *gin.Context) {
-	dbc := db.C(models.DBC_GROUPS)
+	dbc := db.C(db.GROUPS)
 
 	parser := util.NewQueryParser(c)
-
-	// query map
 	match := parser.Match([]string{"source", "has_active_failures", })
+	con := parser.IContains([]string{"name"});
 
-	// add filters to query
-	if con := parser.IContains([]string{"name"}); con != nil {
+	if con != nil {
 		if match != nil {
 			for i, v := range con {
 				match[i] = v
@@ -65,51 +71,66 @@ func GetGroups(c *gin.Context) {
 	}
 
 	query := dbc.Find(match) // prepare the query
-
 	count, err := query.Count(); // number of records
+
 	if err != nil {
-		log.Println("Unable to count Groups from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Println("Error while trying to get count of Groups from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting groups",
+		})
 		return
 	}
 
-	// initialize Pagination
+	// init Pagination
 	pgi := util.NewPagination(c, count)
-
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
 	// set sort value to the query based on request parameters
-	if order := parser.OrderBy(); order != "" {
+	order := parser.OrderBy();
+	if order != "" {
 		query.Sort(order)
 	}
 
-	var grps []models.Group
+	var groups []models.Group
 
 	// get all values with skip limit
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&grps); err != nil {
-		log.Println("Unable to retrive Groups from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&groups);
+
+	if err != nil {
+		log.Println("Error while retriving Group data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting groups",
+		})
 		return
 	}
+
 	// set related and summary fields to every item
-	for i, v := range grps {
+	for i, v := range groups {
 		// note: `v` reference doesn't modify original slice
-		if err := setMetadata(&v); err != nil {
-			log.Println("Unable to set metadata", err)
-			c.AbortWithError(http.StatusInternalServerError, err)
+		err := metadata.GroupMetadata(&v);
+		if err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Groups",
+			})
 			return
 		}
-
-		grps[i] = v // modify each object in slice
+		groups[i] = v // modify each object in slice
 	}
 
 	// send response with JSON rendered data
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": grps, })
-
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:groups,
+	})
 }
 
 // AddGroup creates a new group
@@ -118,14 +139,18 @@ func AddGroup(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.Bind(&req); err != nil {
+	err := c.BindJSON(&req);
+	if err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
 	// create new object to omit unnecessary fields
-	grp := models.Group {
+	group := models.Group{
 		ID : bson.NewObjectId(),
 		Name: req.Name,
 		Description: req.Description,
@@ -137,118 +162,157 @@ func AddGroup(c *gin.Context) {
 		ModifiedByID: user.ID,
 	}
 
+	collection := db.C(db.GROUPS)
 
-	dbc := db.C(models.DBC_GROUPS)
-
-	if err := dbc.Insert(grp); err != nil {
-		log.Println("Failed to create Group", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create Group"})
+	err = collection.Insert(group);
+	if err != nil {
+		log.Println("Error while creating Group:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Group",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		ID: bson.NewObjectId(),
-		ObjectType:  _CTX_GROUP,
-		ObjectID:    grp.ID,
-		Description: "Group " + grp.Name + " created",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(group.ID, user.ID, "Group " + group.Name + " created")
 
-	if err := setMetadata(&grp); err != nil {
-		log.Println("Failed to fetch metadata", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err = metadata.GroupMetadata(&group);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Group",
+		})
 		return
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, grp)
+	c.JSON(http.StatusCreated, models.Response{
+		Count:1,
+		Results:group,
+	})
 }
 
 // UpdateGroup will update the Group
 func UpdateGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	cgroup := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(_CTX_GROUP).(models.Group)
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Group
-
-	if err := c.Bind(&req); err != nil {
+	err := c.BindJSON(&req);
+	if err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
-	group := models.Group{
-		Name: req.Name,
-		Description: req.Description,
-		Variables: req.Variables,
-		Modified: time.Now(),
-		ModifiedByID: user.ID,
-	}
+	group.Name = req.Name
+	group.Description = req.Description
+	group.Variables = req.Variables
+	group.Modified = time.Now()
+	group.ModifiedByID = user.ID
 
-	collection := db.C(models.DBC_GROUPS)
+	collection := db.C(db.GROUPS)
 
 	// update object
-	if err := collection.UpdateId(cgroup.ID, group); err != nil {
-		log.Println("Failed to update Group", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to update Group"})
+	err = collection.UpdateId(group.ID, group);
+	if err != nil {
+		log.Println("Error while updating Group:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Group",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		ProjectID:   group.ID,
-		Description: "Group ID " + group.ID.Hex() + " updated",
-		ObjectID:    group.ID,
-		ObjectType:  "group",
-	}.Insert()); err != nil {
-		panic(err)
-	}
+	// add new activity to activity stream
+	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := setMetadata(&group); err != nil {
-		log.Println("Failed to fetch metadata", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err = metadata.GroupMetadata(&group);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Group",
+		})
 		return
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, group)
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:group,
+	})
 }
 
 // RemoveGroup will remove the Group
 // from the models._CTX_GROUP collection
 func RemoveGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	cgroup := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(_CTX_GROUP).(models.Group)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(models.DBC_GROUPS)
+	collection := db.C(db.GROUPS)
+	chosts := db.C(db.HOSTS)
 
-	// remove object from the collection
-	if err := collection.RemoveId(cgroup.ID); err != nil {
-		log.Println("Failed to remove Group", err)
+	var childgroups []models.Group
 
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to remove Group"})
+	//find the group and all child groups
+	query := bson.M{
+		"$or": []bson.M{
+			{"parent_group_id": group.ID},
+			{"_id": group.ID},
+		},
+	}
+	err := collection.Find(query).Select(bson.M{"_id":1}).All(&childgroups);
+	if err != nil {
+		log.Println("Error while getting child Groups:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Group",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		Description: "Group " + cgroup.Name + " deleted",
-		ObjectID:    cgroup.ID,
-		ObjectType:  _CTX_GROUP,
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
+	// get group ids
+	var ids []bson.ObjectId
+
+	for _, v := range childgroups {
+		ids = append(ids, v.ID)
 	}
+
+	//remove hosts that has group ids of group and child groups
+	err = chosts.Remove(bson.M{"group_id": bson.M{"$in": ids}});
+	if err != nil {
+		log.Println("Error while removing Group Hosts:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Group Hosts",
+		})
+		return
+	}
+
+	// remove groups from the collection
+	err = collection.Remove(query);
+	if err != nil {
+		log.Println("Error while removing Hosts:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Group",
+		})
+		return
+	}
+
+	// add new activity to activity stream
+	addActivity(group.ID, user.ID, "Group " + group.Name + " deleted")
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)

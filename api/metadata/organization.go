@@ -1,4 +1,4 @@
-package organizations
+package metadata
 
 import (
 	"gopkg.in/mgo.v2/bson"
@@ -10,7 +10,7 @@ import (
 
 
 // Create a new organization
-func setMetadata(o *models.Organization) error {
+func OrganizationMetadata(o *models.Organization) error {
 
 	ID := o.ID.Hex()
 	o.Type = "organization"
@@ -33,17 +33,17 @@ func setMetadata(o *models.Organization) error {
 		"projects": "/v1/organizations/" + ID + "/projects/",
 	}
 
-	if err := setSummaryFields(o); err != nil {
+	if err := organizationSummary(o); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(o *models.Organization) error {
+func organizationSummary(o *models.Organization) error {
 
-	dbu := db.MongoDb.C(models.DBC_USERS)
-	dbacl := db.MongoDb.C(models.DBC_ACl)
+	dbu := db.MongoDb.C(db.USERS)
+	dbacl := db.MongoDb.C(db.ACl)
 
 	var modified models.User
 	var created models.User

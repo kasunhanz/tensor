@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DBC_AD_HOC_COMMANDS = "ad_hoc_commands"
-
 type AdHocCommand struct {
 	ID            bson.ObjectId  `bson:"_id" json:"id"`
 	ModuleName    string         `bson:"module_name" json:"module_name" binding:"required"`
@@ -46,14 +44,4 @@ type AdHocCommandEvent struct {
 	Url            string         `bson:"-" json:"url"`
 	Related        gin.H          `bson:"-" json:"related"`
 	SummaryFields  gin.H          `bson:"-" json:"summary_fields"`
-}
-
-
-func (a AdHocCommand) CreateIndexes()  {
-
-}
-
-
-func (a AdHocCommandEvent) CreateIndexes()  {
-
 }

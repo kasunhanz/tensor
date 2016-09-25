@@ -12,7 +12,7 @@ func getEvents(c *gin.Context) {
 	LeftJoin("project as p on event.project_id=p.id").
 	OrderBy("created desc")
 
-	col := database.MongoDb.C("event")
+	col := db.C("event")
 
 	aggrigrate := []bson.M{
 		{"$lookup" : bson.M{

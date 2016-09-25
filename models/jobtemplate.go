@@ -6,8 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_JOB_TEMPLATES = "job_templates"
-
 type JobTemplate struct {
 	ID                  bson.ObjectId  `bson:"_id" json:"id"`
 
@@ -62,9 +60,6 @@ type JobTemplate struct {
 	Url                 string         `bson:"-" json:"url"`
 	Related             gin.H          `bson:"-" json:"related"`
 	Summary             gin.H          `bson:"-" json:"summary_fields"`
-}
 
-
-func (t JobTemplate) CreateIndexes()  {
-
+	Roles               []AccessControl    `bson:"roles" json:"-"`
 }

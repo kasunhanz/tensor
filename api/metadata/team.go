@@ -1,15 +1,15 @@
-package teams
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
 
 
 // Create a new organization
-func setMetadata(o *models.Team) error {
+func TeamMetadata(o *models.Team) error {
 
 	o.Type = "team"
 	o.Url = "/v1/teams/" + o.ID.Hex() + "/"
@@ -23,20 +23,20 @@ func setMetadata(o *models.Team) error {
 		"projects": "/v1/teams/" + o.ID.Hex() + "/projects/",
 		"activity_stream": "/v1/teams/" + o.ID.Hex() + "/activity_stream/",
 		"access_list": "/v1/teams/" + o.ID.Hex() + "/access_list/",
-		"organization": "/v1/organizations/" + o.Organization.Hex() + "/",
+		"organization": "/v1/organizations/" + o.OrganizationID.Hex() + "/",
 	}
 
-	if err := setSummaryFields(o); err != nil {
+	if err := teamSummary(o); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(o *models.Team) error {
+func teamSummary(o *models.Team) error {
 
-	dbcu := database.MongoDb.C(models.DBC_USERS)
-	dbco := database.MongoDb.C(models.DBC_ORGANIZATIONS)
+	dbcu := db.C(db.USERS)
+	dbco := db.C(db.ORGANIZATIONS)
 
 	var modified models.User
 	var created models.User
@@ -50,7 +50,7 @@ func setSummaryFields(o *models.Team) error {
 		return err
 	}
 
-	if err := dbco.FindId(o.Organization).One(&org); err != nil {
+	if err := dbco.FindId(o.OrganizationID).One(&org); err != nil {
 		return err
 	}
 

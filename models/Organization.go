@@ -3,11 +3,8 @@ package models
 import (
 	"time"
 	"gopkg.in/mgo.v2/bson"
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"github.com/gin-gonic/gin"
 )
-
-const DBC_ORGANIZATIONS = "organizations"
 
 // Organization is the model for organization
 // collection
@@ -23,9 +20,6 @@ type Organization struct {
 	ModifiedBy    bson.ObjectId      `bson:"modified_by" json:"modified_by"`
 	Created       time.Time          `bson:"created" json:"created"`
 	Modified      time.Time          `bson:"modified" json:"modified"`
-}
 
-
-func (o Organization) CreateIndexes()  {
-
+	Roles         []AccessControl    `bson:"roles" json:"-"`
 }

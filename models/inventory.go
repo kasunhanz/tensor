@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DBC_INVENTORIES = "inventories"
-
 // Inventory is the model for
 // Inventory collection
 type Inventory struct {
@@ -29,14 +27,11 @@ type Inventory struct {
 	HasInventorySources          bool          `bson:"has_inventory_sources" json:"has_inventory_sources"`
 	TotalInventorySources        uint32        `bson:"total_inventory_sources" json:"total_inventory_sources"`
 	InventorySourcesWithFailures uint32        `bson:"inventory_sources_with_failures" json:"inventory_sources_with_failures"`
-	Organization                 bson.ObjectId `bson:"organization" json:"organization"`
+	Organization                 bson.ObjectId `bson:"organization_id" json:"organization"`
 	CreatedBy                    bson.ObjectId `bson:"created_by" json:"created_by"`
 	ModifiedBy                   bson.ObjectId `bson:"modified_by" json:"modified_by"`
 	Created                      time.Time     `bson:"created" json:"created"`
 	Modified                     time.Time     `bson:"modified" json:"modified"`
-}
 
-
-func (iv Inventory) CreateIndexes()  {
-
+	Roles                        []AccessControl    `bson:"roles" json:"-"`
 }

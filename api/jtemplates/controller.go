@@ -10,6 +10,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -19,25 +20,27 @@ const _CTX_USER = "user"
 // _CTX_JOB_TEMPLATE_ID is the key name of http request Job Template ID
 const _CTX_JOB_TEMPLATE_ID = "job_template_id"
 
-// JTemplateM is the middleware for job templates. Which
+// Middleware is the middleware for job templates. Which
 // takes _CTX_JOB_TEMPLATE_ID parameter form the request, fetches the Job Template
 // and set it under key _CTX_JOB_TEMPLATE in gin.Context
-func JTemplateM(c *gin.Context) {
+func Middleware(c *gin.Context) {
 	ID := c.Params.ByName(_CTX_JOB_TEMPLATE_ID) //get template ID
 
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
+	var jobTemplate models.JobTemplate
+	err := collection.FindId(bson.ObjectIdHex(ID)).One(&jobTemplate);
 
-	var jt models.JobTemplate
-
-	if err := collection.FindId(bson.ObjectIdHex(ID)).One(&jt); err != nil {
-		log.Println("Coud not find Job Template", err) // log error to the system log
-		// return 404 error if ID not in the database
-		c.AbortWithStatus(http.StatusNotFound)
-		return //done
+	if err != nil {
+		log.Print("Error while getting the Job Template:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
 	}
 
 	// set Job Template to the gin.Context
-	c.Set(_CTX_JOB_TEMPLATE, jt)
+	c.Set(_CTX_JOB_TEMPLATE, jobTemplate)
 	c.Next() //move to next pending handler
 }
 
@@ -45,43 +48,46 @@ func JTemplateM(c *gin.Context) {
 // make sure to set this handler next to JTemplateM handler
 func GetJTemplate(c *gin.Context) {
 	//get template set by the middleware
-	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 
-	setMetadata(&jt)
+	metadata.JTemplateMetadata(&jobTemplate)
 
-	c.JSON(200, jt)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:jobTemplate,
+	})
 }
 
 
 // GetJTemplates renders the Job Templates as JSON
 func GetJTemplates(c *gin.Context) {
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	parser := util.NewQueryParser(c)
-
-	// query map
 	match := bson.M{}
-
-	// add filters to query
-	if con := parser.IContains([]string{"name", "description", "labels"}); con != nil {
+	con := parser.IContains([]string{"name", "description", "labels"});
+	if con != nil {
 		match = con
 	}
 
 	query := collection.Find(match) // prepare the query
-
 	count, err := query.Count(); // number of records
+
 	if err != nil {
-		log.Println("Unable to count Job Templates from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Println("Error while trying to get count of Job Template from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Job Templates",
+		})
 		return
 	}
 
 	// initialize Pagination
 	pgi := util.NewPagination(c, count)
-
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
@@ -90,27 +96,40 @@ func GetJTemplates(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var jts []models.JobTemplate
+	var jobTemplates []models.JobTemplate
 
 	// get all values with skip limit
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&jts); err != nil {
-		log.Println("Unable to retrive Job Template from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&jobTemplates);
+	if err != nil {
+		log.Println("Error while retriving Job Template data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Job Templates",
+		})
 		return
 	}
 	// set related and summary fields to every item
-	for i, v := range jts {
+	for i, v := range jobTemplates {
 		// note: `v` reference doesn't modify original slice
-		if err := setMetadata(&v); err != nil {
-			log.Println("Unable to set metadata", err)
-			c.AbortWithError(http.StatusInternalServerError, err)
+		err := metadata.JTemplateMetadata(&v);
+		if err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting groups",
+			})
 			return
 		}
-		jts[i] = v // modify each object in slice
+		jobTemplates[i] = v // modify each object in slice
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": jts, })
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:jobTemplates,
+	})
 }
 
 // AddJTemplate creates a new Job Template
@@ -119,14 +138,18 @@ func AddJTemplate(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.BindJSON(&req); err != nil {
+	err := c.BindJSON(&req);
+	if err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
 	// create new object to omit unnecessary fields
-	jt := models.JobTemplate{
+	jobTemplate := models.JobTemplate{
 		Name: req.Name,
 		JobType: req.JobType,
 		InventoryID: req.InventoryID,
@@ -158,143 +181,143 @@ func AddJTemplate(c *gin.Context) {
 		ModifiedByID: user.ID,
 	}
 
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	// insert new object
-	if err := collection.Insert(jt); err != nil {
-		log.Println("Failed to create Job Template", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create Job Template"})
+	err = collection.Insert(jobTemplate);
+	if err != nil {
+		log.Println("Error while creating Job Template:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating  Job Template",
+		})
 		return
 	}
 
-	// create event in the database
-	if err := (models.Event{
-		ID: bson.NewObjectId(),
-		ObjectType:  _CTX_JOB_TEMPLATE,
-		ObjectID:    jt.ID,
-		Description: "Job Template " + jt.Name + " created",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " created")
 
 	// set `related` and `summary` feilds
-	if err := setMetadata(&jt); err != nil {
-		log.Println("Failed to fetch metadata", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err = metadata.JTemplateMetadata(&jobTemplate);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Job Template",
+		})
 		return
 	}
 
-	// render JSON with 201 status code
-	c.JSON(http.StatusCreated, jt)
+	// send response with JSON rendered data
+	c.JSON(http.StatusCreated, models.Response{
+		Count:1,
+		Results:jobTemplate,
+	})
 }
 
 // UpdateJTemplate will update the Job Template
 func UpdateJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	ojt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.JobTemplate
-
-	if err := c.BindJSON(&req); err != nil {
+	err := c.BindJSON(&req);
+	if err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
 	// create new object to omit unnecessary fields
-	jt := models.JobTemplate{
-		Name: req.Name,
-		JobType: req.JobType,
-		InventoryID: req.InventoryID,
-		ProjectID: req.ProjectID,
-		Playbook: req.Playbook,
-		MachineCredentialID: req.MachineCredentialID,
-		Verbosity: req.Verbosity,
-		Description: req.Description,
-		CloudCredentialID: req.CloudCredentialID,
-		NetworkCredentialID: req.NetworkCredentialID,
-		StartAtTask: req.StartAtTask,
-		SkipTags: req.SkipTags,
-		Forks: req.Forks,
-		Limit: req.Limit,
-		JobTags: req.JobTags,
-		ExtraVars: req.ExtraVars,
-		PromptInventory: req.PromptInventory,
-		PromptCredential: req.PromptCredential,
-		PromptLimit: req.PromptLimit,
-		PromptTags: req.PromptTags,
-		BecomeEnabled: req.BecomeEnabled,
-		PromptVariables: req.PromptVariables,
-		AllowSimultaneous: req.AllowSimultaneous,
-		ForceHandlers: req.ForceHandlers,
-		ID: ojt.ID,
-		Modified: time.Now(),
-		ModifiedByID: user.ID,
-	}
+	jobTemplate.Name = req.Name
+	jobTemplate.JobType = req.JobType
+	jobTemplate.InventoryID = req.InventoryID
+	jobTemplate.ProjectID = req.ProjectID
+	jobTemplate.Playbook = req.Playbook
+	jobTemplate.MachineCredentialID = req.MachineCredentialID
+	jobTemplate.Verbosity = req.Verbosity
+	jobTemplate.Description = req.Description
+	jobTemplate.CloudCredentialID = req.CloudCredentialID
+	jobTemplate.NetworkCredentialID = req.NetworkCredentialID
+	jobTemplate.StartAtTask = req.StartAtTask
+	jobTemplate.SkipTags = req.SkipTags
+	jobTemplate.Forks = req.Forks
+	jobTemplate.Limit = req.Limit
+	jobTemplate.JobTags = req.JobTags
+	jobTemplate.ExtraVars = req.ExtraVars
+	jobTemplate.PromptInventory = req.PromptInventory
+	jobTemplate.PromptCredential = req.PromptCredential
+	jobTemplate.PromptLimit = req.PromptLimit
+	jobTemplate.PromptTags = req.PromptTags
+	jobTemplate.BecomeEnabled = req.BecomeEnabled
+	jobTemplate.PromptVariables = req.PromptVariables
+	jobTemplate.AllowSimultaneous = req.AllowSimultaneous
+	jobTemplate.ForceHandlers = req.ForceHandlers
+	jobTemplate.Modified = time.Now()
+	jobTemplate.ModifiedByID = user.ID
 
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	// update object
-	if err := collection.UpdateId(jt.ID, jt); err != nil {
-		log.Println("Failed to update Job Template", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to update Job Template"})
+	err = collection.UpdateId(jobTemplate.ID, jobTemplate);
+	if err != nil {
+		log.Println("Error while updating Job Template:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Job Template",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		ProjectID:   jt.ID,
-		Description: "JobTemplate ID " + jt.ID.Hex() + " updated",
-		ObjectID:    jt.ID,
-		ObjectType:  "jt",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := setMetadata(&jt); err != nil {
-		log.Println("Failed to fetch metadata", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err = metadata.JTemplateMetadata(&jobTemplate);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Job Template",
+		})
 		return
 	}
 
-	// render JSON with 200 status code
-	c.JSON(http.StatusOK, jt)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:jobTemplate,
+	})
 }
 
 // RemoveJTemplate will remove the Job Template
-// from the models.DBC_JOB_TEMPLATES collection
+// from the db.DBC_JOB_TEMPLATES collection
 func RemoveJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	// remove object from the collection
-	if err := collection.RemoveId(jt.ID); err != nil {
-		log.Println("Failed to remove Job Template", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to remove Job Template"})
+	err := collection.RemoveId(jobTemplate.ID);
+	if err != nil {
+		log.Println("Error while removing Job Temlate:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Job Template",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		Description: "Job Template " + jt.Name + " deleted",
-		ObjectID:    jt.ID,
-		ObjectType:  _CTX_JOB_TEMPLATE,
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " deleted")
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -319,7 +342,7 @@ func LaunchInfo(c *gin.Context) {
 		},
 	}
 
-	ccred := db.C(models.DBC_CREDENTIALS)
+	ccred := db.C(db.CREDENTIALS)
 	var cred models.Credential
 
 	if err := ccred.FindId(jt.MachineCredentialID).One(&cred); err != nil {
@@ -333,7 +356,7 @@ func LaunchInfo(c *gin.Context) {
 		}
 	}
 
-	cinven := db.C(models.DBC_INVENTORIES)
+	cinven := db.C(db.INVENTORIES)
 	var inven models.Inventory
 
 	if err := cinven.FindId(jt.MachineCredentialID).One(&inven); err != nil {
@@ -358,8 +381,8 @@ func LaunchInfo(c *gin.Context) {
 		"variables_needed_to_start": []gin.H{},
 		"credential_needed_to_start": isCredentialNeeded,
 		"inventory_needed_to_start": isInventoryNeeded,
-		"job_template_data": {
-			"id": jt.ID,
+		"job_template_data": gin.H{
+			"id": jt.ID.Hex(),
 			"name": jt.Name,
 			"description": jt.Description,
 		},
@@ -370,7 +393,90 @@ func LaunchInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func LaunchJob(c *gin.Context) {
+// TODO: not complete
+func ActivityStream(c *gin.Context) {
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+
+	var activities []models.Activity
+	collection := db.C(db.ACTIVITY_STREAM)
+	err := collection.Find(bson.M{"object_id": jobTemplate.ID, "type": _CTX_JOB_TEMPLATE}).All(&activities)
+
+	if err != nil {
+		log.Println("Error while retriving Activity data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while Activities",
+		})
+		return
+	}
+
+	count := len(activities)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: activities[pgi.Skip():pgi.End()],
+	})
+}
+
+func Jobs(c *gin.Context) {
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+
+	collection := db.C(db.JOBS)
+
+	var jbs []models.Job
+	// new mongodb iterator
+	iter := collection.Find(bson.M{"job_template_id": jobTemplate.ID}).Iter()
+	// loop through each result and modify for our needs
+	var tmpJob models.Job
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpJob) {
+		if err := metadata.JobMetadata(&tmpJob); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Jobs",
+			})
+			return
+		}
+		// good to go add to list
+		jbs = append(jbs, tmpJob)
+	}
+
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving jobs data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Jobs",
+		})
+		return
+	}
+
+	count := len(jbs)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: jbs[pgi.Skip():pgi.End()],
+	})
+}
+
+// TODO: implement
+func Launch(c *gin.Context) {
 	// get template from the gin.Context
 	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 	// render JSON with 200 status code

@@ -7,6 +7,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"log"
 	"gopkg.in/mgo.v2/bson"
+	"errors"
 )
 
 type LocalToken struct {
@@ -14,7 +15,7 @@ type LocalToken struct {
 	Expire string
 }
 
-func NewAuthToken() (LocalToken, error) {
+func NewAuthToken() (*LocalToken, error) {
 	// Initial middleware default setting.
 	HeaderAuthMiddleware.MiddlewareInit()
 
@@ -22,13 +23,13 @@ func NewAuthToken() (LocalToken, error) {
 	token := jwt.New(jwt.GetSigningMethod(HeaderAuthMiddleware.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
-	collection := db.C(models.DBC_USERS)
+	collection := db.C(db.USERS)
 
 	var admin models.User
 
-	if err := collection.Find(bson.M{"username": "admin"}).One(&user); err != nil {
+	if err := collection.Find(bson.M{"username": "admin"}).One(&admin); err != nil {
 		log.Println("User not found, Create JWT Token faild")
-		return nil, error("User not found, Create JWT Token faild")
+		return nil, errors.New("User not found, Create JWT Token faild")
 	}
 
 	expire := time.Now().Add(HeaderAuthMiddleware.Timeout)
@@ -40,8 +41,8 @@ func NewAuthToken() (LocalToken, error) {
 
 	if err != nil {
 		log.Println("Create JWT Token faild")
-		return nil, error("Create JWT Token faild")
+		return nil, errors.New("Create JWT Token faild")
 	}
 
-	return LocalToken{"token":  tokenString, "expire": expire.Format(time.RFC3339), }, nil
+	return &LocalToken{Token:  tokenString, Expire: expire.Format(time.RFC3339), }, nil
 }

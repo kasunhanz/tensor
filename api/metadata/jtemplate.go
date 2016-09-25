@@ -1,4 +1,4 @@
-package jtemplate
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -11,7 +11,7 @@ import (
 
 
 // Create a new organization
-func setMetadata(jt *models.JobTemplate) error {
+func JTemplateMetadata(jt *models.JobTemplate) error {
 
 	ID := jt.ID.Hex()
 	jt.Type = "inventory"
@@ -40,20 +40,20 @@ func setMetadata(jt *models.JobTemplate) error {
 
 	jt.Related = related
 
-	if err := setSummary(jt); err != nil {
+	if err := jTemplateSummary(jt); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummary(jt *models.JobTemplate) error {
+func jTemplateSummary(jt *models.JobTemplate) error {
 
-	cuser := db.C(models.DBC_USERS)
-	cinv := db.C(models.DBC_INVENTORIES)
-	cjob := db.C(models.DBC_JOBS)
-	ccred := db.C(models.DBC_CREDENTIALS)
-	cprj := db.C(models.DBC_PROJECTS)
+	cuser := db.C(db.USERS)
+	cinv := db.C(db.INVENTORIES)
+	cjob := db.C(db.JOBS)
+	ccred := db.C(db.CREDENTIALS)
+	cprj := db.C(db.PROJECTS)
 
 	var modified models.User
 	var created models.User

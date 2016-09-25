@@ -37,7 +37,7 @@ func init() {
 
 			var user models.User
 
-			col := db.C(models.DBC_USERS)
+			col := db.C(db.USERS)
 
 			if err := col.Find(q).One(&user); err != nil {
 				return "", false
@@ -52,10 +52,13 @@ func init() {
 		},
 		Authorizator: func(userID string, c *gin.Context) bool {
 			var user models.User
-			col := db.C(models.DBC_USERS)
+			col := db.C(db.USERS)
 			if err := col.FindId(bson.ObjectIdHex(userID)).One(&user); err != nil {
 				return false
 			}
+
+			// set user to gin context
+			c.Set("user", user)
 			return true
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DBC_NOTIFICATION_TEMPLATES = "notification_templates"
-
 type NotificationTemplate struct {
 	ID                        bson.ObjectId  `bson:"_id" json:"id"`
 
@@ -26,9 +24,6 @@ type NotificationTemplate struct {
 	Url                       string         `bson:"-" json:"url"`
 	Related                   gin.H          `bson:"-" json:"related"`
 	SummaryFields             gin.H          `bson:"-" json:"summary_fields"`
-}
 
-
-func (n NotificationTemplate) CreateIndexes()  {
-
+	Access           []AccessControl    `bson:"access" json:"-"`
 }

@@ -6,8 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_PROJECTS = "projects"
-
 // Project is the model for project
 // collection
 type Project struct {
@@ -31,7 +29,7 @@ type Project struct {
 	HasSchedules          bool           `bson:"has_schedules" json:"has_schedules"`
 	NextJobRun            time.Time      `bson:"next_job_run" json:"next_job_run"`
 	Status                string         `bson:"status" json:"status"`
-	Organization          bson.ObjectId  `bson:"organization" json:"organization" binding:"required"`
+	OrganizationID        bson.ObjectId  `bson:"organization_id" json:"organization" binding:"required"`
 	ScmDeleteOnNextUpdate bool           `bson:"scm_delete_on_next_update" json:"scm_delete_on_next_update"`
 	ScmUpdateOnLaunch     bool           `bson:"scm_update_on_launch" json:"scm_update_on_launch"`
 	ScmUpdateCacheTimeout int            `bson:"scm_update_cache_timeout" json:"scm_update_cache_timeout"`
@@ -41,9 +39,6 @@ type Project struct {
 	ModifiedBy            bson.ObjectId  `bson:"modified_by" json:"modified_by"`
 	Created               time.Time      `bson:"created" json:"created"`
 	Modified              time.Time      `bson:"modified" json:"modified"`
-}
 
-
-func (p Project) CreateIndexes()  {
-
+	Roles                 []AccessControl    `bson:"roles" json:"-"`
 }

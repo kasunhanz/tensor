@@ -7,9 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/api"
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
-	database "bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/runners"
+	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func main() {
@@ -18,12 +18,12 @@ func main() {
 	fmt.Printf("MongoDB : %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
 	fmt.Printf("Tmp Path (projects home) : %v\n", util.Config.TmpPath)
 
-	if err := database.Connect(); err != nil {
+	if err := db.Connect(); err != nil {
 		log.Fatal(err)
 	}
 
 	defer func() {
-		database.MongoDb.Session.Close()
+		db.MongoDb.Session.Close()
 	}()
 
 	go sockets.StartWS()

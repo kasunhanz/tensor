@@ -47,7 +47,7 @@ func (p *QueryParser) IContains(s []string) bson.M {
 		ic := s[i] + "__icontains"
 		if ar := p.context.Request.Form[ic]; len(ar) > 0 {
 			for j := range ar {
-				m[s[i]] = bson.M{"$regex": ".*" + ar[j] + "*.", "$options": "i" }//({"name": {"$regex": ".*02*."}})
+				m[s[i]] = bson.M{"$regex": ".*" + ar[j] + "*.", "$options": "i" }
 			}
 		}
 	}

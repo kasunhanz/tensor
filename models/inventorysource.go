@@ -5,8 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_INVENTORY_SOURCES = "inventory_sources"
-
 // Inventory is the model for
 // Inventory collection
 // TODO: not implemented
@@ -32,9 +30,4 @@ type InventorySource struct {
 	Url                string        `bson:"-" json:"url"`
 	Related            gin.H         `bson:"-" json:"related"`
 	SummaryFields      gin.H         `bson:"-" json:"summary_fields"`
-}
-
-
-func (is InventorySource) CreateIndexes()  {
-
 }

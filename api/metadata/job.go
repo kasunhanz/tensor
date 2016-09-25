@@ -1,4 +1,4 @@
-package jobs
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -6,7 +6,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
-func setMetadata(job *models.Job) error {
+func JobMetadata(job *models.Job) error {
 	ID := job.ID.Hex()
 	job.Type = "inventory"
 	job.Url = "/v1/inventories/" + ID + "/"
@@ -31,20 +31,20 @@ func setMetadata(job *models.Job) error {
 		"relaunch": "/api/v1/jobs/" + ID + "/relaunch/",
 	}
 
-	if err := setSummary(job); err != nil {
+	if err := jobSummary(job); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummary(job *models.Job) error {
+func jobSummary(job *models.Job) error {
 
-	cuser := db.C(models.DBC_USERS)
-	cinv := db.C(models.DBC_INVENTORIES)
-	cjtemp := db.C(models.DBC_JOB_TEMPLATES)
-	ccred := db.C(models.DBC_CREDENTIALS)
-	cprj := db.C(models.DBC_PROJECTS)
+	cuser := db.C(db.USERS)
+	cinv := db.C(db.INVENTORIES)
+	cjtemp := db.C(db.JOB_TEMPLATES)
+	ccred := db.C(db.CREDENTIALS)
+	cprj := db.C(db.PROJECTS)
 
 	var modified models.User
 	var created models.User

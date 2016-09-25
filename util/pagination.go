@@ -16,16 +16,16 @@ var (
 )
 
 type Pagination struct {
-	Limit     int
-	Page      int
-	ItemCount int
+	limit     int
+	page      int
+	itemCount int
 }
 
 func NewPagination(c *gin.Context, n int) *Pagination {
 	p := Pagination{
-		Page : pageParser(c.Request.URL.Query().Get(PageParam)),
-		Limit : limitParser(c.Request.URL.Query().Get(LimitParam)),
-		ItemCount: n,
+		page : pageParser(c.Request.URL.Query().Get(PageParam)),
+		limit : limitParser(c.Request.URL.Query().Get(LimitParam)),
+		itemCount: n,
 	}
 
 	return &p;
@@ -33,12 +33,19 @@ func NewPagination(c *gin.Context, n int) *Pagination {
 
 func (p *Pagination) Offset() int {
 	//minimum offset is zero
-	if p.Limit < 1 || p.Page <= 1 {
+	if p.limit < 1 || p.page <= 1 {
 		return 0
 	}
 
 	//-1 because mongodb offset starts with 0
-	return int((p.Limit * p.Page) - 1)
+	return int((p.limit * p.page) - 1)
+}
+
+func (p *Pagination) Limit() int {
+	return p.limit
+}
+func (p *Pagination) Page() int {
+	return p.page
 }
 
 func limitParser(limit string) int {
@@ -59,28 +66,53 @@ func pageParser(page string) int {
 }
 
 func (p *Pagination) totalPages() int {
-	return int(math.Floor(float64(p.ItemCount) / float64(p.Limit)))
+	return int(math.Floor(float64(p.itemCount) / float64(p.limit)))
 }
 
 func (p *Pagination) NextPage() interface{} {
-	if (p.totalPages() <= p.Page) {
+	if (p.totalPages() <= p.page) {
 		return nil
-	} else if (p.Page < 1) {
+	} else if (p.page < 1) {
 		return DefaultPage
 	}
-	return (p.Page + 1)
+	return (p.page + 1)
 }
 
 func (p *Pagination) PreviousPage() interface{} {
-	if p.Page <= 1 || p.totalPages() < p.Page {
+	if p.page <= 1 || p.totalPages() < p.page {
 		return nil
 	}
-	return (p.Page - 1)
+	return (p.page - 1)
 }
 
 func (p *Pagination) HasPage() bool {
 	if p.totalPages() <= 0 {
 		return false
 	}
-	return (p.Page <= 0 || p.Page > p.totalPages())
+	return (p.page <= 0 || p.page > p.totalPages())
+}
+
+// for slices
+func (p *Pagination) Skip() int {
+	skip := p.Offset()
+	if skip > p.itemCount {
+		skip = p.itemCount
+	}
+	return skip
+}
+
+// for slices
+func (p *Pagination) End() int {
+	skip := p.Offset()
+	size := p.Limit()
+	if skip > p.itemCount {
+		skip = p.itemCount
+	}
+
+	end := skip + size
+	if end > p.itemCount {
+		end = p.itemCount
+	}
+
+	return end
 }

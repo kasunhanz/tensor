@@ -10,6 +10,8 @@ import (
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 )
 
 const _CTX_TEAM = "team"
@@ -20,49 +22,58 @@ const _CTX_TEAM_ID = "team_id"
 // TeamMiddleware takes project_id parameter from gin.Context and
 // fetches project data from the database
 // this set the team data under key _CTX_TEAM in gin.Context
-func TeamMiddleware(c *gin.Context) {
-	id := c.Params.ByName(_CTX_TEAM_ID)
+func Middleware(c *gin.Context) {
+	ID := c.Params.ByName(_CTX_TEAM_ID)
 
-	dbc := db.C(models.DBC_TEAMS)
-
-	var org models.Team
-	if err := dbc.FindId(bson.ObjectIdHex(id)).One(&org); err != nil {
-		log.Print(err) // log error to the system log
-		c.AbortWithStatus(http.StatusNotFound)
+	collection := db.C(db.TEAMS)
+	var team models.Team
+	err := collection.FindId(bson.ObjectIdHex(ID)).One(&team);
+	if err != nil {
+		log.Print("Error while getting the Team:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
 		return
 	}
 
-	c.Set(_CTX_TEAM, org)
+	c.Set(_CTX_TEAM, team)
 	c.Next()
 }
 
 // GetTeam returns the team as a JSON object
 func GetTeam(c *gin.Context) {
-	o := c.MustGet(_CTX_TEAM).(models.Team)
-	setMetadata(&o)
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+	metadata.TeamMetadata(&team)
 
-	c.JSON(200, o)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:team,
+	})
 }
 
 
 // GetTeams returns a JSON array of teams
 func GetTeams(c *gin.Context) {
-	dbc := db.C(models.DBC_TEAMS)
+	dbc := db.C(db.TEAMS)
 
 	parser := util.NewQueryParser(c)
-
 	match := bson.M{}
-
 	if con := parser.IContains([]string{"name", "description", "organization"}); con != nil {
 		match = con
 	}
 
 	query := dbc.Find(match)
-
 	count, err := query.Count();
+
 	if err != nil {
-		log.Println("Unable to count teams from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Println("Error while trying to get count of Teams from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Teams",
+		})
 		return
 	}
 
@@ -70,7 +81,7 @@ func GetTeams(c *gin.Context) {
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
@@ -80,178 +91,363 @@ func GetTeams(c *gin.Context) {
 
 	var teams []models.Team
 
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&teams); err != nil {
-		log.Println("Unable to retrive teams from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&teams); err != nil {
+		log.Println("Error while retriving Team data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Teams",
+		})
 		return
 	}
-	for i, v := range teams {
-		if err := setMetadata(&v); err != nil {
-			log.Println("Unable to set metadata", err)
-			c.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
 
+	for i, v := range teams {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Teams",
+		})
 		teams[i] = v
 	}
 
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": teams, })
-
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:teams,
+	})
 }
 
 
 // AddTeam creates a new team
 func AddTeam(c *gin.Context) {
+
+	user := c.MustGet("user").(models.User)
+
 	var req models.Team
-
-	u := c.MustGet("user").(models.User)
-
-	if err := c.Bind(&req); err != nil {
+	if err := c.BindJSON(&req); err != nil {
 		log.Println("Failed to parse payload", err)
 		c.JSON(http.StatusBadRequest,
 			gin.H{"status": "Bad Request", "message": "Failed to parse payload"})
 		return
 	}
 
-	tm := models.Team{
+	team := models.Team{
 		ID:bson.NewObjectId(),
 		Name:req.Name,
 		Description:req.Description,
-		Organization: req.Organization,
+		OrganizationID: req.OrganizationID,
 		Created:time.Now(),
 		Modified:time.Now(),
-		CreatedBy: u.ID,
-		ModifiedBy: u.ID,
+		CreatedBy: user.ID,
+		ModifiedBy: user.ID,
 	}
 
-	dbc := db.C(models.DBC_TEAMS)
-	dbacl := db.C(models.DBC_ACl)
+	dbc := db.C(db.TEAMS)
 
-	if err := dbc.Insert(tm); err != nil {
-		log.Println("Failed to create Team", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create Team"})
+	err := dbc.Insert(team);
+	if err != nil {
+		log.Println("Error while creating Team:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Team",
+		})
 		return
 	}
 
-	if err := dbacl.Insert(models.ACL{ID:bson.NewObjectId(), Object:tm.ID, Type:"user", UserID:u.ID, Role: "admin"}); err != nil {
-		log.Println("Failed to create acl", err)
+	err = roles.AddUserRole(team.ID, user.ID, roles.TEAM_ADMIN)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating ACL",
+		})
 
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create acl"})
-
-		if err := dbc.RemoveId(tm.ID); err != nil {
-			log.Println("Failed to remove Team", err)
+		err := dbc.RemoveId(team.ID);
+		if err != nil {
+			log.Println("Error while removing Team", err)
 		}
 
 		return
 	}
 
-	if err := (models.Event{
-		ID: bson.NewObjectId(),
-		ObjectType:  _CTX_TEAM,
-		ObjectID:    tm.ID,
-		Description: "Team " + tm.Name + " created",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
 
-	if err := setMetadata(&tm); err != nil {
-		log.Println("Failed to fetch metadata", err)
+	// add new activity to activity stream
+	addActivity(team.ID, user.ID, "Group " + team.Name + " created")
 
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err = metadata.TeamMetadata(&team);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Team",
+		})
 		return
 	}
-
-	c.JSON(http.StatusCreated, tm)
+	// send response with JSON rendered data
+	c.JSON(http.StatusCreated, models.Response{
+		Count:1,
+		Results:team,
+	})
 }
 
 
 // UpdateTeam will update the Job Template
 func UpdateTeam(c *gin.Context) {
 	// get Team from the gin.Context
-	otm := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(_CTX_TEAM).(models.Team)
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Team
-
 	if err := c.BindJSON(&req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
-	// create new object to omit unnecessary fields
-	tm := models.Team{
-		ID:otm.ID,
-		Name:req.Name,
-		Description:req.Description,
-		Organization: req.Organization,
-		Modified:time.Now(),
-		ModifiedBy: user.ID,
-	}
+	team.Name = req.Name
+	team.Description = req.Description
+	team.OrganizationID = req.OrganizationID
+	team.Modified = time.Now()
+	team.ModifiedBy = user.ID
 
-	collection := db.MongoDb.C(models.DBC_JOB_TEMPLATES)
+	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	// update object
-	if err := collection.UpdateId(otm.ID, tm); err != nil {
-		log.Println("Failed to update Team", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to update Team"})
+	if err := collection.UpdateId(team.ID, team); err != nil {
+		log.Println("Error while updating Team:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Team",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		ProjectID:   tm.ID,
-		Description: "Team ID " + tm.ID.Hex() + " updated",
-		ObjectID:    tm.ID,
-		ObjectType:  "team",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(team.ID, user.ID, "Team " + team.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := setMetadata(&tm); err != nil {
-		log.Println("Failed to fetch metadata", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	if err := metadata.TeamMetadata(&team); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Team",
+		})
 		return
 	}
 
 	// render JSON with 200 status code
-	c.JSON(http.StatusOK, tm)
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:team,
+	})
 }
 
 // RemoveTeam will remove the Team
-// from the models.DBC_TEAMS collection
+// from the db.DBC_TEAMS collection
 func RemoveTeam(c *gin.Context) {
 	// get Team from the gin.Context
-	tm := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.MongoDb.C(models.DBC_TEAMS)
+	collection := db.MongoDb.C(db.TEAMS)
 
 	// remove object from the collection
-	if err := collection.RemoveId(tm.ID); err != nil {
-		log.Println("Failed to remove Team", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to remove Team"})
+	err := collection.RemoveId(team.ID);
+	if err != nil {
+		log.Println("Error while removing Team:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Team",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		Description: "Team " + tm.Name + " deleted",
-		ObjectID:    tm.ID,
-		ObjectType:  _CTX_TEAM,
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
+	// add new activity to activity stream
+	addActivity(team.ID, user.ID, "Team " + team.Name + " deleted")
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
+}
+
+func Users(c *gin.Context) {
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+
+	var usrs []models.User
+	collection := db.C(db.USERS)
+
+	for _, v := range team.Roles {
+		if v.Type == "user" {
+			var user models.User
+			err := collection.FindId(v.UserID).One(&user)
+			if err != nil {
+				log.Println("Error while getting owner users for credential", team.ID, err)
+				continue //skip iteration
+			}
+			// set additional info and append to slice
+			metadata.UserMetadata(&user)
+			usrs = append(usrs, user)
+		}
+	}
+
+	count := len(usrs)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: usrs[pgi.Skip():pgi.End()],
+	})
+}
+
+func Credentials(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+
+	collection := db.C(db.CREDENTIALS)
+
+	var credentials []models.Credential
+	// new mongodb iterator
+	iter := collection.Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+	// loop through each result and modify for our needs
+	var tmpCred models.Credential
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpCred) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.CredentialRead(user, tmpCred) {
+			continue
+		}
+		// hide passwords, keys even they are already encrypted
+		hideEncrypted(&tmpCred)
+		if err := metadata.CredentialMetadata(&tmpCred); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Credentials",
+			})
+			return
+		}
+		// good to go add to list
+		credentials = append(credentials, tmpCred)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Credential",
+		})
+		return
+	}
+
+	count := len(credentials)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: credentials[pgi.Skip():pgi.End()],
+	})
+}
+
+func Projects(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+
+	collection := db.C(db.CREDENTIALS)
+
+	var projects []models.Project
+	// new mongodb iterator
+	iter := collection.Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+	// loop through each result and modify for our needs
+	var tmpProject models.Project
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpProject) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.ProjectRead(user, tmpProject) {
+			continue
+		}
+		if err := metadata.ProjectMetadata(&tmpProject); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Projects",
+			})
+			return
+		}
+		// good to go add to list
+		projects = append(projects, tmpProject)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Projects data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Projects",
+		})
+		return
+	}
+
+	count := len(projects)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: projects[pgi.Skip():pgi.End()],
+	})
+}
+
+// TODO: not complete
+func ActivityStream(c *gin.Context) {
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+
+	var activities []models.Activity
+	collection := db.C(db.ACTIVITY_STREAM)
+	err := collection.Find(bson.M{"object_id": team.ID, "type": _CTX_TEAM}).All(activities)
+
+	if err != nil {
+		log.Println("Error while retriving Activity data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while Activities",
+		})
+	}
+
+	count := len(activities)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: activities[pgi.Skip():pgi.End()],
+	})
 }

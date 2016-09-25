@@ -1,4 +1,4 @@
-package inventories
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -9,7 +9,7 @@ import (
 
 
 // Create a new organization
-func setMetadata(i *models.Inventory) error {
+func InventoryMetadata(i *models.Inventory) error {
 
 	ID := i.ID.Hex()
 	i.Type = "inventory"
@@ -32,17 +32,17 @@ func setMetadata(i *models.Inventory) error {
 		"organization": "/v1/organizations/" + i.Organization.Hex() + "/",
 	}
 
-	if err := setSummaryFields(i); err != nil {
+	if err := inventorySummary(i); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(i *models.Inventory) error {
+func inventorySummary(i *models.Inventory) error {
 
-	dbu := db.MongoDb.C(models.DBC_USERS)
-	dbco := db.MongoDb.C(models.DBC_ORGANIZATIONS)
+	dbu := db.MongoDb.C(db.USERS)
+	dbco := db.MongoDb.C(db.ORGANIZATIONS)
 
 	var modified models.User
 	var created models.User

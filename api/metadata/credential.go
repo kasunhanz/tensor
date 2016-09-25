@@ -1,4 +1,4 @@
-package credentials
+package metadata
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
@@ -7,8 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Create a new organization
-func setMetadata(cred *models.Credential) error {
+func CredentialMetadata(cred *models.Credential) error {
 
 	ID := cred.ID.Hex()
 	cred.Type = "credential"
@@ -24,22 +23,22 @@ func setMetadata(cred *models.Credential) error {
 		"user": "/api/v1/users/" + cred.CreatedByID.Hex() + "/",
 	}
 
-	if cred.OrganizationID != "" {
-		related["organization"] = "/api/v1/organizations/" + cred.OrganizationID + "/"
+	if cred.OrganizationID != nil {
+		related["organization"] = "/api/v1/organizations/" + *cred.OrganizationID + "/"
 	}
 
 	cred.Related = related
 
-	if err := setSummary(cred); err != nil {
+	if err := setCredentialSummary(cred); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummary(cred *models.Credential) error {
-	dbu := db.C(models.DBC_USERS)
-	dbacl := db.C(models.DBC_ACl)
+func setCredentialSummary(cred *models.Credential) error {
+	dbu := db.C(db.USERS)
+	dbacl := db.C(db.ACl)
 
 	var modified models.User
 	var created models.User
@@ -111,7 +110,7 @@ func setSummary(cred *models.Credential) error {
 		"owners": owners,
 	}
 
-	if cred.OrganizationID != "" {
+	if cred.OrganizationID != nil {
 
 		if err := dbu.FindId(cred.OrganizationID).One(&org); err != nil {
 			return err

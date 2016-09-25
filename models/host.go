@@ -6,13 +6,12 @@ import (
 	"time"
 )
 
-const DBC_HOSTS = "hosts"
-
 type Host struct {
 	ID                   bson.ObjectId  `bson:"_id" json:"id"`
 	Name                 string         `bson:"name" json:"name" binding:"required"`
 	Description          string         `bson:"description" json:"description"`
 	InventoryID          bson.ObjectId  `bson:"inventory_id" json:"inventory"`
+	GroupID              bson.ObjectId  `bson:"group_id,omitempty" json:"inventory"`
 	Enabled              bool           `bson:"enabled" json:"enabled"`
 	InstanceID           string         `bson:"instance_id,omitempty" json:"instance_id"`
 	Variables            string         `bson:"variables" json:"variables"`
@@ -29,9 +28,4 @@ type Host struct {
 	Url                  string         `bson:"-" json:"url"`
 	Related              gin.H          `bson:"-" json:"related"`
 	SummaryFields        gin.H          `bson:"-" json:"summary_fields"`
-}
-
-
-func (h Host) CreateIndexes()  {
-
 }

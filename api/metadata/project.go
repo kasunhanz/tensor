@@ -1,4 +1,4 @@
-package projects
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -8,7 +8,7 @@ import (
 
 
 // Create a new organization
-func setMetadata(p *models.Project) error {
+func ProjectMetadata(p *models.Project) error {
 
 	ID := p.ID.Hex()
 	p.Type = "project"
@@ -29,21 +29,21 @@ func setMetadata(p *models.Project) error {
 		"schedules": "/v1/projects/" + ID + "/schedules/",
 		"teams": "/v1/projects/" + ID + "/teams/",
 		"activity_stream": "/v1/projects/" + ID + "/activity_stream/",
-		"organization": "/v1/organizations/" + p.Organization.Hex() + "/",
+		"organization": "/v1/organizations/" + p.OrganizationID.Hex() + "/",
 		"last_update": "/v1/project_updates/" + p.LastJob.Hex() + "/",
 	}
 
-	if err := setSummaryFields(p); err != nil {
+	if err := projectSummary(p); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(p *models.Project) error {
-	dbcu := db.MongoDb.C(models.DBC_USERS)
-	dbc := db.MongoDb.C(models.DBC_CREDENTIALS)
-	dbco := db.MongoDb.C(models.DBC_ORGANIZATIONS)
+func projectSummary(p *models.Project) error {
+	dbcu := db.MongoDb.C(db.USERS)
+	dbc := db.MongoDb.C(db.CREDENTIALS)
+	dbco := db.MongoDb.C(db.ORGANIZATIONS)
 
 	var modified models.User
 	var created models.User
@@ -62,7 +62,7 @@ func setSummaryFields(p *models.Project) error {
 		return err
 	}
 
-	if err := dbco.FindId(p.Organization).One(&org); err != nil {
+	if err := dbco.FindId(p.OrganizationID).One(&org); err != nil {
 		return err
 	}
 

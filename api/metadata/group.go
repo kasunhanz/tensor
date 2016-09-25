@@ -1,4 +1,4 @@
-package groups
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,9 +7,8 @@ import (
 )
 
 
-
 // Create a new organization
-func setMetadata(grp *models.Group) error {
+func GroupMetadata(grp *models.Group) error {
 
 	ID := grp.ID.Hex()
 	grp.Type = "inventory"
@@ -30,17 +29,17 @@ func setMetadata(grp *models.Group) error {
 		"inventory_source": "/api/v1/inventory_sources/7/",
 	}
 
-	if err := setSummaryFields(grp); err != nil {
+	if err := groupSummary(grp); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(grp *models.Group) error {
+func groupSummary(grp *models.Group) error {
 
-	dbu := db.MongoDb.C(models.DBC_USERS)
-	dbci := db.MongoDb.C(models.DBC_INVENTORIES)
+	dbu := db.MongoDb.C(db.USERS)
+	dbci := db.MongoDb.C(db.INVENTORIES)
 
 	var modified models.User
 	var created models.User
@@ -58,7 +57,7 @@ func setSummaryFields(grp *models.Group) error {
 		return err
 	}
 
-	grp.SummaryFields = gin.H{
+	grp.Summary = gin.H{
 		"inventory": gin.H{
 			"id": inv.ID,
 			"name": inv.Name,

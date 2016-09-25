@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const DBC_GROUPS = "groups"
 
 // Organization is the model for organization
 // collection
@@ -24,19 +23,15 @@ type Group struct {
 	InventoryID              bson.ObjectId  `bson:"inventory_id" json:"inventory"`
 	//parent child relation
 	ParentGroupID            bson.ObjectId  `bson:"parent_group_id,omitempty" json:"-"`
-	CreatedByID              bson.ObjectId  `bson:"created_by_id" json:"created_by"`
-	ModifiedByID             bson.ObjectId  `bson:"modified_by_id" json:"modified_by"`
-	Created                  time.Time      `bson:"created" json:"created"`
-	Modified                 time.Time      `bson:"modified" json:"modified"`
+	CreatedByID        bson.ObjectId  `bson:"created_by_id" json:"created_by"`
+	ModifiedByID       bson.ObjectId  `bson:"modified_by_id" json:"modified_by"`
+	Created            time.Time      `bson:"created" json:"created"`
+	Modified           time.Time      `bson:"modified" json:"modified"`
 
-	Type                     string         `bson:"-" json:"type"`
-	Url                      string         `bson:"-" json:"url"`
-	Related                  gin.H          `bson:"-" json:"related"`
-	SummaryFields            gin.H          `bson:"-" json:"summary_fields"`
-	LastJob                  gin.H          `bson:"-" json:"last_job"`
-	LastJobHostSummary       gin.H          `bson:"-" json:"last_job_host_summary"`
-}
-
-func (g Group) CreateIndexes()  {
-
+	Type               string         `bson:"-" json:"type"`
+	Url                string         `bson:"-" json:"url"`
+	Related            gin.H          `bson:"-" json:"related"`
+	Summary            gin.H          `bson:"-" json:"summary_fields"`
+	LastJob            gin.H          `bson:"-" json:"last_job"`
+	LastJobHostSummary gin.H          `bson:"-" json:"last_job_host_summary"`
 }

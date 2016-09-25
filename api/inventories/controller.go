@@ -10,48 +10,60 @@ import (
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	"encoding/json"
+	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/roles"
 )
 
 const _CTX_INVENTORY = "inventory"
+const _CTX_USER = "user"
 const _CTX_INVENTORY_ID = "inventory_id"
 
 // InventoryMiddleware takes project_id parameter from gin.Context and
 // fetches project data from the database
-// it set project data under key project in gin.Context
-func InventoryMiddleware(c *gin.Context) {
+// this set project data under key project in gin.Context
+func Middleware(c *gin.Context) {
 	projectID := c.Params.ByName(_CTX_INVENTORY_ID)
 
-	dbc := db.C(models.DBC_INVENTORIES)
+	collection := db.C(db.INVENTORIES)
 
-	var inv models.Inventory
-	if err := dbc.FindId(bson.ObjectIdHex(projectID)).One(&inv); err != nil {
-		log.Print(err) // log error to the system log
-		c.AbortWithStatus(http.StatusNotFound)
+	var inventory models.Inventory
+	err := collection.FindId(bson.ObjectIdHex(projectID)).One(&inventory);
+
+	if err != nil {
+		log.Print("Error while getting the Inventory:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
 		return
 	}
 
-	c.Set(_CTX_INVENTORY, inv)
+	c.Set(_CTX_INVENTORY, inventory)
 	c.Next()
 }
 
 // GetInventory returns the project as a JSON object
 func GetInventory(c *gin.Context) {
-	o := c.MustGet(_CTX_INVENTORY).(models.Inventory)
-	setMetadata(&o)
+	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	metadata.InventoryMetadata(&inventory)
 
-	c.JSON(200, o)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:inventory,
+	})
 }
-
 
 // GetInventories returns a JSON array of projects
 func GetInventories(c *gin.Context) {
-	dbc := db.C(models.DBC_INVENTORIES)
+	dbc := db.C(db.INVENTORIES)
 
 	parser := util.NewQueryParser(c)
-
 	match := parser.Match([]string{"has_inventory_sources", "has_active_failures", })
+	con := parser.IContains([]string{"name", "organization"});
 
-	if con := parser.IContains([]string{"name", "organization"}); con != nil {
+	if con != nil {
 		if match != nil {
 			for i, v := range con {
 				match[i] = v
@@ -62,19 +74,21 @@ func GetInventories(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-
 	count, err := query.Count();
+
 	if err != nil {
-		log.Println("Unable to count inventories from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Println("Error while trying to get count of Inventories from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Inventories",
+		})
 		return
 	}
 
 	pgi := util.NewPagination(c, count)
-
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		//if page is incorrect return 404
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
@@ -82,141 +96,234 @@ func GetInventories(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var invs []models.Inventory
+	var inventories []models.Inventory
 
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&invs); err != nil {
-		log.Println("Unable to retrive inventories from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&inventories); err != nil {
+		log.Println("Error while retriving Inventory data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Inventories",
+		})
 		return
 	}
-	for i, v := range invs {
-		if err := setMetadata(&v); err != nil {
-			log.Println("Unable to set metadata", err)
-			c.AbortWithError(http.StatusInternalServerError, err)
+
+	for i, v := range inventories {
+		if err := metadata.InventoryMetadata(&v); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Inventories",
+			})
 			return
 		}
-
-		invs[i] = v
+		inventories[i] = v
 	}
 
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": invs, })
-
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:inventories,
+	})
 }
 
 // AddInventory creates a new project
 func AddInventory(c *gin.Context) {
 	var req models.Inventory
-	user := c.MustGet("user").(models.User)
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.Bind(&req); err != nil {
+	if err := c.BindJSON(&req); err != nil {
+		log.Println("Bad payload:", err)
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
-	var inv models.Inventory
-
-	inv.ID = bson.NewObjectId()
-	inv.Name = req.Name
-	inv.Description = req.Description
-	inv.Organization = req.Organization
-	inv.Variables = req.Variables
-	inv.Created = time.Now()
-	inv.Modified = time.Now()
-	inv.CreatedBy = user.ID
-	inv.ModifiedBy = user.ID
-
-	dbc := db.C(models.DBC_INVENTORIES)
-
-	if err := dbc.Insert(inv); err != nil {
-		log.Println("Failed to create Project", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create Project"})
-		return
-	}
-
-	if err := (models.Event{
+	inventory := models.Inventory{
 		ID: bson.NewObjectId(),
-		ObjectType:  _CTX_INVENTORY,
-		ObjectID:    inv.ID,
-		Description: "Inventory " + inv.Name + " created",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
+		Name: req.Name,
+		Description: req.Description,
+		Organization: req.Organization,
+		Variables: req.Variables,
+		Created: time.Now(),
+		Modified: time.Now(),
+		CreatedBy: user.ID,
+		ModifiedBy: user.ID,
 	}
 
-	if err := setMetadata(&inv); err != nil {
-		log.Println("Failed to fetch metadata", err)
+	collection := db.C(db.INVENTORIES)
 
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	err := collection.Insert(inventory);
+	if err != nil {
+		log.Println("Error while creating Inventory:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Inventory",
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, inv)
+	// add new activity to activity stream
+	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " created")
+
+	if err := metadata.InventoryMetadata(&inventory); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Inventory",
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusCreated, models.Response{
+		Count:1,
+		Results:inventory,
+	})
 }
 
+// UpdateInventory will update existing Inventory with
+// request parameters
 func UpdateInventory(c *gin.Context) {
-	//TODO: this is not the request inv is the request
-	req := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get Inventory from the gin.Context
+	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	dbc := db.C(models.DBC_INVENTORIES)
-
-	var inv models.Inventory
-	if err := c.Bind(&inv); err != nil {
+	var req models.Inventory
+	err := c.BindJSON(&req);
+	if err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
-	inv.ID = req.ID
+	inventory.Name = req.Name
+	inventory.Description = req.Description
+	inventory.Modified = time.Now()
+	inventory.ModifiedBy = user.ID
 
-	if err := dbc.UpdateId(inv.ID, inv); err != nil {
-		panic(err)
+	collection := db.C(db.INVENTORIES)
+	err = collection.UpdateId(inventory.ID, inventory);
+	if err != nil {
+		log.Println("Error while updating Inventory:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Inventory",
+		})
 	}
 
-	if err := (models.Event{
-		ProjectID:   req.ID,
-		Description: "Template ID " + inv.ID.Hex() + " updated",
-		ObjectID:    req.ID,
-		ObjectType:  "template",
-	}.Insert()); err != nil {
-		panic(err)
+	// add new activity to activity stream
+	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " updated")
+
+	// set `related` and `summary` feilds
+	err = metadata.InventoryMetadata(&inventory);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Inventory",
+		})
+		return
 	}
 
-	c.AbortWithStatus(204)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:inventory,
+	})
 }
 
 func RemoveInventory(c *gin.Context) {
-	crd := c.MustGet(_CTX_INVENTORY).(models.Team)
+	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
-	dbc := db.C(models.DBC_INVENTORIES)
-
-	if err := dbc.RemoveId(crd.ID); err != nil {
-		panic(err)
+	chost := db.C(db.HOSTS)
+	err := chost.Remove(bson.M{"inventory_id": inventory.ID})
+	if err != nil {
+		log.Println("Error while removing Hosts:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Inventory Hosts",
+		})
 	}
 
-	if err := (models.Event{
-		Description: "Inventory " + crd.Name + " deleted",
-		ObjectID:    crd.ID,
-		ObjectType:  _CTX_INVENTORY,
-	}.Insert()); err != nil {
-		panic(err)
+	cgroup := db.C(db.GROUPS)
+	err = cgroup.Remove(bson.M{"inventory_id": inventory.ID})
+	if err != nil {
+		log.Println("Error while removing Groups:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Inventory Groups",
+		})
 	}
 
-	c.AbortWithStatus(204)
+	collection := db.C(db.INVENTORIES)
+	err = collection.RemoveId(inventory.ID);
+	if err != nil {
+		log.Println("Error while removing Inventory:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Inventory",
+		})
+	}
+
+	// add new activity to activity stream
+	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " deleted")
+
+	// abort with 204 status code
+	c.AbortWithStatus(http.StatusNoContent)
 }
-//TODO: performance enhancements of queries
+
 func Script(c *gin.Context) {
 	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
 
-	cgroups := db.C(models.DBC_GROUPS)
-	chosts := db.C(models.DBC_HOSTS)
+	cgroups := db.C(db.GROUPS)
+	chosts := db.C(db.HOSTS)
 
+	// query variables
 	qall := c.Query("all")
 	qhostvars := c.Query("hostvars")
-
-	//single host vars
 	qhost := c.Query("host")
 
+	if qhost != "" {
+		//get hosts for parent group
+		var host models.Host
+		err := chosts.Find(bson.M{"name": qhost}).One(&host);
+		if err != nil {
+			log.Println("Error while getting host", err)
+			// send a brief error description to client
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting vars",
+			})
+			return
+		}
+		var gv gin.H
+		err = json.Unmarshal([]byte(host.Variables), &gv);
+		if err != nil {
+			log.Println("Error while unmarshalling group vars", err)
+			// send a brief error description to client
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting Hosts",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gv)
+		return
+	}
+
+	resp := gin.H{}
 
 	// First Get all groups for inventory ID
 	var parents []models.Group
@@ -233,12 +340,16 @@ func Script(c *gin.Context) {
 		return
 	}
 
+	var allhosts []models.Host
+
 	// loop through parent groups and get their hosts and
 	// child groups
 	// suppress key since we wont modify the array
 	for _, v := range parents {
+
 		//get hosts for parent group
 		var hosts []models.Host
+
 		q := bson.M{"inventory_id": inv.ID, "group_id": v.ID}
 
 		if err := chosts.Find(q).All(&hosts); err != nil {
@@ -251,12 +362,15 @@ func Script(c *gin.Context) {
 			return
 		}
 
+		//add hosts to global hosts
+		allhosts = append(allhosts, hosts...)
+
 		// Second get all child groups
-		var children []models.Group
+		var childgroups []models.Group
 
 		q = bson.M{"inventory_id": inv.ID, "parent_group_id": v.ID}
 
-		if err := cgroups.Find(q).All(&children); err != nil {
+		if err := cgroups.Find(q).All(&childgroups); err != nil {
 			log.Println("Error while getting child groups", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -265,30 +379,338 @@ func Script(c *gin.Context) {
 			})
 			return
 		}
-		//TODO: we have child groups and hosts :D loop through them
-		//and construct the final
+
+		var hostnames []string
+		//add host to group
+		for _, v := range hosts {
+			hostnames = append(hostnames, v.Name)
+		}
+
+		var groupnames []string
+		var groupvars []gin.H
+		//add host to group
+		for _, v := range childgroups {
+			groupnames = append(groupnames, v.Name)
+
+			var gv gin.H
+			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+				log.Println("Error while unmarshalling group vars", err)
+				// send a brief error description to client
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": http.StatusInternalServerError,
+					"message": "Error while getting Hosts",
+				})
+				return
+			}
+			groupvars = append(groupvars, gv)
+		}
+
+		resp[v.Name] = gin.H{
+			"hosts": hostnames,
+			"children": groupnames,
+			"vars": groupvars,
+		}
 
 	}
 
-	var req models.Inventory
-	if err := c.Bind(&inv); err != nil {
+	//if hostvars parameter exist
+	var hostvars gin.H
+	var hosts []string
+	for _, v := range allhosts {
+		var gv gin.H
+		if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+			log.Println("Error while unmarshalling group vars", err)
+			// send a brief error description to client
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting Hosts",
+			})
+			return
+		}
+		//add host variables to hostvars
+		hostvars[v.Name] = gv
+		//add host names to hosts
+		hosts = append(hosts, v.Name)
+	}
+
+	//if hostvars parameter exist
+	if qhostvars != "" {
+		resp["_meta"] = gin.H{
+			"hostvars": hostvars,
+		}
+	}
+
+	//if all parameter exist
+	if qall != "" {
+		resp["all"] = gin.H{
+			"hosts": hosts,
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func JobTemplates(c *gin.Context) {
+	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	collection := db.C(db.JOB_TEMPLATES)
+
+	var jobTemplate []models.JobTemplate
+	// new mongodb iterator
+	iter := collection.Find(bson.M{"inventory_id": inv.ID}).Iter()
+	// loop through each result and modify for our needs
+	var tmpJobTemplate models.JobTemplate
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpJobTemplate) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.JobTemplateRead(user, tmpJobTemplate) {
+			continue
+		}
+		if err := metadata.JTemplateMetadata(&tmpJobTemplate); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Job Templates",
+			})
+			return
+		}
+		// good to go add to list
+		jobTemplate = append(jobTemplate, tmpJobTemplate)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Job Templates",
+		})
 		return
 	}
 
-	inv.ID = req.ID
+	count := len(jobTemplate)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: jobTemplate[pgi.Skip():pgi.End()],
+	})
+}
 
-	if err := dbc.UpdateId(inv.ID, inv); err != nil {
-		panic(err)
+func RootGroups(c *gin.Context) {
+	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	collection := db.C(db.GROUPS)
+
+	var groups []models.Group
+	query := bson.M{
+		"inventory_id": inv.ID,
+		"$or":[]bson.M{
+			{"parent_group_id": bson.M{"$exists": false}},
+			{"parent_group_id":nil},
+		},
+	}
+	// new mongodb iterator
+	iter := collection.Find(query).Iter()
+	// loop through each result and modify for our needs
+	var tmpGroup models.Group
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpGroup) {
+		// if the user doesn't have access to inventory
+		// skip to next
+		if !roles.InventoryRead(user, inv) {
+			continue
+		}
+		if err := metadata.GroupMetadata(&tmpGroup); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Groups",
+			})
+			return
+		}
+		// good to go add to list
+		groups = append(groups, tmpGroup)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Groups",
+		})
+		return
 	}
 
-	if err := (models.Event{
-		ProjectID:   req.ID,
-		Description: "Template ID " + inv.ID.Hex() + " updated",
-		ObjectID:    req.ID,
-		ObjectType:  "template",
-	}.Insert()); err != nil {
-		panic(err)
+	count := len(groups)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: groups[pgi.Skip():pgi.End()],
+	})
+}
+
+func Groups(c *gin.Context) {
+	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	collection := db.C(db.GROUPS)
+
+	var groups []models.Group
+	query := bson.M{
+		"inventory_id": inv.ID,
+	}
+	// new mongodb iterator
+	iter := collection.Find(query).Iter()
+	// loop through each result and modify for our needs
+	var tmpGroup models.Group
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpGroup) {
+		// if the user doesn't have access to inventory
+		// skip to next
+		if !roles.InventoryRead(user, inv) {
+			continue
+		}
+		if err := metadata.GroupMetadata(&tmpGroup); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Groups",
+			})
+			return
+		}
+		// good to go add to list
+		groups = append(groups, tmpGroup)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Groups",
+		})
+		return
 	}
 
-	c.AbortWithStatus(204)
+	count := len(groups)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: groups[pgi.Skip():pgi.End()],
+	})
+}
+
+func Hosts(c *gin.Context) {
+	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	collection := db.C(db.HOSTS)
+
+	var hosts []models.Host
+	query := bson.M{
+		"inventory_id": inv.ID,
+	}
+	// new mongodb iterator
+	iter := collection.Find(query).Iter()
+	// loop through each result and modify for our needs
+	var tmpHost models.Host
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpHost) {
+		// if the user doesn't have access to host
+		// skip to next
+		if !roles.InventoryRead(user, inv) {
+			continue
+		}
+		if err := metadata.HostMetadata(&tmpHost); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Hosts",
+			})
+			return
+		}
+		// good to go add to list
+		hosts = append(hosts, tmpHost)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Host data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Hosts",
+		})
+		return
+	}
+
+	count := len(hosts)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: hosts[pgi.Skip():pgi.End()],
+	})
+}
+
+// TODO: not complete
+func ActivityStream(c *gin.Context) {
+	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+
+	var activities []models.Activity
+	collection := db.C(db.ACTIVITY_STREAM)
+	err := collection.Find(bson.M{"object_id": inventory.ID, "type": _CTX_INVENTORY}).All(activities)
+
+	if err != nil {
+		log.Println("Error while retriving Activity data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while Activities",
+		})
+	}
+
+	count := len(activities)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: activities[pgi.Skip():pgi.End()],
+	})
 }

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DBC_JOBS = "jobs"
-
 type Job struct {
 	ID                  bson.ObjectId  `bson:"_id" json:"id"`
 
@@ -15,11 +13,11 @@ type Job struct {
 	Description         string         `bson:"description" json:"description"`
 	LaunchType          string         `bson:"launch_type" json:"launch_type"`
 	CancelFlag          bool           `bson:"cancel_flag" json:"cancel_flag"`
-	Status              bool           `bson:"status" json:"status"`
+	Status              string           `bson:"status" json:"status"`
 	Failed              bool           `bson:"failed" json:"failed"`
 	Started             time.Time      `bson:"started" json:"started"`
 	Finished            time.Time      `bson:"finished" json:"finished"`
-	Elapsed             uint32         `bson:"finished" json:"finished"`
+	Elapsed             uint32         `bson:"elapsed" json:"elapsed"`
 	JobArgs             string         `bson:"job_args" json:"job_args"`
 	StdoutText          string         `bson:"stdout_text" json:"stdout_text"`
 
@@ -58,13 +56,10 @@ type Job struct {
 	Created             time.Time      `bson:"created" json:"created"`
 	Modified            time.Time      `bson:"modified" json:"modified"`
 
-	Type                string         `bson:"-" json:"type"`
-	Url                 string         `bson:"-" json:"url"`
-	Related             gin.H          `bson:"-" json:"related"`
-	Summary             gin.H          `bson:"-" json:"summary_fields"`
-}
+	Type                string          `bson:"-" json:"type"`
+	Url                 string          `bson:"-" json:"url"`
+	Related             gin.H           `bson:"-" json:"related"`
+	Summary             gin.H           `bson:"-" json:"summary_fields"`
 
-
-func (j Job) CreateIndexes()  {
-
+	Roles               []AccessControl    `bson:"roles" json:"-"`
 }

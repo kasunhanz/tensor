@@ -10,24 +10,29 @@ import (
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	"encoding/json"
+	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 )
 
 const _CTX_HOST = "host"
 const _CTX_USER = "user"
 const _CTX_HOST_ID = "host_id"
 
-// HostMiddleware takes host_id parameter from gin.Context and
+// Middleware takes host_id parameter from gin.Context and
 // fetches host data from the database
 // it set host data under key host in gin.Context
-func HostMiddleware(c *gin.Context) {
+func Middleware(c *gin.Context) {
 	ID := c.Params.ByName(_CTX_HOST_ID)
 
-	dbc := db.C(models.DBC_HOSTS)
+	dbc := db.C(db.HOSTS)
 
 	var h models.Host
 	if err := dbc.FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
-		log.Print(err) // log error to the system log
-		c.AbortWithStatus(http.StatusNotFound)
+		log.Print("Error while getting the Host:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
 		return
 	}
 
@@ -37,16 +42,20 @@ func HostMiddleware(c *gin.Context) {
 
 // GetHost returns the hsot as a JSON object
 func GetHost(c *gin.Context) {
-	h := c.MustGet(_CTX_HOST).(models.Host)
-	setMetadata(&h)
+	host := c.MustGet(_CTX_HOST).(models.Host)
+	metadata.HostMetadata(&host)
 
-	c.JSON(200, h)
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:host,
+	})
 }
 
 
 // GetHosts returns a JSON array of projects
 func GetHosts(c *gin.Context) {
-	dbc := db.C(models.DBC_HOSTS)
+	dbc := db.C(db.HOSTS)
 
 	parser := util.NewQueryParser(c)
 
@@ -63,20 +72,26 @@ func GetHosts(c *gin.Context) {
 		}
 	}
 
+	//prepare the query
 	query := dbc.Find(match)
 
+	//get number of records fro pagination
 	count, err := query.Count();
 	if err != nil {
-		log.Println("Unable to count Hosts from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Println("Error while trying to get count of Hosts from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting hosts",
+		})
 		return
 	}
 
+	// init pagination
 	pgi := util.NewPagination(c, count)
 
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page) + ": That page contains no results."})
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
@@ -86,23 +101,35 @@ func GetHosts(c *gin.Context) {
 
 	var hosts []models.Host
 
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit).All(&hosts); err != nil {
-		log.Println("Unable to retrive Hosts from the db", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
+	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&hosts); err != nil {
+		log.Println("Error while retriving Host data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting hosts",
+		})
 		return
 	}
 	for i, v := range hosts {
-		if err := setMetadata(&v); err != nil {
-			log.Println("Unable to set metadata", err)
-			c.AbortWithError(http.StatusInternalServerError, err)
+		if err := metadata.HostMetadata(&v); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting hosts",
+			})
 			return
 		}
 
 		hosts[i] = v
 	}
 
-	c.JSON(200, gin.H{"count": count, "next": pgi.NextPage(), "previous": pgi.PreviousPage(), "results": hosts, })
 
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:hosts,
+	})
 }
 
 // AddInventory creates a new project
@@ -110,108 +137,249 @@ func AddHost(c *gin.Context) {
 	var req models.Host
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.Bind(&req); err != nil {
+	if err := c.BindJSON(&req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 		return
 	}
 
-	var host models.Host
+	host := models.Host{
+		ID:bson.NewObjectId(),
+		Name: req.Name,
+		Description: req.Description,
+		InventoryID: req.InventoryID,
+		Variables: req.Variables,
+		Enabled: req.Enabled,
+		Created: time.Now(),
+		Modified: time.Now(),
+		CreatedByID: user.ID,
+		ModifiedByID: user.ID,
+	}
 
-	host.ID = bson.NewObjectId()
-	host.Name = req.Name
-	host.Description = req.Description
-	host.InventoryID = req.InventoryID
-	host.Variables = req.Variables
-	host.Enabled = req.Enabled
-	host.Created = time.Now()
-	host.Modified = time.Now()
-	host.CreatedByID = user.ID
-	host.ModifiedByID = user.ID
-
-	dbc := db.C(models.DBC_HOSTS)
+	dbc := db.C(db.HOSTS)
 
 	if err := dbc.Insert(host); err != nil {
-		log.Println("Failed to create Project", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to create Project"})
+		log.Println("Error while creating Host:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Host",
+		})
 		return
 	}
 
-	if err := (models.Event{
-		ID: bson.NewObjectId(),
-		ObjectType:  _CTX_HOST,
-		ObjectID:    host.ID,
-		Description: "Host " + host.Name + " created",
-	}.Insert()); err != nil {
-		log.Println("Failed to create Event", err)
-	}
 
-	if err := setMetadata(&host); err != nil {
-		log.Println("Failed to fetch metadata", err)
+	// add new activity to activity stream
+	addActivity(host.ID, user.ID, "Host " + host.Name + " created")
 
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to fetch metadata"})
+	if err := metadata.HostMetadata(&host); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Host",
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, host)
+	c.JSON(http.StatusCreated, models.Response{
+		Count:1,
+		Results:host,
+	})
 }
-
+// update will update a Host
+// from request values
 func UpdateHost(c *gin.Context) {
-	h := c.MustGet(_CTX_HOST).(models.Host)
-	u := c.MustGet(_CTX_USER).(models.User)
+	host := c.MustGet(_CTX_HOST).(models.Host)
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Host
 
-	if err := c.Bind(&req); err != nil {
-		return
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
 	}
 
-	var host models.Host
 	host.Name = req.Name
 	host.Description = req.Description
 	host.Variables = req.Variables
 	host.Enabled = req.Enabled
-	host.Created = time.Now()
 	host.Modified = time.Now()
-	host.ModifiedByID = u.ID
+	host.ModifiedByID = user.ID
 
-	dbc := db.C(models.DBC_HOSTS)
+	dbc := db.C(db.HOSTS)
 
-	if err := dbc.UpdateId(h.ID, host); err != nil {
-		panic(err)
+	//update object
+	if err := dbc.UpdateId(host.ID, host); err != nil {
+		log.Println("Error while updating Host:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Host",
+		})
 	}
 
-	if err := (models.Event{
-		ProjectID:   host.ID,
-		Description: "Host ID " + host.ID.Hex() + " updated",
-		ObjectID:    host.ID,
-		ObjectType:  "host",
-	}.Insert()); err != nil {
-		panic(err)
+	// add new activity to activity stream
+	addActivity(host.ID, user.ID, "Host " + host.Name + " created")
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:1,
+		Results:host,
+	})
+}
+
+func RemoveHost(c *gin.Context) {
+	// get Host from the gin.Context
+	host := c.MustGet(_CTX_HOST).(models.Host)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	dbc := db.MongoDb.C(db.HOSTS)
+
+	if err := dbc.RemoveId(host.ID); err != nil {
+		log.Println("Error while removing Host:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while removing Host",
+		})
+		return
 	}
+
+	// add new activity to activity stream
+	addActivity(host.ID, user.ID, "Group " + host.Name + " deleted")
 
 	c.AbortWithStatus(204)
 }
 
-func RemoveHost(c *gin.Context) {
+func VariableData(c *gin.Context) {
 	host := c.MustGet(_CTX_HOST).(models.Host)
 
-	dbc := db.MongoDb.C(models.DBC_HOSTS)
+	variables := gin.H{}
 
-	if err := dbc.RemoveId(host.ID); err != nil {
-		panic(err)
+	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
+		log.Println("Error while getting host variables")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"message": "Error while getting host variables",
+		})
+		return
 	}
 
-	if err := (models.Event{
-		Description: "Host " + host.Name + " deleted",
-		ObjectID:    host.ID,
-		ObjectType:  _CTX_HOST,
-	}.Insert()); err != nil {
-		panic(err)
+	c.JSON(http.StatusOK, variables)
+
+}
+
+func Groups(c *gin.Context) {
+	host := c.MustGet(_CTX_HOST).(models.Host)
+
+	collection := db.MongoDb.C(db.GROUPS)
+
+	var group models.Group
+
+	if len(host.GroupID) == 24 {
+		// find group for the host
+		if err := collection.FindId(host.GroupID).One(&group); err != nil {
+			log.Println("Error while getting groups")
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"message": "Error while getting groups",
+			})
+			return
+		}
+
+		// set group metadata
+		metadata.GroupMetadata(&group)
+
+		// send response with JSON rendered data
+		c.JSON(http.StatusOK, models.Response{
+			Count: 1,
+			Results: []models.Group{group, },
+		})
+		return
 	}
 
-	c.AbortWithStatus(204)
+	// no assigned groups
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count: 0,
+	})
+}
+
+func AllGroups(c *gin.Context) {
+	host := c.MustGet(_CTX_HOST).(models.Host)
+
+	collection := db.MongoDb.C(db.GROUPS)
+
+	var outobjects []models.Group
+	var group models.Group
+
+	if len(host.GroupID) == 24 {
+		// find group for the host
+		if err := collection.FindId(host.GroupID).One(&group); err != nil {
+			log.Println("Error while getting groups")
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code: http.StatusInternalServerError,
+				Message: "Error while getting groups",
+			})
+			return
+		}
+
+		// set group metadata
+		metadata.GroupMetadata(&group)
+		//add group to outobjects
+		outobjects = append(outobjects, group)
+		// clean object
+		group = models.Group{}
+
+		for len(group.ParentGroupID) == 12 {
+			// find group for the host
+			if err := collection.FindId(host.GroupID).One(&group); err != nil {
+				log.Println("Error while getting groups")
+				c.JSON(http.StatusInternalServerError, models.Error{
+					Code: http.StatusInternalServerError,
+					Message: "Error while getting groups",
+				})
+				return
+			}
+
+			// set group metadata
+			metadata.GroupMetadata(&group)
+			//add group to outobjects
+			outobjects = append(outobjects, group)
+
+			// clean object
+			group = models.Group{}
+		}
+
+		nobj := len(outobjects)
+
+		// initialize Pagination
+		pgi := util.NewPagination(c, nobj)
+
+		//if page is incorrect return 404
+		if pgi.HasPage() {
+			c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+			return
+		}
+
+		// send response with JSON rendered data
+		c.JSON(http.StatusOK, models.Response{
+			Count: nobj,
+			Next: pgi.NextPage(),
+			Previous: pgi.PreviousPage(),
+			Results: outobjects[pgi.Limit():pgi.Offset()],
+		})
+
+		return
+	}
+
+	// no assigned groups
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count: 0,
+	})
 }

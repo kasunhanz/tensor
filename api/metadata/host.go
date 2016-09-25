@@ -1,4 +1,4 @@
-package hosts
+package metadata
 
 import (
 	"github.com/gin-gonic/gin"
@@ -6,10 +6,8 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
-
-
 // Create a new organization
-func setMetadata(host *models.Host) error {
+func HostMetadata(host *models.Host) error {
 
 	ID := host.ID.Hex()
 	host.Type = "inventory"
@@ -30,17 +28,17 @@ func setMetadata(host *models.Host) error {
 		"inventory": "/api/v1/inventories/" + host.InventoryID + "/",
 	}
 
-	if err := setSummaryFields(host); err != nil {
+	if err := hostSummary(host); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setSummaryFields(host *models.Host) error {
+func hostSummary(host *models.Host) error {
 
-	dbu := db.MongoDb.C(models.DBC_USERS)
-	dbci := db.MongoDb.C(models.DBC_INVENTORIES)
+	dbu := db.MongoDb.C(db.USERS)
+	dbci := db.MongoDb.C(db.INVENTORIES)
 
 	var modified models.User
 	var created models.User
