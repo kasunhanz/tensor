@@ -17,8 +17,10 @@ type Team struct {
 	SummaryFields  gin.H              `bson:"-" json:"summary_fields"`
 
 	Name           string             `bson:"name" json:"name" binding:"required"`
-	Description    string             `bson:"description" json:"description"`
-	OrganizationID bson.ObjectId      `bson:"organization_id" json:"organization"`
+	OrganizationID bson.ObjectId      `bson:"organization_id" json:"organization" binding:"required"`
+
+	Description    *string             `bson:"description,omitempty" json:"description"`
+
 
 	CreatedBy      bson.ObjectId      `bson:"created_by" json:"-"`
 	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`

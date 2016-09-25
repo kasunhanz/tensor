@@ -13,11 +13,11 @@ type Credential struct {
 	ID                bson.ObjectId  `bson:"_id" json:"id"`
 	// required feilds
 	Name              string         `bson:"name" json:"name" binding:"required"`
-	Description       string         `bson:"description" json:"description"`
 	Kind              string         `bson:"kind" json:"kind" binding:"required"`
 
 	//optional feilds
 	Cloud             bool            `bson:"cloud,omitempty" json:"cloud"`
+	Description       *string         `bson:"description,omitempty" json:"description"`
 	Host              *string         `bson:"host,omitempty" json:"host"`
 	Username          *string         `bson:"username,omitempty" json:"username"`
 	Password          *string         `bson:"password,omitempty" json:"password"`
