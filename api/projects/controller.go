@@ -50,14 +50,12 @@ func GetProject(c *gin.Context) {
 	metadata.ProjectMetadata(&project)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:project,
-	})
+	c.JSON(http.StatusOK, project)
 }
 
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
 	dbc := db.C(db.PROJECTS)
 
 	parser := util.NewQueryParser(c)
@@ -74,62 +72,55 @@ func GetProjects(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-	count, err := query.Count();
+	if order := parser.OrderBy(); order != "" {
+		query.Sort(order)
+	}
 
-	if err != nil {
-		log.Println("Error while trying to get count of Projects from the db:", err)
+	var projects []models.Project
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpProject models.Project
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpProject) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.ProjectRead(user, tmpProject) {
+			continue
+		}
+		if err := metadata.ProjectMetadata(&tmpProject); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Project",
+			})
+			return
+		}
+		// good to go add to list
+		projects = append(projects, tmpProject)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting projects",
+			Message: "Error while getting Project",
 		})
 		return
 	}
 
+	count := len(projects)
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	order := parser.OrderBy();
-	if order != "" {
-		query.Sort(order)
-	}
-
-	var projects []models.Project
-	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&projects);
-
-	if err != nil {
-		log.Println("Error while retriving Project data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting projects",
-		})
-		return
-	}
-
-	// set related and summary fields to every item
-	for i, v := range projects {
-		// note: `v` reference doesn't modify original slice
-		err := metadata.ProjectMetadata(&v);
-		if err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Message: "Error while getting Projects",
-			})
-			return
-		}
-		projects[i] = v // modify each object in slice
-	}
-
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:projects,
+		Results: projects[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -195,10 +186,7 @@ func AddProject(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:project,
-	})
+	c.JSON(http.StatusCreated, project)
 }
 
 
@@ -265,10 +253,7 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:project,
-	})
+	c.JSON(http.StatusOK, project)
 }
 
 // RemoveProject will remove the Project
@@ -488,7 +473,6 @@ func ProjectUpdates(c *gin.Context) {
 		})
 		return
 	}
-
 
 	count := len(jobs)
 	pgi := util.NewPagination(c, count)

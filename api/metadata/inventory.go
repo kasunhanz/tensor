@@ -29,7 +29,7 @@ func InventoryMetadata(i *models.Inventory) error {
 		"groups": "/v1/inventories/" + ID + "/groups/",
 		"activity_stream": "/v1/inventories/" + ID + "/activity_stream/",
 		"inventory_sources": "/v1/inventories/" + ID + "/inventory_sources/",
-		"organization": "/v1/organizations/" + i.Organization.Hex() + "/",
+		"organization": "/v1/organizations/" + i.OrganizationID.Hex() + "/",
 	}
 
 	if err := inventorySummary(i); err != nil {
@@ -56,12 +56,12 @@ func inventorySummary(i *models.Inventory) error {
 		return err
 	}
 
-	if err := dbco.FindId(i.Organization).One(&org); err != nil {
+	if err := dbco.FindId(i.OrganizationID).One(&org); err != nil {
 		return err
 	}
 
 	//TODO: fill these from database
-	i.HasActiveFailures = false
+	/*i.HasActiveFailures = false
 	i.TotalHosts = 6
 	i.HostsWithActiveFailures = 0
 	i.TotalGroups = 2
@@ -69,6 +69,7 @@ func inventorySummary(i *models.Inventory) error {
 	i.HasInventorySources = false
 	i.TotalInventorySources = 0
 	i.InventorySourcesWithFailures = 0
+	*/
 
 	i.SummaryFields = gin.H{
 		"object_roles": []gin.H{

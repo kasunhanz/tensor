@@ -50,14 +50,10 @@ func GetUser(c *gin.Context) {
 	metadata.UserMetadata(&user)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:user,
-	})
+	c.JSON(http.StatusOK, user)
 }
 
 func GetUsers(c *gin.Context) {
-
 	dbc := db.C(db.USERS)
 
 	parser := util.NewQueryParser(c)
@@ -68,49 +64,43 @@ func GetUsers(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-	count, err := query.Count();
+	if order := parser.OrderBy(); order != "" {
+		query.Sort(order)
+	}
 
-	if err != nil {
-		log.Println("Error while trying to get count of Users from the db:", err)
+	var users []models.User
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpUser models.User
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpUser) {
+		metadata.UserMetadata(&tmpUser);
+		// good to go add to list
+		users = append(users, tmpUser)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Users",
+			Message: "Error while getting Credential",
 		})
 		return
 	}
 
+	count := len(users)
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	if order := parser.OrderBy(); order != "" {
-		query.Sort(order)
-	}
-
-	var users []models.User
-
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&users); err != nil {
-		log.Println("Error while retriving User data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Users",
-		})
-		return
-	}
-	//TODO: ?????????????????
-	for i, v := range users {
-		metadata.UserMetadata(&v);
-		users[i] = v
-	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:users,
+		Results: users[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -147,10 +137,7 @@ func AddUser(c *gin.Context) {
 	addActivity(user.ID, user.ID, "User " + user.FirstName + " " + user.LastName + " created")
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:user,
-	})
+	c.JSON(http.StatusCreated, user)
 }
 
 func UpdateUser(c *gin.Context) {

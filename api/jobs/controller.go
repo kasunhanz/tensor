@@ -52,10 +52,7 @@ func GetJob(c *gin.Context) {
 	metadata.JobMetadata(&job)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:job,
-	})
+	c.JSON(http.StatusOK, job)
 }
 
 // GetJobs renders the Job as JSON
@@ -108,7 +105,6 @@ func GetJobs(c *gin.Context) {
 		})
 		return
 	}
-
 
 	count := len(jobs)
 	pgi := util.NewPagination(c, count)

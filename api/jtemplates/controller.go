@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/roles"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -53,15 +54,13 @@ func GetJTemplate(c *gin.Context) {
 	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:jobTemplate,
-	})
+	c.JSON(http.StatusOK, jobTemplate)
 }
 
 
 // GetJTemplates renders the Job Templates as JSON
 func GetJTemplates(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
 	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	parser := util.NewQueryParser(c)
@@ -72,63 +71,56 @@ func GetJTemplates(c *gin.Context) {
 	}
 
 	query := collection.Find(match) // prepare the query
-	count, err := query.Count(); // number of records
-
-	if err != nil {
-		log.Println("Error while trying to get count of Job Template from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Job Templates",
-		})
-		return
-	}
-
-	// initialize Pagination
-	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
-	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-		return
-	}
-
 	// set sort value to the query based on request parameters
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
 	var jobTemplates []models.JobTemplate
-
-	// get all values with skip limit
-	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&jobTemplates);
-	if err != nil {
-		log.Println("Error while retriving Job Template data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Job Templates",
-		})
-		return
-	}
-	// set related and summary fields to every item
-	for i, v := range jobTemplates {
-		// note: `v` reference doesn't modify original slice
-		err := metadata.JTemplateMetadata(&v);
-		if err != nil {
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpJobTemplate models.JobTemplate
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpJobTemplate) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.JobTemplateRead(user, tmpJobTemplate) {
+			continue
+		}
+		if err := metadata.JTemplateMetadata(&tmpJobTemplate); err != nil {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting groups",
+				Message: "Error while getting Job Template",
 			})
 			return
 		}
-		jobTemplates[i] = v // modify each object in slice
+		// good to go add to list
+		jobTemplates = append(jobTemplates, tmpJobTemplate)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Credential data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Credential",
+		})
+		return
 	}
 
+	count := len(jobTemplates)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:jobTemplates,
+		Results: jobTemplates[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -209,10 +201,7 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:jobTemplate,
-	})
+	c.JSON(http.StatusCreated, jobTemplate)
 }
 
 // UpdateJTemplate will update the Job Template
@@ -289,10 +278,7 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:jobTemplate,
-	})
+	c.JSON(http.StatusOK, jobTemplate)
 }
 
 // RemoveJTemplate will remove the Job Template

@@ -18,8 +18,9 @@ type Notification struct {
 	Body                   string          `bson:"body" json:"body"`
 	NotificationTemplateId string          `bson:"notification_template_id" json:"notification_template_id"`
 
-	CreatedByID            bson.ObjectId   `bson:"created_by_id" json:"created_by"`
-	ModifiedByID           bson.ObjectId   `bson:"modified_by_id" json:"modified_by"`
+	CreatedByID            bson.ObjectId   `bson:"created_by_id" json:"-"`
+	ModifiedByID           bson.ObjectId   `bson:"modified_by_id" json:"-"`
+
 	Created                time.Time       `bson:"created" json:"created"`
 	Modified               time.Time       `bson:"modified" json:"modified"`
 

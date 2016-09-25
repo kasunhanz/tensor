@@ -65,6 +65,7 @@ func GetOrganization(c *gin.Context) {
 
 // GetOrganizations returns a JSON array of projects
 func GetOrganizations(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	dbc := db.C(db.ORGANIZATIONS)
 	parser := util.NewQueryParser(c)
@@ -76,60 +77,56 @@ func GetOrganizations(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-	count, err := query.Count();
+	if order := parser.OrderBy(); order != "" {
+		query.Sort(order)
+	}
 
-	if err != nil {
-		log.Println("Error while trying to get count of Organization from the db:", err)
+	var organizations []models.Organization
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpOrganization models.Organization
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpOrganization) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.OrganizationRead(user, tmpOrganization) {
+			continue
+		}
+		if err := metadata.OrganizationMetadata(&tmpOrganization); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Organization",
+			})
+			return
+		}
+		// good to go add to list
+		organizations = append(organizations, tmpOrganization)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting organizations",
+			Message: "Error while getting Organization",
 		})
 		return
 	}
 
+	count := len(organizations)
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	if order := parser.OrderBy(); order != "" {
-		query.Sort(order)
-	}
-
-	var organizations []models.Organization
-
-	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&organizations);
-	if err != nil {
-		log.Println("Error while retriving Organization data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting organizations",
-		})
-		return
-	}
-
-	for i, v := range organizations {
-		if err := metadata.OrganizationMetadata(&v); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Message: "Error while getting Organizations",
-			})
-			return
-		}
-		organizations[i] = v
-	}
-
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:organizations,
+		Results: organizations[pgi.Skip():pgi.End()],
 	})
-
 }
 
 // AddOrganization creates a new project
@@ -182,10 +179,7 @@ func AddOrganization(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:organization,
-	})
+	c.JSON(http.StatusCreated, organization)
 }
 
 func UpdateOrganization(c *gin.Context) {

@@ -17,7 +17,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	// check whether the user is an member of the objects' organization
 	// since this is read it doesn't matter what permission assined to the user
 	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.Organization}).Count()
+	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational memeber:", err)
 		return false
@@ -42,7 +42,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 
 	//check team permissions if, the user is in a team assign indirect permissions
 	cTeams := db.C(db.TEAMS)
-	count, err = cTeams.Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.Organization, "roles.user_id": user.ID, }).Count()
+	count, err = cTeams.Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID, }).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -64,7 +64,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
 	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.Organization, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -113,7 +113,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
 	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.Organization, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -168,7 +168,7 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 	count, err := cOrgnization.Find(
 		bson.M{
 			"roles.user_id": user.ID,
-			"organization_id": inventory.Organization,
+			"organization_id": inventory.OrganizationID,
 			"roles.role": ORGANIZATION_ADMIN},
 	).Count()
 	if err != nil {

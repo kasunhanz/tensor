@@ -48,15 +48,13 @@ func GetTeam(c *gin.Context) {
 	metadata.TeamMetadata(&team)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:team,
-	})
+	c.JSON(http.StatusOK, team)
 }
 
 
 // GetTeams returns a JSON array of teams
 func GetTeams(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
 	dbc := db.C(db.TEAMS)
 
 	parser := util.NewQueryParser(c)
@@ -66,55 +64,55 @@ func GetTeams(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-	count, err := query.Count();
-
-	if err != nil {
-		log.Println("Error while trying to get count of Teams from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Teams",
-		})
-		return
-	}
-
-	pgi := util.NewPagination(c, count)
-
-	//if page is incorrect return 404
-	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-		return
-	}
-
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
 	var teams []models.Team
-
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&teams); err != nil {
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpTeam models.Team
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpTeam) {
+		// if the user doesn't have access to credential
+		// skip to next
+		if !roles.TeamRead(user, tmpTeam) {
+			continue
+		}
+		if err := metadata.TeamMetadata(&tmpTeam); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Teams",
+			})
+			return
+		}
+		// good to go add to list
+		teams = append(teams, tmpTeam)
+	}
+	if err := iter.Close(); err != nil {
 		log.Println("Error while retriving Team data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Teams",
+			Message: "Error while getting Team",
 		})
 		return
 	}
 
-	for i, v := range teams {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Teams",
-		})
-		teams[i] = v
+	count := len(teams)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
 	}
-
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:teams,
+		Results: teams[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -184,10 +182,7 @@ func AddTeam(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:team,
-	})
+	c.JSON(http.StatusCreated, team)
 }
 
 
@@ -240,10 +235,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// render JSON with 200 status code
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:team,
-	})
+	c.JSON(http.StatusOK, team)
 }
 
 // RemoveTeam will remove the Team

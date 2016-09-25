@@ -43,13 +43,17 @@ func Middleware(c *gin.Context) {
 // GetHost returns the host as a serialized JSON object
 func GetGroup(c *gin.Context) {
 	group := c.MustGet(_CTX_GROUP).(models.Group)
-	metadata.GroupMetadata(&group)
 
+	if err := metadata.GroupMetadata(&group); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Group",
+		})
+		return
+	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:group,
-	})
+	c.JSON(http.StatusOK, group)
 }
 
 // GetGroups returns groups as a serialized JSON object
@@ -71,24 +75,6 @@ func GetGroups(c *gin.Context) {
 	}
 
 	query := dbc.Find(match) // prepare the query
-	count, err := query.Count(); // number of records
-
-	if err != nil {
-		log.Println("Error while trying to get count of Groups from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting groups",
-		})
-		return
-	}
-
-	// init Pagination
-	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
-	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-		return
-	}
 	// set sort value to the query based on request parameters
 	order := parser.OrderBy();
 	if order != "" {
@@ -96,24 +82,13 @@ func GetGroups(c *gin.Context) {
 	}
 
 	var groups []models.Group
-
-	// get all values with skip limit
-	err = query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&groups);
-
-	if err != nil {
-		log.Println("Error while retriving Group data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting groups",
-		})
-		return
-	}
-
-	// set related and summary fields to every item
-	for i, v := range groups {
-		// note: `v` reference doesn't modify original slice
-		err := metadata.GroupMetadata(&v);
-		if err != nil {
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpGroup models.Group
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpGroup) {
+		if err := metadata.GroupMetadata(&tmpGroup); err != nil {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
@@ -121,15 +96,31 @@ func GetGroups(c *gin.Context) {
 			})
 			return
 		}
-		groups[i] = v // modify each object in slice
+		// good to go add to list
+		groups = append(groups, tmpGroup)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Group data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Group",
+		})
+		return
 	}
 
+	count := len(groups)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:groups,
+		Results: groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -188,10 +179,7 @@ func AddGroup(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:group,
-	})
+	c.JSON(http.StatusCreated, group)
 }
 
 // UpdateGroup will update the Group
@@ -246,10 +234,7 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:group,
-	})
+	c.JSON(http.StatusOK, group)
 }
 
 // RemoveGroup will remove the Group

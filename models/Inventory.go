@@ -16,20 +16,25 @@ type Inventory struct {
 	Related                      gin.H         `bson:"-" json:"related"`
 	SummaryFields                gin.H         `bson:"-" json:"summary_fields"`
 
+	// required feilds
 	Name                         string        `bson:"name" json:"name" binding:"required"`
-	Description                  string        `bson:"description" json:"description"`
-	Variables                    string        `bson:"variables" json:"variables"`
-	HasActiveFailures            bool          `bson:"has_active_failures" json:"has_active_failures"`
-	TotalHosts                   uint32        `bson:"total_hosts" json:"total_hosts"`
-	HostsWithActiveFailures      uint32        `bson:"hosts_with_active_failures" json:"hosts_with_active_failures"`
-	TotalGroups                  uint32        `bson:"total_groups" json:"total_groups"`
-	GroupsWithActiveFailures     uint32        `bson:"groups_with_active_failures" json:"groups_with_active_failures"`
+	OrganizationID               bson.ObjectId `bson:"organization_id" json:"organization" binding:"required"`
+
+	Description                  *string        `bson:"description,omitempty" json:"description"`
+	Variables                    *string        `bson:"variables,omitempty" json:"variables"`
+	TotalHosts                   *uint32        `bson:"total_hosts,omitempty" json:"total_hosts"`
+	HostsWithActiveFailures      *uint32        `bson:"hosts_with_active_failures,omitempty" json:"hosts_with_active_failures"`
+	TotalGroups                  *uint32        `bson:"total_groups,omitempty" json:"total_groups"`
+	GroupsWithActiveFailures     *uint32        `bson:"groups_with_active_failures,omitempty" json:"groups_with_active_failures"`
+	TotalInventorySources        *uint32        `bson:"total_inventory_sources,omitempty" json:"total_inventory_sources"`
+	InventorySourcesWithFailures *uint32        `bson:"inventory_sources_with_failures,omitempty" json:"inventory_sources_with_failures"`
+
 	HasInventorySources          bool          `bson:"has_inventory_sources" json:"has_inventory_sources"`
-	TotalInventorySources        uint32        `bson:"total_inventory_sources" json:"total_inventory_sources"`
-	InventorySourcesWithFailures uint32        `bson:"inventory_sources_with_failures" json:"inventory_sources_with_failures"`
-	Organization                 bson.ObjectId `bson:"organization_id" json:"organization"`
-	CreatedBy                    bson.ObjectId `bson:"created_by" json:"created_by"`
-	ModifiedBy                   bson.ObjectId `bson:"modified_by" json:"modified_by"`
+	HasActiveFailures            bool          `bson:"has_active_failures" json:"has_active_failures"`
+
+	CreatedBy                    bson.ObjectId `bson:"created_by" json:"-"`
+	ModifiedBy                   bson.ObjectId `bson:"modified_by" json:"-"`
+
 	Created                      time.Time     `bson:"created" json:"created"`
 	Modified                     time.Time     `bson:"modified" json:"modified"`
 

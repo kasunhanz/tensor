@@ -52,7 +52,15 @@ func GetCredential(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	hideEncrypted(&credential)
-	metadata.CredentialMetadata(&credential)
+
+	if err := metadata.CredentialMetadata(&credential); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Credential",
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, credential)
 }

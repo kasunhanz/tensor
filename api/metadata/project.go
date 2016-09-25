@@ -69,7 +69,7 @@ func projectSummary(p *models.Project) error {
 
 	//TODO: get project job information
 
-	p.SummaryFields = gin.H{
+	p.Summary = gin.H{
 		"object_roles": []gin.H{
 			{
 				"description": "Can manage all aspects of the project",

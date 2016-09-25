@@ -19,8 +19,10 @@ type Team struct {
 	Name           string             `bson:"name" json:"name" binding:"required"`
 	Description    string             `bson:"description" json:"description"`
 	OrganizationID bson.ObjectId      `bson:"organization_id" json:"organization"`
-	CreatedBy      bson.ObjectId      `bson:"created_by" json:"created_by"`
-	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"modified_by"`
+
+	CreatedBy      bson.ObjectId      `bson:"created_by" json:"-"`
+	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`
+
 	Created        time.Time          `bson:"created" json:"created"`
 	Modified       time.Time          `bson:"modified" json:"modified"`
 

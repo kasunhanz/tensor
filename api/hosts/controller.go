@@ -46,10 +46,7 @@ func GetHost(c *gin.Context) {
 	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:host,
-	})
+	c.JSON(http.StatusOK, host)
 }
 
 
@@ -74,61 +71,50 @@ func GetHosts(c *gin.Context) {
 
 	//prepare the query
 	query := dbc.Find(match)
-
-	//get number of records fro pagination
-	count, err := query.Count();
-	if err != nil {
-		log.Println("Error while trying to get count of Hosts from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting hosts",
-		})
-		return
-	}
-
-	// init pagination
-	pgi := util.NewPagination(c, count)
-
-	//if page is incorrect return 404
-	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-		return
-	}
-
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
 	var hosts []models.Host
-
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&hosts); err != nil {
-		log.Println("Error while retriving Host data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting hosts",
-		})
-		return
-	}
-	for i, v := range hosts {
-		if err := metadata.HostMetadata(&v); err != nil {
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpHost models.Host
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpHost) {
+		if err := metadata.HostMetadata(&tmpHost); err != nil {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting hosts",
+				Message: "Error while getting Hosts",
 			})
 			return
 		}
-
-		hosts[i] = v
+		// good to go add to list
+		hosts = append(hosts, tmpHost)
+	}
+	if err := iter.Close(); err != nil {
+		log.Println("Error while retriving Host data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Hosts",
+		})
+		return
 	}
 
-
+	count := len(hosts)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:hosts,
+		Results: hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -183,10 +169,7 @@ func AddHost(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:host,
-	})
+	c.JSON(http.StatusCreated, host)
 }
 // update will update a Host
 // from request values
@@ -226,10 +209,7 @@ func UpdateHost(c *gin.Context) {
 	addActivity(host.ID, user.ID, "Host " + host.Name + " created")
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:host,
-	})
+	c.JSON(http.StatusOK, host)
 }
 
 func RemoveHost(c *gin.Context) {
@@ -260,7 +240,7 @@ func VariableData(c *gin.Context) {
 
 	variables := gin.H{}
 
-	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
+	if err := json.Unmarshal([]byte(*host.Variables), &variables); err != nil {
 		log.Println("Error while getting host variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code": http.StatusInternalServerError,
@@ -273,6 +253,7 @@ func VariableData(c *gin.Context) {
 
 }
 
+// TODO: not implemented
 func Groups(c *gin.Context) {
 	host := c.MustGet(_CTX_HOST).(models.Host)
 
@@ -280,7 +261,7 @@ func Groups(c *gin.Context) {
 
 	var group models.Group
 
-	if len(host.GroupID) == 24 {
+	if host.GroupID != nil {
 		// find group for the host
 		if err := collection.FindId(host.GroupID).One(&group); err != nil {
 			log.Println("Error while getting groups")
@@ -295,20 +276,16 @@ func Groups(c *gin.Context) {
 		metadata.GroupMetadata(&group)
 
 		// send response with JSON rendered data
-		c.JSON(http.StatusOK, models.Response{
-			Count: 1,
-			Results: []models.Group{group, },
-		})
+		c.JSON(http.StatusOK, group)
 		return
 	}
 
 	// no assigned groups
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count: 0,
-	})
+	c.JSON(http.StatusOK, nil)
 }
 
+// TODO: not implemented
 func AllGroups(c *gin.Context) {
 	host := c.MustGet(_CTX_HOST).(models.Host)
 
@@ -317,7 +294,7 @@ func AllGroups(c *gin.Context) {
 	var outobjects []models.Group
 	var group models.Group
 
-	if len(host.GroupID) == 24 {
+	if host.GroupID != nil {
 		// find group for the host
 		if err := collection.FindId(host.GroupID).One(&group); err != nil {
 			log.Println("Error while getting groups")
@@ -335,7 +312,7 @@ func AllGroups(c *gin.Context) {
 		// clean object
 		group = models.Group{}
 
-		for len(group.ParentGroupID) == 12 {
+		for group.ParentGroupID != nil {
 			// find group for the host
 			if err := collection.FindId(host.GroupID).One(&group); err != nil {
 				log.Println("Error while getting groups")

@@ -49,10 +49,7 @@ func GetInventory(c *gin.Context) {
 	metadata.InventoryMetadata(&inventory)
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:inventory,
-	})
+	c.JSON(http.StatusOK, inventory)
 }
 
 // GetInventories returns a JSON array of projects
@@ -74,57 +71,50 @@ func GetInventories(c *gin.Context) {
 	}
 
 	query := dbc.Find(match)
-	count, err := query.Count();
-
-	if err != nil {
-		log.Println("Error while trying to get count of Inventories from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while getting Inventories",
-		})
-		return
-	}
-
-	pgi := util.NewPagination(c, count)
-	if pgi.HasPage() {
-		//if page is incorrect return 404
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-		return
-	}
-
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
 	var inventories []models.Inventory
-
-	if err := query.Skip(pgi.Offset()).Limit(pgi.Limit()).All(&inventories); err != nil {
+	// new mongodb iterator
+	iter := query.Iter()
+	// loop through each result and modify for our needs
+	var tmpInventory models.Inventory
+	// iterate over all and only get valid objects
+	for iter.Next(&tmpInventory) {
+		if err := metadata.InventoryMetadata(&tmpInventory); err != nil {
+			log.Println("Error while setting metatdata:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Inventory",
+			})
+			return
+		}
+		// good to go add to list
+		inventories = append(inventories, tmpInventory)
+	}
+	if err := iter.Close(); err != nil {
 		log.Println("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Inventories",
+			Message: "Error while getting Inventory",
 		})
 		return
 	}
 
-	for i, v := range inventories {
-		if err := metadata.InventoryMetadata(&v); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Message: "Error while getting Inventories",
-			})
-			return
-		}
-		inventories[i] = v
+	count := len(inventories)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
 	}
-
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
 		Next: pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:inventories,
+		Results: inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -147,7 +137,7 @@ func AddInventory(c *gin.Context) {
 		ID: bson.NewObjectId(),
 		Name: req.Name,
 		Description: req.Description,
-		Organization: req.Organization,
+		OrganizationID: req.OrganizationID,
 		Variables: req.Variables,
 		Created: time.Now(),
 		Modified: time.Now(),
@@ -180,10 +170,7 @@ func AddInventory(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, models.Response{
-		Count:1,
-		Results:inventory,
-	})
+	c.JSON(http.StatusCreated, inventory)
 }
 
 // UpdateInventory will update existing Inventory with
@@ -235,10 +222,7 @@ func UpdateInventory(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
-		Count:1,
-		Results:inventory,
-	})
+	c.JSON(http.StatusOK, inventory)
 }
 
 func RemoveInventory(c *gin.Context) {
@@ -308,7 +292,7 @@ func Script(c *gin.Context) {
 			return
 		}
 		var gv gin.H
-		err = json.Unmarshal([]byte(host.Variables), &gv);
+		err = json.Unmarshal([]byte(*host.Variables), &gv);
 		if err != nil {
 			log.Println("Error while unmarshalling group vars", err)
 			// send a brief error description to client
@@ -393,7 +377,7 @@ func Script(c *gin.Context) {
 			groupnames = append(groupnames, v.Name)
 
 			var gv gin.H
-			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+			if err := json.Unmarshal([]byte(*v.Variables), &gv); err != nil {
 				log.Println("Error while unmarshalling group vars", err)
 				// send a brief error description to client
 				c.JSON(http.StatusInternalServerError, gin.H{
@@ -418,7 +402,7 @@ func Script(c *gin.Context) {
 	var hosts []string
 	for _, v := range allhosts {
 		var gv gin.H
-		if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+		if err := json.Unmarshal([]byte(*v.Variables), &gv); err != nil {
 			log.Println("Error while unmarshalling group vars", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
