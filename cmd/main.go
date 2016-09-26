@@ -11,7 +11,7 @@ import (
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	database "bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func doSetup() int {
 
 	var ouser models.User
 
-	userc := db.C("users")
+	userc := db.C(db.USERS)
 	err := userc.Find(bson.M{"email": user.Email, "username": user.Username}).One(&ouser)
 
 	if err == nil {
@@ -60,7 +60,7 @@ func doSetup() int {
 			Created:  time.Now(),
 		}
 
-		if err := newUser.Insert(); err != nil {
+		if err := userc.Insert(newUser); err != nil {
 			fmt.Printf(" Inserting user failed. If you already have a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}
