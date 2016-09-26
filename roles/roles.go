@@ -59,13 +59,3 @@ func AddUserRole(object bson.ObjectId, user bson.ObjectId, role string) error {
 	}
 	return nil
 }
-
-func AddTeamRole(object bson.ObjectId, team bson.ObjectId, role string) error {
-	dbacl := db.C(db.ACl)
-	err := dbacl.Insert(models.ACL{ID:bson.NewObjectId(), Object:object, Type:"team", TeamID:team, Role: role});
-	if err != nil {
-		log.Println("Error while creating ACL:", err)
-		return err
-	}
-	return nil
-}
