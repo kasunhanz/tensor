@@ -35,7 +35,7 @@ func Middleware(c *gin.Context) {
 	}
 
 	// reject the request if the user doesn't have permissions
-	if roles.CredentialRead(user, credential) {
+	if !roles.CredentialRead(user, credential) {
 		c.JSON(http.StatusUnauthorized, models.Error{
 			Code: http.StatusUnauthorized,
 			Message: "Unauthorized",
@@ -384,7 +384,7 @@ func ActivityStream(c *gin.Context) {
 
 	var activities []models.Activity
 	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(activities)
+	err := collection.Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)
@@ -392,6 +392,7 @@ func ActivityStream(c *gin.Context) {
 			Code:http.StatusInternalServerError,
 			Message: "Error while Activities",
 		})
+		return
 	}
 
 	count := len(activities)

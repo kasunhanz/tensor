@@ -14,12 +14,12 @@ func CredentialMetadata(cred *models.Credential) error {
 	related := gin.H{
 		"created_by": "/v1/users/" + cred.CreatedByID.Hex() + "/",
 		"modified_by": "/v1/users/" + cred.ModifiedByID.Hex() + "/",
-		"owner_teams": "/v1/organizations/" + ID + "/users/",
-		"owner_users": "/v1/organizations/" + ID + "/object_roles/",
-		"activity_stream": "/v1/organizations/" + ID + "/activity_stream/",
-		"access_list": "/v1/organizations/" + ID + "/access_list/",
+		"owner_teams": "/v1/credentials/" + ID + "/owner_teams/",
+		"owner_users": "/v1/credentials/" + ID + "/owner_users/",
+		"activity_stream": "/v1/credentials/" + ID + "/activity_stream/",
+		"access_list": "/v1/credentials/" + ID + "/access_list/",
 		"object_roles": "/api/v1/credentials/" + ID + "/object_roles/",
-		"user": "/api/v1/users/" + cred.CreatedByID.Hex() + "/",
+		"user": "/v1/users/" + cred.CreatedByID.Hex() + "/",
 	}
 
 	if cred.OrganizationID != nil {
@@ -37,11 +37,13 @@ func CredentialMetadata(cred *models.Credential) error {
 
 func setCredentialSummary(cred *models.Credential) error {
 	dbu := db.C(db.USERS)
+	cTeams := db.C(db.TEAMS)
+	cOrganization := db.C(db.ORGANIZATIONS)
 
 	var modified models.User
 	var created models.User
 	var org models.Organization
-	var owners []models.User
+	var owners []gin.H
 
 	if err := dbu.FindId(cred.CreatedByID).One(&created); err != nil {
 		return err
@@ -51,9 +53,9 @@ func setCredentialSummary(cred *models.Credential) error {
 		return err
 	}
 
-	//TODO: include teams to owners list
-
 	summary := gin.H{
+		"host": gin.H{}, // TODO: implement
+		"project": gin.H{}, // TODO: implement
 		"object_roles": []gin.H{
 			{
 				"Description": "Can manage all aspects of the credential",
@@ -80,14 +82,53 @@ func setCredentialSummary(cred *models.Credential) error {
 			"first_name": modified.FirstName,
 			"last_name":  modified.LastName,
 		},
-		"owners": owners,
+	}
+
+
+	// owners
+	// teams and users
+	for _, v := range cred.Roles {
+		switch v.Type {
+		case "user": {
+			var user models.User
+			if err := dbu.FindId(v.UserID).One(&user); err != nil {
+				return err
+			}
+			owners = append(owners, gin.H{
+				"url": "/v1/users/" + v.UserID + "/",
+				"description": "",
+				"type": "user",
+				"id": v.UserID,
+				"name": user.Username,
+			})
+		}
+		case "team": {
+			var team models.Team
+			if err := cTeams.FindId(v.TeamID).One(&team); err != nil {
+				return err
+			}
+			owners = append(owners, gin.H{
+				"url": "/v1/teams/" + v.TeamID + "/",
+				"description": *team.Description,
+				"type": "team",
+				"id": v.TeamID,
+				"name": team.Name,
+			})
+		}
+		}
 	}
 
 	if cred.OrganizationID != nil {
-
-		if err := dbu.FindId(cred.OrganizationID).One(&org); err != nil {
+		if err := cOrganization.FindId(cred.OrganizationID).One(&org); err != nil {
 			return err
 		}
+		owners = append(owners, gin.H{
+			"url": "/v1/organizations/" + *cred.OrganizationID + "/",
+			"description": *org.Description,
+			"type": "organization",
+			"id": cred.OrganizationID,
+			"name": org.Name,
+		})
 
 		summary["organization"] = gin.H{
 			"id": org.ID,
@@ -95,6 +136,8 @@ func setCredentialSummary(cred *models.Credential) error {
 			"description": org.Description,
 		}
 	}
+
+	summary["owners"] = owners
 
 	cred.Summary = summary;
 

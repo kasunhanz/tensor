@@ -394,7 +394,7 @@ func ActivityStream(c *gin.Context) {
 
 	var activities []models.Activity
 	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(activities)
+	err := collection.Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)
