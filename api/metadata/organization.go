@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"gopkg.in/mgo.v2/bson"
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
@@ -54,27 +53,6 @@ func organizationSummary(o *models.Organization) error {
 
 	if err := dbu.FindId(o.ModifiedBy).One(&modified); err != nil {
 		return err
-	}
-
-	q := []bson.M{
-		{"$match": bson.M{"object": o.ID, "role": "admin", }},
-		{
-			"$lookup": bson.M{
-				"from": "users",
-				"localField": "user_id",
-				"foreignField": "_id",
-				"as": "owner",
-			},
-		},
-		{"$project": bson.M{"_id":0, "users":bson.M{"$arrayElemAt": []interface{}{"$owner", 0} }, }},
-		{"$project": bson.M{
-			"_id":"$users._id",
-			"created":"$users.created",
-			"email":"$users.email",
-			"name":"$users.name",
-			"password":"$users.password",
-			"username":"$users.username",
-		}},
 	}
 
 	//TODO: include teams to owners list
