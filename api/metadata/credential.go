@@ -4,7 +4,6 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
 )
 
 func CredentialMetadata(cred *models.Credential) error {
@@ -50,27 +49,6 @@ func setCredentialSummary(cred *models.Credential) error {
 
 	if err := dbu.FindId(cred.ModifiedByID).One(&modified); err != nil {
 		return err
-	}
-
-	q := []bson.M{
-		{"$match": bson.M{"object": cred.ID, "role": "admin", }},
-		{
-			"$lookup": bson.M{
-				"from": "users",
-				"localField": "user_id",
-				"foreignField": "_id",
-				"as": "owner",
-			},
-		},
-		{"$project": bson.M{"_id":0, "users":bson.M{"$arrayElemAt": []interface{}{"$owner", 0} }, }},
-		{"$project": bson.M{
-			"_id":"$users._id",
-			"created":"$users.created",
-			"email":"$users.email",
-			"name":"$users.name",
-			"password":"$users.password",
-			"username":"$users.username",
-		}},
 	}
 
 	//TODO: include teams to owners list
