@@ -1,12 +1,5 @@
 package roles
 
-import (
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
-	"gopkg.in/mgo.v2/bson"
-)
-
 //Important: if you are adding roles to team which means you are adding user to that team
 const (
 	// organization
@@ -44,18 +37,3 @@ const (
 	TEAM_MEMBER = "member"
 	TEAM_READ = "read"
 )
-
-// steps
-// check super permissins
-// check specific permissions
-// check organization permissions
-
-func AddUserRole(object bson.ObjectId, user bson.ObjectId, role string) error {
-	dbacl := db.C(db.ACl)
-	err := dbacl.Insert(models.AccessControl{Type:"user", UserID:user, Role: role});
-	if err != nil {
-		log.Println("Error while creating ACL:", err)
-		return err
-	}
-	return nil
-}

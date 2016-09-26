@@ -43,7 +43,6 @@ func OrganizationMetadata(o *models.Organization) error {
 func organizationSummary(o *models.Organization) error {
 
 	dbu := db.MongoDb.C(db.USERS)
-	dbacl := db.MongoDb.C(db.ACl)
 
 	var modified models.User
 	var created models.User
@@ -76,10 +75,6 @@ func organizationSummary(o *models.Organization) error {
 			"password":"$users.password",
 			"username":"$users.username",
 		}},
-	}
-
-	if err := dbacl.Pipe(q).All(&owners); err != nil {
-		return err
 	}
 
 	//TODO: include teams to owners list

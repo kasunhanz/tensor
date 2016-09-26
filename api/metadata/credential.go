@@ -38,7 +38,6 @@ func CredentialMetadata(cred *models.Credential) error {
 
 func setCredentialSummary(cred *models.Credential) error {
 	dbu := db.C(db.USERS)
-	dbacl := db.C(db.ACl)
 
 	var modified models.User
 	var created models.User
@@ -72,10 +71,6 @@ func setCredentialSummary(cred *models.Credential) error {
 			"password":"$users.password",
 			"username":"$users.username",
 		}},
-	}
-
-	if err := dbacl.Pipe(q).All(&owners); err != nil {
-		return err
 	}
 
 	//TODO: include teams to owners list

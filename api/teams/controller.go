@@ -119,7 +119,6 @@ func GetTeams(c *gin.Context) {
 
 // AddTeam creates a new team
 func AddTeam(c *gin.Context) {
-
 	user := c.MustGet("user").(models.User)
 
 	var req models.Team
@@ -152,22 +151,6 @@ func AddTeam(c *gin.Context) {
 		})
 		return
 	}
-
-	err = roles.AddUserRole(team.ID, user.ID, roles.TEAM_ADMIN)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while creating ACL",
-		})
-
-		err := dbc.RemoveId(team.ID);
-		if err != nil {
-			log.Println("Error while removing Team", err)
-		}
-
-		return
-	}
-
 
 	// add new activity to activity stream
 	addActivity(team.ID, user.ID, "Group " + team.Name + " created")

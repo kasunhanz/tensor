@@ -9,7 +9,6 @@ import (
 
 var MongoDb *mgo.Database
 
-const ACl = "acls"
 const AD_HOC_COMMANDS = "ad_hoc_commands"
 const CREDENTIALS = "credentials"
 const GROUPS = "groups"
