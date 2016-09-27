@@ -36,7 +36,7 @@ type Credential struct {
 	Client            *string         `bson:"client,omitempty" json:"client"`
 	Authorize         bool            `bson:"authorize,omitempty" json:"authorize"`
 	AuthorizePassword *string         `bson:"authorize_password,omitempty" json:"authorize_password"`
-	OrganizationID    *bson.ObjectId  `bson:"organization_id,omitempty" json:"organization_id"`
+	OrganizationID    *bson.ObjectId  `bson:"organization_id,omitempty" json:"organization"`
 
 	Created           time.Time       `bson:"created" json:"created"`
 	Modified          time.Time       `bson:"modified" json:"modified"`
