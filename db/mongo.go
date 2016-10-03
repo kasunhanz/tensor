@@ -93,3 +93,48 @@ func CreateIndexes() {
 	}
 
 }
+
+// collection shortcut methods
+func Organizations() *mgo.Collection {
+	return MongoDb.C(ORGANIZATIONS)
+}
+
+func Credentials() *mgo.Collection {
+	return MongoDb.C(CREDENTIALS)
+}
+
+func Users() *mgo.Collection {
+	return MongoDb.C(USERS)
+}
+
+func Teams() *mgo.Collection {
+	return MongoDb.C(TEAMS)
+}
+
+func Jobs() *mgo.Collection {
+	return MongoDb.C(JOBS)
+}
+
+func JobTemplates() *mgo.Collection {
+	return MongoDb.C(JOB_TEMPLATES)
+}
+
+func Hosts() *mgo.Collection {
+	return MongoDb.C(HOSTS)
+}
+
+func Inventories() *mgo.Collection {
+	return MongoDb.C(INVENTORIES)
+}
+
+func Groups() *mgo.Collection {
+	return MongoDb.C(GROUPS)
+}
+
+func Projects() *mgo.Collection {
+	return MongoDb.C(PROJECTS)
+}
+
+func ActivityStream() *mgo.Collection {
+	return MongoDb.C(ACTIVITY_STREAM)
+}

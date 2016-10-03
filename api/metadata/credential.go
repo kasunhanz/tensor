@@ -28,28 +28,25 @@ func CredentialMetadata(cred *models.Credential) error {
 
 	cred.Related = related
 
-	if err := setCredentialSummary(cred); err != nil {
+	if err := credentialSummary(cred); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func setCredentialSummary(cred *models.Credential) error {
-	dbu := db.C(db.USERS)
-	cTeams := db.C(db.TEAMS)
-	cOrganization := db.C(db.ORGANIZATIONS)
+func credentialSummary(cred *models.Credential) error {
 
 	var modified models.User
 	var created models.User
 	var org models.Organization
 	var owners []gin.H
 
-	if err := dbu.FindId(cred.CreatedByID).One(&created); err != nil {
+	if err := db.Users().FindId(cred.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(cred.ModifiedByID).One(&modified); err != nil {
+	if err := db.Users().FindId(cred.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
@@ -91,7 +88,7 @@ func setCredentialSummary(cred *models.Credential) error {
 		switch v.Type {
 		case "user": {
 			var user models.User
-			if err := dbu.FindId(v.UserID).One(&user); err != nil {
+			if err := db.Users().FindId(v.UserID).One(&user); err != nil {
 				return err
 			}
 			owners = append(owners, gin.H{
@@ -104,7 +101,7 @@ func setCredentialSummary(cred *models.Credential) error {
 		}
 		case "team": {
 			var team models.Team
-			if err := cTeams.FindId(v.TeamID).One(&team); err != nil {
+			if err := db.Teams().FindId(v.TeamID).One(&team); err != nil {
 				return err
 			}
 			owners = append(owners, gin.H{
@@ -119,14 +116,14 @@ func setCredentialSummary(cred *models.Credential) error {
 	}
 
 	if cred.OrganizationID != nil {
-		if err := cOrganization.FindId(cred.OrganizationID).One(&org); err != nil {
+		if err := db.Organizations().FindId(*cred.OrganizationID).One(&org); err != nil {
 			return err
 		}
 		owners = append(owners, gin.H{
 			"url": "/v1/organizations/" + *cred.OrganizationID + "/",
-			"description": *org.Description,
+			"description": org.Description,
 			"type": "organization",
-			"id": cred.OrganizationID,
+			"id": org.ID,
 			"name": org.Name,
 		})
 

@@ -19,9 +19,7 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 		Created: time.Now(),
 	}
 
-	c := db.C(db.ACTIVITY_STREAM)
-
-	if err := c.Insert(a); err != nil {
+	if err := db.ActivityStream().Insert(a); err != nil {
 		log.Println("Failed to add new Activity", err)
 	}
 }
@@ -29,10 +27,10 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 // hideEncrypted is replace encrypted fields by $encrypted$
 func hideEncrypted(c *models.Credential) {
 	encrypted := "$encrypted$"
-	c.Password = &encrypted
-	c.SshKeyData = &encrypted
-	c.SshKeyUnlock = &encrypted
-	c.BecomePassword = &encrypted
-	c.VaultPassword = &encrypted
-	c.AuthorizePassword = &encrypted
+	c.Password = encrypted
+	c.SshKeyData = encrypted
+	c.SshKeyUnlock = encrypted
+	c.BecomePassword = encrypted
+	c.VaultPassword = encrypted
+	c.AuthorizePassword = encrypted
 }

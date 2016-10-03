@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 )
 
 const _CTX_TEAM = "team"
@@ -23,11 +24,19 @@ const _CTX_TEAM_ID = "team_id"
 // fetches project data from the database
 // this set the team data under key _CTX_TEAM in gin.Context
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_TEAM_ID)
+	ID, err := util.GetIdParam(_CTX_TEAM, c)
 
-	collection := db.C(db.TEAMS)
+	if err != nil {
+		log.Print("Error while getting the Team:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
+
 	var team models.Team
-	err := collection.FindId(bson.ObjectIdHex(ID)).One(&team);
+	err = db.Teams().FindId(bson.ObjectIdHex(ID)).One(&team);
 	if err != nil {
 		log.Print("Error while getting the Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
@@ -55,7 +64,6 @@ func GetTeam(c *gin.Context) {
 // GetTeams returns a JSON array of teams
 func GetTeams(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
-	dbc := db.C(db.TEAMS)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -63,7 +71,7 @@ func GetTeams(c *gin.Context) {
 		match = con
 	}
 
-	query := dbc.Find(match)
+	query := db.Teams().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
@@ -129,20 +137,18 @@ func AddTeam(c *gin.Context) {
 		return
 	}
 
-	team := models.Team{
-		ID:bson.NewObjectId(),
-		Name:req.Name,
-		Description:req.Description,
-		OrganizationID: req.OrganizationID,
-		Created:time.Now(),
-		Modified:time.Now(),
-		CreatedBy: user.ID,
-		ModifiedBy: user.ID,
+	// check whether the organization exist or not
+	if !helpers.OrganizationExist(req.OrganizationID, c) {
+		return
 	}
 
-	dbc := db.C(db.TEAMS)
+	req.ID = bson.NewObjectId()
+	req.Created = time.Now()
+	req.Modified = time.Now()
+	req.CreatedBy = user.ID
+	req.ModifiedBy = user.ID
 
-	err := dbc.Insert(team);
+	err := db.Teams().Insert(req);
 	if err != nil {
 		log.Println("Error while creating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -153,9 +159,9 @@ func AddTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(team.ID, user.ID, "Group " + team.Name + " created")
+	addActivity(req.ID, user.ID, "Group " + req.Name + " created")
 
-	err = metadata.TeamMetadata(&team);
+	err = metadata.TeamMetadata(&req);
 	if err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -165,7 +171,7 @@ func AddTeam(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, team)
+	c.JSON(http.StatusCreated, req)
 }
 
 
@@ -186,16 +192,18 @@ func UpdateTeam(c *gin.Context) {
 		return
 	}
 
-	team.Name = req.Name
-	team.Description = req.Description
-	team.OrganizationID = req.OrganizationID
-	team.Modified = time.Now()
-	team.ModifiedBy = user.ID
+	// check whether the organization exist or not
+	if !helpers.OrganizationExist(req.OrganizationID, c) {
+		return
+	}
 
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
+	req.Created = team.Created
+	req.Modified = time.Now()
+	req.CreatedBy = team.CreatedBy
+	req.ModifiedBy = user.ID
 
 	// update object
-	if err := collection.UpdateId(team.ID, team); err != nil {
+	if err := db.JobTemplates().UpdateId(team.ID, req); err != nil {
 		log.Println("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -205,10 +213,10 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(team.ID, user.ID, "Team " + team.Name + " updated")
+	addActivity(req.ID, user.ID, "Team " + req.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.TeamMetadata(&team); err != nil {
+	if err := metadata.TeamMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -218,7 +226,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// render JSON with 200 status code
-	c.JSON(http.StatusOK, team)
+	c.JSON(http.StatusOK, req)
 }
 
 // RemoveTeam will remove the Team
@@ -229,10 +237,8 @@ func RemoveTeam(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.MongoDb.C(db.TEAMS)
-
 	// remove object from the collection
-	err := collection.RemoveId(team.ID);
+	err := db.Teams().RemoveId(team.ID);
 	if err != nil {
 		log.Println("Error while removing Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -253,12 +259,11 @@ func Users(c *gin.Context) {
 	team := c.MustGet(_CTX_TEAM).(models.Team)
 
 	var usrs []models.User
-	collection := db.C(db.USERS)
 
 	for _, v := range team.Roles {
 		if v.Type == "user" {
 			var user models.User
-			err := collection.FindId(v.UserID).One(&user)
+			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
 				log.Println("Error while getting owner users for credential", team.ID, err)
 				continue //skip iteration
@@ -289,11 +294,9 @@ func Credentials(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 	team := c.MustGet(_CTX_TEAM).(models.Team)
 
-	collection := db.C(db.CREDENTIALS)
-
 	var credentials []models.Credential
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+	iter := db.Credentials().Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
 	// loop through each result and modify for our needs
 	var tmpCred models.Credential
 	// iterate over all and only get valid objects
@@ -345,11 +348,9 @@ func Projects(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 	team := c.MustGet(_CTX_TEAM).(models.Team)
 
-	collection := db.C(db.CREDENTIALS)
-
 	var projects []models.Project
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+	iter := db.Projects().Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
 	// loop through each result and modify for our needs
 	var tmpProject models.Project
 	// iterate over all and only get valid objects
@@ -400,8 +401,7 @@ func ActivityStream(c *gin.Context) {
 	team := c.MustGet(_CTX_TEAM).(models.Team)
 
 	var activities []models.Activity
-	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": team.ID, "type": _CTX_TEAM}).All(activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": team.ID, "type": _CTX_TEAM}).All(activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)

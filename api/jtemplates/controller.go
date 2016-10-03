@@ -12,6 +12,9 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/runners"
+	"bitbucket.pearson.com/apseng/tensor/api/jwt"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -25,11 +28,19 @@ const _CTX_JOB_TEMPLATE_ID = "job_template_id"
 // takes _CTX_JOB_TEMPLATE_ID parameter form the request, fetches the Job Template
 // and set it under key _CTX_JOB_TEMPLATE in gin.Context
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_JOB_TEMPLATE_ID) //get template ID
+	ID, err := util.GetIdParam(_CTX_JOB_TEMPLATE_ID, c)
 
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
+	if err != nil {
+		log.Print("Error while getting the Job Template:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
+
 	var jobTemplate models.JobTemplate
-	err := collection.FindId(bson.ObjectIdHex(ID)).One(&jobTemplate);
+	err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate);
 
 	if err != nil {
 		log.Print("Error while getting the Job Template:", err) // log error to the system log
@@ -61,7 +72,6 @@ func GetJTemplate(c *gin.Context) {
 // GetJTemplates renders the Job Templates as JSON
 func GetJTemplates(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -70,7 +80,7 @@ func GetJTemplates(c *gin.Context) {
 		match = con
 	}
 
-	query := collection.Find(match) // prepare the query
+	query := db.JobTemplates().Find(match) // prepare the query
 	// set sort value to the query based on request parameters
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
@@ -135,48 +145,44 @@ func AddJTemplate(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: "Bad Request, " + err.Error(),
 		})
 		return
 	}
 
-	// create new object to omit unnecessary fields
-	jobTemplate := models.JobTemplate{
-		Name: req.Name,
-		JobType: req.JobType,
-		InventoryID: req.InventoryID,
-		ProjectID: req.ProjectID,
-		Playbook: req.Playbook,
-		MachineCredentialID: req.MachineCredentialID,
-		Verbosity: req.Verbosity,
-		Description: req.Description,
-		CloudCredentialID: req.CloudCredentialID,
-		NetworkCredentialID: req.NetworkCredentialID,
-		StartAtTask: req.StartAtTask,
-		SkipTags: req.SkipTags,
-		Forks: req.Forks,
-		Limit: req.Limit,
-		JobTags: req.JobTags,
-		ExtraVars: req.ExtraVars,
-		PromptInventory: req.PromptInventory,
-		PromptCredential: req.PromptCredential,
-		PromptLimit: req.PromptLimit,
-		PromptTags: req.PromptTags,
-		BecomeEnabled: req.BecomeEnabled,
-		PromptVariables: req.PromptVariables,
-		AllowSimultaneous: req.AllowSimultaneous,
-		ForceHandlers: req.ForceHandlers,
-		ID: bson.NewObjectId(),
-		Created: time.Now(),
-		Modified: time.Now(),
-		CreatedByID: user.ID,
-		ModifiedByID: user.ID,
+
+	// check whether the inventory exist or not
+	if !helpers.InventoryExist(req.InventoryID, c) {
+		return
 	}
 
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
+	// check whether the machine credential exist or not
+	if !helpers.MachineCredentialExist(req.MachineCredentialID, c) {
+		return
+	}
+
+	// check whether the network credential exist or not
+	if req.NetworkCredentialID != nil {
+		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID, c) {
+			return
+		}
+	}
+
+	// check whether the network credential exist or not
+	if req.CloudCredentialID != nil {
+		if !helpers.CloudCredentialExist(*req.CloudCredentialID, c) {
+			return
+		}
+	}
+
+	req.ID = bson.NewObjectId()
+	req.Created = time.Now()
+	req.Modified = time.Now()
+	req.CreatedByID = user.ID
+	req.ModifiedByID = user.ID
 
 	// insert new object
-	err = collection.Insert(jobTemplate);
+	err = db.JobTemplates().Insert(req);
 	if err != nil {
 		log.Println("Error while creating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -187,10 +193,10 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " created")
+	addActivity(req.ID, user.ID, "Job Template " + req.Name + " created")
 
 	// set `related` and `summary` feilds
-	err = metadata.JTemplateMetadata(&jobTemplate);
+	err = metadata.JTemplateMetadata(&req);
 	if err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -201,7 +207,7 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, jobTemplate)
+	c.JSON(http.StatusCreated, req)
 }
 
 // UpdateJTemplate will update the Job Template
@@ -222,38 +228,32 @@ func UpdateJTemplate(c *gin.Context) {
 		return
 	}
 
-	// create new object to omit unnecessary fields
-	jobTemplate.Name = req.Name
-	jobTemplate.JobType = req.JobType
-	jobTemplate.InventoryID = req.InventoryID
-	jobTemplate.ProjectID = req.ProjectID
-	jobTemplate.Playbook = req.Playbook
-	jobTemplate.MachineCredentialID = req.MachineCredentialID
-	jobTemplate.Verbosity = req.Verbosity
-	jobTemplate.Description = req.Description
-	jobTemplate.CloudCredentialID = req.CloudCredentialID
-	jobTemplate.NetworkCredentialID = req.NetworkCredentialID
-	jobTemplate.StartAtTask = req.StartAtTask
-	jobTemplate.SkipTags = req.SkipTags
-	jobTemplate.Forks = req.Forks
-	jobTemplate.Limit = req.Limit
-	jobTemplate.JobTags = req.JobTags
-	jobTemplate.ExtraVars = req.ExtraVars
-	jobTemplate.PromptInventory = req.PromptInventory
-	jobTemplate.PromptCredential = req.PromptCredential
-	jobTemplate.PromptLimit = req.PromptLimit
-	jobTemplate.PromptTags = req.PromptTags
-	jobTemplate.BecomeEnabled = req.BecomeEnabled
-	jobTemplate.PromptVariables = req.PromptVariables
-	jobTemplate.AllowSimultaneous = req.AllowSimultaneous
-	jobTemplate.ForceHandlers = req.ForceHandlers
-	jobTemplate.Modified = time.Now()
-	jobTemplate.ModifiedByID = user.ID
+	// check whether the machine credential exist or not
+	if !helpers.MachineCredentialExist(req.MachineCredentialID, c) {
+		return
+	}
 
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
+	// check whether the network credential exist or not
+	if req.NetworkCredentialID != nil {
+		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID, c) {
+			return
+		}
+	}
+
+	// check whether the network credential exist or not
+	if req.CloudCredentialID != nil {
+		if !helpers.CloudCredentialExist(*req.CloudCredentialID, c) {
+			return
+		}
+	}
+
+	req.Created = jobTemplate.Created
+	req.Modified = time.Now()
+	req.CreatedByID = jobTemplate.CreatedByID
+	req.ModifiedByID = user.ID
 
 	// update object
-	err = collection.UpdateId(jobTemplate.ID, jobTemplate);
+	err = db.JobTemplates().UpdateId(jobTemplate.ID, req);
 	if err != nil {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -264,10 +264,10 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
+	addActivity(req.ID, user.ID, "Job Template " + req.Name + " updated")
 
 	// set `related` and `summary` feilds
-	err = metadata.JTemplateMetadata(&jobTemplate);
+	err = metadata.JTemplateMetadata(&req);
 	if err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -278,7 +278,7 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, jobTemplate)
+	c.JSON(http.StatusOK, req)
 }
 
 // RemoveJTemplate will remove the Job Template
@@ -289,10 +289,8 @@ func RemoveJTemplate(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.MongoDb.C(db.JOB_TEMPLATES)
-
 	// remove object from the collection
-	err := collection.RemoveId(jobTemplate.ID);
+	err := db.JobTemplates().RemoveId(jobTemplate.ID);
 	if err != nil {
 		log.Println("Error while removing Job Temlate:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -309,83 +307,13 @@ func RemoveJTemplate(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-func LaunchInfo(c *gin.Context) {
-	// get template from the gin.Context
-	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
-
-	var isCredentialNeeded bool
-	var isInventoryNeeded bool
-
-	defaults := gin.H{
-		"job_tags": jt.JobTags,
-		"extra_vars": jt.ExtraVars,
-		"job_type": jt.JobType,
-		"skip_tags": jt.SkipTags,
-		"limit": jt.Limit,
-		"inventory": gin.H{
-			"id": jt.InventoryID,
-			"name": "Demo Inventory",
-		},
-	}
-
-	ccred := db.C(db.CREDENTIALS)
-	var cred models.Credential
-
-	if err := ccred.FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.Println("Cound not find Credential", err)
-		defaults["credential"] = nil
-		isCredentialNeeded = true
-	} else {
-		defaults["credential"] = gin.H{
-			"id": cred.ID,
-			"name": cred.Name,
-		}
-	}
-
-	cinven := db.C(db.INVENTORIES)
-	var inven models.Inventory
-
-	if err := cinven.FindId(jt.MachineCredentialID).One(&inven); err != nil {
-		log.Println("Cound not find Inventory", err)
-		defaults["inventory"] = nil
-		isInventoryNeeded = true
-	} else {
-		defaults["inventory"] = gin.H{
-			"id": inven.ID,
-			"name": inven.Name,
-		}
-	}
-
-	resp := gin.H{
-		"passwords_needed_to_start": []gin.H{},
-		"ask_variables_on_launch": jt.PromptVariables,
-		"ask_tags_on_launch": jt.PromptTags,
-		"ask_job_type_on_launch": jt.PromptJobType,
-		"ask_limit_on_launch": jt.PromptInventory,
-		"ask_inventory_on_launch": jt.PromptInventory,
-		"ask_credential_on_launch": jt.PromptCredential,
-		"variables_needed_to_start": []gin.H{},
-		"credential_needed_to_start": isCredentialNeeded,
-		"inventory_needed_to_start": isInventoryNeeded,
-		"job_template_data": gin.H{
-			"id": jt.ID.Hex(),
-			"name": jt.Name,
-			"description": jt.Description,
-		},
-		"defaults": defaults,
-	}
-
-	// render JSON with 200 status code
-	c.JSON(http.StatusOK, resp)
-}
 
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
 	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 
 	var activities []models.Activity
-	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": jobTemplate.ID, "type": _CTX_JOB_TEMPLATE}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": _CTX_JOB_TEMPLATE}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)
@@ -415,11 +343,9 @@ func ActivityStream(c *gin.Context) {
 func Jobs(c *gin.Context) {
 	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 
-	collection := db.C(db.JOBS)
-
 	var jbs []models.Job
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"job_template_id": jobTemplate.ID}).Iter()
+	iter := db.Jobs().Find(bson.M{"job_template_id": jobTemplate.ID}).Iter()
 	// loop through each result and modify for our needs
 	var tmpJob models.Job
 	// iterate over all and only get valid objects
@@ -461,11 +387,215 @@ func Jobs(c *gin.Context) {
 	})
 }
 
-// TODO: implement
 func Launch(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
-	// render JSON with 200 status code
-	c.JSON(http.StatusOK, jt)
+	template := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
 
+	job := models.Job{
+		ID: bson.NewObjectId(),
+		Name: template.Name,
+		Description: template.Description,
+		LaunchType: "manual",
+		CancelFlag: false,
+		Status: "pending",
+		JobType: models.JOBTYPE_ANSIBLE_JOB,
+		Playbook:template.Playbook,
+		Forks:template.Forks,
+		Limit:template.Limit,
+		Verbosity:template.Verbosity,
+		ExtraVars:template.ExtraVars,
+		JobTags:template.JobTags,
+		SkipTags:template.SkipTags,
+		ForceHandlers:template.ForceHandlers,
+		StartAtTask:template.StartAtTask,
+		MachineCredentialID:template.MachineCredentialID,
+		InventoryID:template.InventoryID,
+		JobTemplateID: template.ID,
+		ProjectID: template.ProjectID,
+		BecomeEnabled:template.BecomeEnabled,
+		NetworkCredentialID:template.NetworkCredentialID,
+		CloudCredentialID:template.CloudCredentialID,
+		CreatedByID: user.ID,
+		ModifiedByID:user.ID,
+		Created:time.Now(),
+		Modified:time.Now(),
+	}
+
+	runnerJob := runners.AnsibleJob{
+		Job: job,
+		Template:template,
+		User:user,
+	}
+
+	var credential models.Credential
+	err := db.Credentials().FindId(job.MachineCredentialID).One(&credential)
+	if err != nil {
+		log.Println("Error while getting Machine Credential:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Machine Credential",
+		})
+		return
+	}
+	runnerJob.MachineCred = credential
+
+	if job.NetworkCredentialID != nil {
+		var credential models.Credential
+		err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential)
+		if err != nil {
+			log.Println("Error while getting Network Credential:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Network Credential",
+			})
+			return
+		}
+		runnerJob.NetworkCred = credential
+	}
+
+	if job.CloudCredentialID != nil {
+		var credential models.Credential
+		err := db.Credentials().FindId(*job.CloudCredentialID).One(&credential)
+		if err != nil {
+			log.Println("Error while getting Cloud Credential:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Message: "Error while getting Cloud Credential",
+			})
+			return
+		}
+		runnerJob.CloudCred = credential
+	}
+
+	// get inventory information
+	var inventory models.Inventory
+	err = db.Inventories().FindId(job.InventoryID).One(&inventory)
+	if err != nil {
+		log.Println("Error while getting Inventory:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Inventory",
+		})
+		return
+	}
+	runnerJob.Inventory = inventory
+
+	// get project information
+	var project models.Project
+	err = db.Projects().FindId(job.ProjectID).One(&project)
+	if err != nil {
+		log.Println("Error while getting Project:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Project",
+		})
+		return
+	}
+	runnerJob.Project = project
+
+	// Get jwt token for authorize ansible inventory plugin
+	var token jwt.LocalToken
+	err = jwt.NewAuthToken(&token)
+	if err != nil {
+		log.Println("Error while getting Token:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Token",
+		})
+		return
+	}
+	runnerJob.Token = token.Token
+
+	// Insert new job into jobs collection
+	if err := db.Jobs().Insert(job); err != nil {
+		log.Println("Error while creating Job:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Job",
+		})
+		return
+	}
+
+	runners.AnsiblePool.Register <- &runnerJob
+
+	if err := metadata.JobMetadata(&job); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while setting metatdata",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, job)
+}
+
+func LaunchInfo(c *gin.Context) {
+	// get template from the gin.Context
+	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+
+	var isCredentialNeeded bool
+	var isInventoryNeeded bool
+
+	defaults := gin.H{
+		"job_tags": jt.JobTags,
+		"extra_vars": jt.ExtraVars,
+		"job_type": jt.JobType,
+		"skip_tags": jt.SkipTags,
+		"limit": jt.Limit,
+		"inventory": gin.H{
+			"id": jt.InventoryID,
+			"name": "Demo Inventory",
+		},
+	}
+
+	var cred models.Credential
+
+	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
+		log.Println("Cound not find Credential", err)
+		defaults["credential"] = nil
+		isCredentialNeeded = true
+	} else {
+		defaults["credential"] = gin.H{
+			"id": cred.ID,
+			"name": cred.Name,
+		}
+	}
+
+	var inven models.Inventory
+
+	if err := db.Inventories().FindId(jt.MachineCredentialID).One(&inven); err != nil {
+		log.Println("Cound not find Inventory", err)
+		defaults["inventory"] = nil
+		isInventoryNeeded = true
+	} else {
+		defaults["inventory"] = gin.H{
+			"id": inven.ID,
+			"name": inven.Name,
+		}
+	}
+
+	resp := gin.H{
+		"passwords_needed_to_start": []gin.H{},
+		"ask_variables_on_launch": jt.PromptVariables,
+		"ask_tags_on_launch": jt.PromptTags,
+		"ask_job_type_on_launch": jt.PromptJobType,
+		"ask_limit_on_launch": jt.PromptInventory,
+		"ask_inventory_on_launch": jt.PromptInventory,
+		"ask_credential_on_launch": jt.PromptCredential,
+		"variables_needed_to_start": []gin.H{},
+		"credential_needed_to_start": isCredentialNeeded,
+		"inventory_needed_to_start": isInventoryNeeded,
+		"job_template_data": gin.H{
+			"id": jt.ID.Hex(),
+			"name": jt.Name,
+			"description": jt.Description,
+		},
+		"defaults": defaults,
+	}
+
+	// render JSON with 200 status code
+	c.JSON(http.StatusOK, resp)
 }

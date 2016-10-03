@@ -35,22 +35,19 @@ func TeamMetadata(o *models.Team) error {
 
 func teamSummary(o *models.Team) error {
 
-	dbcu := db.C(db.USERS)
-	dbco := db.C(db.ORGANIZATIONS)
-
 	var modified models.User
 	var created models.User
 	var org models.Organization
 
-	if err := dbcu.FindId(o.CreatedBy).One(&created); err != nil {
+	if err := db.Users().FindId(o.CreatedBy).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbcu.FindId(o.ModifiedBy).One(&modified); err != nil {
+	if err := db.Users().FindId(o.ModifiedBy).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbco.FindId(o.OrganizationID).One(&org); err != nil {
+	if err := db.Organizations().FindId(o.OrganizationID).One(&org); err != nil {
 		return err
 	}
 

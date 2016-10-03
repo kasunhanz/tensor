@@ -15,15 +15,15 @@ type Group struct {
 	// required feilds
 	Name                     string         `bson:"name" json:"name" binding:"required"`
 
-	Description              *string         `bson:"description,omitempty" json:"description"`
-	Variables                *string         `bson:"variables,omitempty" json:"variables"`
-	TotalHosts               *uint32         `bson:"total_hosts,omitempty" json:"total_hosts"`
-	HasActiveFailures        bool           `bson:"has_active_failures,omitempty" json:"has_active_failures"`
-	HostsWithActiveFailures  *uint32         `bson:"hosts_with_active_failures,omitempty" json:"hosts_with_active_failures"`
-	TotalGroups              *uint32         `bson:"total_groups,omitempty" json:"total_groups"`
-	GroupsWithActiveFailures *uint32         `bson:"groups_with_active_failures,omitempty" json:"groups_with_active_failures"`
-	HasInventorySources      bool           `bson:"has_inventory_sources,omitempty" json:"has_inventory_sources"`
-	InventoryID              bson.ObjectId  `bson:"inventory_id,omitempty" json:"inventory"`
+	Description              string         `bson:"description" json:"description"`
+	Variables                string         `bson:"variables" json:"variables"`
+	TotalHosts               uint32         `bson:"total_hosts" json:"total_hosts"`
+	HasActiveFailures        bool           `bson:"has_active_failures" json:"has_active_failures"`
+	HostsWithActiveFailures  uint32         `bson:"hosts_with_active_failures" json:"hosts_with_active_failures"`
+	TotalGroups              uint32         `bson:"total_groups" json:"total_groups"`
+	GroupsWithActiveFailures uint32         `bson:"groups_with_active_failures" json:"groups_with_active_failures"`
+	HasInventorySources      bool           `bson:"has_inventory_sources" json:"has_inventory_sources"`
+	InventoryID              bson.ObjectId  `bson:"inventory_id" json:"inventory"`
 	//parent child relation
 	ParentGroupID            *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"-"`
 

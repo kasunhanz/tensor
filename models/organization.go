@@ -16,7 +16,7 @@ type Organization struct {
 	SummaryFields gin.H              `bson:"-" json:"summary_fields"`
 
 	Name          string             `bson:"name" json:"name" binding:"required"`
-	Description   *string             `bson:"description" json:"description"`
+	Description   string             `bson:"description" json:"description"`
 
 	CreatedBy     bson.ObjectId      `bson:"created_by" json:"-"`
 	ModifiedBy    bson.ObjectId      `bson:"modified_by" json:"-"`

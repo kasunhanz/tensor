@@ -16,10 +16,8 @@ import (
 func AccessList(c *gin.Context) {
 	team := c.MustGet(_CTX_TEAM).(models.Team)
 
-	cOrganization := db.C(db.ORGANIZATIONS)
-
 	var organization models.Organization
-	err := cOrganization.FindId(team.OrganizationID).One(&organization)
+	err := db.Organizations().FindId(team.OrganizationID).One(&organization)
 	if err != nil {
 		log.Println("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -148,13 +146,11 @@ func AccessList(c *gin.Context) {
 
 	}
 
-	cUser := db.C(db.USERS)
-
 	var usrs []models.AccessUser
 
 	for k, v := range allaccess {
 		var user models.AccessUser
-		err := cUser.FindId(k).One(&user)
+		err := db.Users().FindId(k).One(&user)
 		if err != nil {
 			log.Println("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{

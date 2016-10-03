@@ -1,12 +1,10 @@
 #!/bin/bash
 set -m
 
-if [ "$MONGO_ROLE" == "primary" ]; then
-  /opt/mongo/mongo_setup_users.sh
-fi
+/opt/mongo/mongo_setup_users.sh
 
-mongodb_cmd="/usr/bin/mongod --storageEngine $STORAGE_ENGINE --keyFile /opt/mongo/mongodb-keyfile"
-cmd="$mongodb_cmd --httpinterface --rest --replSet $REP_SET"
+mongodb_cmd="/usr/bin/mongod --storageEngine $STORAGE_ENGINE"
+cmd="$mongodb_cmd --httpinterface --rest"
 
 if [ "$AUTH" == "yes" ]; then
   cmd="$cmd --auth"
@@ -29,9 +27,5 @@ if [ "$MONGO_DB_PATH" != "" ]; then
 fi
 
 $cmd &
-
-if [ "$MONGO_ROLE" == "primary" ]; then
-  /opt/mongo/mongo_setup_repset.sh
-fi
 
 fg

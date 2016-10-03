@@ -5,7 +5,6 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
-	"gopkg.in/mgo.v2/bson"
 )
 
 
@@ -34,7 +33,7 @@ func JTemplateMetadata(jt *models.JobTemplate) error {
 		"activity_stream": "/v1/job_templates/" + ID + "/activity_stream/",
 	}
 
-	if bson.IsObjectIdHex(jt.CurrentJobID.Hex()) {
+	if jt.CurrentJobID != nil {
 		related["current_job"] = "v1/jobs/" + jt.CurrentJobID.Hex() + "/"
 	}
 
@@ -49,44 +48,35 @@ func JTemplateMetadata(jt *models.JobTemplate) error {
 
 func jTemplateSummary(jt *models.JobTemplate) error {
 
-	cuser := db.C(db.USERS)
-	cinv := db.C(db.INVENTORIES)
-	cjob := db.C(db.JOBS)
-	ccred := db.C(db.CREDENTIALS)
-	cprj := db.C(db.PROJECTS)
-
 	var modified models.User
 	var created models.User
 	var inv models.Inventory
 	var job models.Job
+	var cjob models.Job
 	var cred models.Credential
 	var proj models.Project
 
-	if err := cuser.FindId(jt.CreatedByID).One(&created); err != nil {
+	if err := db.Users().FindId(jt.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := cuser.FindId(jt.ModifiedByID).One(&modified); err != nil {
+	if err := db.Users().FindId(jt.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
-	if err := cinv.FindId(jt.InventoryID).One(&inv); err != nil {
+	if err := db.Inventories().FindId(jt.InventoryID).One(&inv); err != nil {
 		return err
 	}
 
-	if err := cjob.FindId(jt.CurrentJobID).One(&cjob); err == nil {
-		log.Println("No current job found", err)
-	}
-
-	if err := ccred.FindId(jt.MachineCredentialID).One(&cred); err != nil {
+	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
 		return err
 	}
 
-	if err := cprj.FindId(jt.ProjectID).One(&proj); err != nil {
+	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
 		return err
 	}
 
-	jt.Summary = gin.H{
+	summary := gin.H{
 		"object_roles": []gin.H{
 			{
 				"Description":"Can manage all aspects of the job template",
@@ -121,13 +111,7 @@ func jTemplateSummary(jt *models.JobTemplate) error {
 			"total_inventory_sources": inv.TotalInventorySources,
 			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
 		},
-		"current_job":  gin.H{
-			"id": job.ID,
-			"name": job.Name,
-			"description": job.Description,
-			"status": job.Status,
-			"failed": job.Failed,
-		},
+		"current_job":  gin.H{},
 		"credential": gin.H{
 			"id": cred.ID,
 			"name": cred.Name,
@@ -163,6 +147,22 @@ func jTemplateSummary(jt *models.JobTemplate) error {
 			},
 		},
 	}
+
+	if jt.CurrentJobID != nil {
+		if err := db.Jobs().FindId(*jt.CurrentJobID).One(&cjob); err == nil {
+			log.Println("No current job found", err)
+		} else {
+			summary["current_job"] = gin.H{
+				"id": job.ID,
+				"name": job.Name,
+				"description": job.Description,
+				"status": job.Status,
+				"failed": job.Failed,
+			}
+		}
+	}
+
+	jt.Summary = summary
 
 	return nil
 }

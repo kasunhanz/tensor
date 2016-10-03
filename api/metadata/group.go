@@ -38,22 +38,19 @@ func GroupMetadata(grp *models.Group) error {
 
 func groupSummary(grp *models.Group) error {
 
-	dbu := db.MongoDb.C(db.USERS)
-	dbci := db.MongoDb.C(db.INVENTORIES)
-
 	var modified models.User
 	var created models.User
 	var inv models.Inventory
 
-	if err := dbu.FindId(grp.CreatedByID).One(&created); err != nil {
+	if err := db.Users().FindId(grp.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(grp.ModifiedByID).One(&modified); err != nil {
+	if err := db.Users().FindId(grp.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbci.FindId(grp.InventoryID).One(&inv); err != nil {
+	if err := db.Inventories().FindId(grp.InventoryID).One(&inv); err != nil {
 		return err
 	}
 

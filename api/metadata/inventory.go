@@ -40,23 +40,19 @@ func InventoryMetadata(i *models.Inventory) error {
 }
 
 func inventorySummary(i *models.Inventory) error {
-
-	dbu := db.MongoDb.C(db.USERS)
-	dbco := db.MongoDb.C(db.ORGANIZATIONS)
-
 	var modified models.User
 	var created models.User
 	var org models.Organization
 
-	if err := dbu.FindId(i.CreatedBy).One(&created); err != nil {
+	if err := db.Users().FindId(i.CreatedBy).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(i.ModifiedBy).One(&modified); err != nil {
+	if err := db.Users().FindId(i.ModifiedBy).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbco.FindId(i.OrganizationID).One(&org); err != nil {
+	if err := db.Organizations().FindId(i.OrganizationID).One(&org); err != nil {
 		return err
 	}
 

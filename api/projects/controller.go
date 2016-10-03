@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 )
 
 const _CTX_PROJECT = "project"
@@ -25,14 +26,21 @@ const _CTX_PROJECT_ID = "project_id"
 // fetches project data from the database
 // it set project data under key project in gin.Context
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_PROJECT_ID)
+	ID, err := util.GetIdParam(_CTX_PROJECT_ID, c)
 
-	collection := db.C(db.PROJECTS)
+	if err != nil {
+		log.Print("Error while getting the Project:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
 
 	var project models.Project
-	err := collection.FindId(bson.ObjectIdHex(ID)).One(&project);
+	err = db.Projects().FindId(bson.ObjectIdHex(ID)).One(&project);
 	if err != nil {
-		log.Print("Error while getting the Group:", err) // log error to the system log
+		log.Print("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Message: "Not Found",
@@ -56,7 +64,6 @@ func GetProject(c *gin.Context) {
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
-	dbc := db.C(db.PROJECTS)
 
 	parser := util.NewQueryParser(c)
 	match := parser.Match([]string{"type", "status"})
@@ -71,7 +78,7 @@ func GetProjects(c *gin.Context) {
 		}
 	}
 
-	query := dbc.Find(match)
+	query := db.Projects().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
@@ -140,109 +147,38 @@ func AddProject(c *gin.Context) {
 		return
 	}
 
-	project := models.Project{
-		ID: bson.NewObjectId(),
-		Name:req.Name,
-		Description:req.Description,
-		LocalPath:req.LocalPath,
-		ScmType:req.ScmType,
-		ScmUrl:req.ScmUrl,
-		ScmBranch:req.ScmBranch,
-		ScmClean:req.ScmClean,
-		ScmDeleteOnUpdate:req.ScmDeleteOnUpdate,
-		ScmCredential:req.ScmCredential,
-		OrganizationID:req.OrganizationID,
-		ScmUpdateOnLaunch:req.ScmUpdateOnLaunch,
-		ScmUpdateCacheTimeout:req.ScmUpdateCacheTimeout,
-		CreatedBy:user.ID,
-		ModifiedBy:user.ID,
-		Created: time.Now(),
-		Modified: time.Now(),
+	// check whether the organization exist or not
+	if !helpers.OrganizationExist(req.OrganizationID, c) {
+		return
 	}
 
-	collection := db.C(db.PROJECTS)
+	// check whether the scm credential exist or not
+	if req.ScmCredentialID != nil {
+		if !helpers.SCMCredentialExist(*req.ScmCredentialID, c) {
+			return
+		}
+	}
 
-	err = collection.Insert(project);
+	req.ID = bson.NewObjectId()
+	req.CreatedBy = user.ID
+	req.ModifiedBy = user.ID
+	req.Created = time.Now()
+	req.Modified = time.Now()
+
+	err = db.Projects().Insert(req);
 	if err != nil {
-		log.Println("Error while creating Group:", err)
+		log.Println("Error while creating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Group",
+			Message: "Error while creating Project",
 		})
 		return
 	}
 
 	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project " + project.Name + " created")
+	addActivity(req.ID, user.ID, "Project " + req.Name + " created")
 
-	err = metadata.ProjectMetadata(&project);
-	if err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while creating Group",
-		})
-		return
-	}
-
-	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, project)
-}
-
-
-// UpdateProject will update the Project
-func UpdateProject(c *gin.Context) {
-	// get Project from the gin.Context
-	oproj := c.MustGet(_CTX_PROJECT).(models.Project)
-	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
-
-	var req models.Project
-
-	if err := c.BindJSON(&req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
-	project := models.Project{
-		ID: bson.NewObjectId(),
-		Name:oproj.Name,
-		Description:oproj.Description,
-		LocalPath:oproj.LocalPath,
-		ScmType:oproj.ScmType,
-		ScmUrl:oproj.ScmUrl,
-		ScmBranch:oproj.ScmBranch,
-		ScmClean:oproj.ScmClean,
-		ScmDeleteOnUpdate:oproj.ScmDeleteOnUpdate,
-		ScmCredential:oproj.ScmCredential,
-		OrganizationID:oproj.OrganizationID,
-		ScmUpdateOnLaunch:oproj.ScmUpdateOnLaunch,
-		ScmUpdateCacheTimeout:oproj.ScmUpdateCacheTimeout,
-		CreatedBy:user.ID,
-		ModifiedBy:user.ID,
-		Created: time.Now(),
-		Modified: time.Now(),
-	}
-
-	collection := db.MongoDb.C(db.PROJECTS)
-
-	// update object
-	err := collection.UpdateId(project.ID, project);
-	if err != nil {
-		log.Println("Error while updating Project:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Message: "Error while updating Project",
-		})
-		return
-	}
-
-	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project " + project.Name + " updated")
-
-	// set `related` and `summary` feilds
-	err = metadata.ProjectMetadata(&project);
+	err = metadata.ProjectMetadata(&req);
 	if err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -253,7 +189,72 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, project)
+	c.JSON(http.StatusCreated, req)
+}
+
+
+// UpdateProject will update the Project
+func UpdateProject(c *gin.Context) {
+	// get Project from the gin.Context
+	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.Project
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: "Bad Request",
+		})
+		return
+	}
+
+
+	// check whether the organization exist or not
+	if !helpers.OrganizationExist(req.OrganizationID, c) {
+		return
+	}
+
+	// check whether the ScmCredential exist or not
+	if req.ScmCredentialID != nil {
+		if !helpers.SCMCredentialExist(*req.ScmCredentialID, c) {
+			return
+		}
+	}
+
+	req.CreatedBy = project.CreatedBy
+	req.ModifiedBy = user.ID
+	req.Created = project.Created
+	req.Modified = time.Now()
+
+	// update object
+	err := db.Projects().UpdateId(project.ID, req);
+	if err != nil {
+		log.Println("Error while updating Project:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while updating Project",
+		})
+		return
+	}
+
+	// add new activity to activity stream
+	addActivity(req.ID, user.ID, "Project " + req.Name + " updated")
+
+	// set `related` and `summary` feilds
+	err = metadata.ProjectMetadata(&req);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while creating Project",
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, req)
 }
 
 // RemoveProject will remove the Project
@@ -264,11 +265,7 @@ func RemoveProject(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.MongoDb.C(db.PROJECTS)
-	cjobtemplate := db.MongoDb.C(db.JOB_TEMPLATES)
-	cjobs := db.MongoDb.C(db.JOBS)
-
-	changes, err := cjobs.RemoveAll(bson.M{"project_id": project.ID})
+	changes, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID})
 	if err != nil {
 		log.Println("Error while removing Project Jobs:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -280,7 +277,7 @@ func RemoveProject(c *gin.Context) {
 
 	log.Println("Jobs remove info:", changes.Removed)
 
-	changes, err = cjobtemplate.RemoveAll(bson.M{"project_id": project.ID})
+	changes, err = db.JobTemplates().RemoveAll(bson.M{"project_id": project.ID})
 	if err != nil {
 		log.Println("Error while removing Project Job Templates:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -293,7 +290,7 @@ func RemoveProject(c *gin.Context) {
 	log.Println("Job Template remove info:", changes.Removed)
 
 	// remove object from the collection
-	err = collection.RemoveId(project.ID);
+	err = db.Projects().RemoveId(project.ID);
 	if err != nil {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -341,14 +338,12 @@ func Playbooks(c *gin.Context) {
 func Teams(c *gin.Context) {
 	team := c.MustGet(_CTX_PROJECT).(models.Project)
 
-	collection := db.C(db.TEAMS)
-
 	var tms []models.Team
 
 	var tmpTeam models.Team
 	for _, v := range team.Roles {
 		if v.Type == "team" {
-			err := collection.FindId(v.TeamID).One(&tmpTeam)
+			err := db.Teams().FindId(v.TeamID).One(&tmpTeam)
 			if err != nil {
 				log.Println("Error while getting Teams:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
@@ -393,8 +388,7 @@ func ActivityStream(c *gin.Context) {
 	project := c.MustGet(_CTX_PROJECT).(models.Project)
 
 	var activities []models.Activity
-	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)
@@ -423,7 +417,6 @@ func ActivityStream(c *gin.Context) {
 // GetJobs renders the Job as JSON
 func ProjectUpdates(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
-	collection := db.C(db.JOBS)
 
 	parser := util.NewQueryParser(c)
 	match := parser.Match([]string{"status", "type", "failed", })
@@ -434,7 +427,7 @@ func ProjectUpdates(c *gin.Context) {
 	// get only project update jobs
 	match["job_type"] = "project_update"
 
-	query := collection.Find(match) // prepare the query
+	query := db.Jobs().Find(match) // prepare the query
 
 	// set sort value to the query based on request parameters
 	if order := parser.OrderBy(); order != "" {
@@ -488,4 +481,9 @@ func ProjectUpdates(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results: jobs[pgi.Skip():pgi.End()],
 	})
+}
+
+func SCMUpdate(c *gin.Context) {
+	//project := c.MustGet(_CTX_PROJECT).(models.Project)
+
 }

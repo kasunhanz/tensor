@@ -13,11 +13,9 @@ func ProjectMetadata(p *models.Project) error {
 	ID := p.ID.Hex()
 	p.Type = "project"
 	p.Url = "/v1/projects/" + ID + "/"
-	p.Related = gin.H{
+	related := gin.H{
 		"created_by": "/v1/users/" + p.CreatedBy.Hex() + "/",
 		"modified_by": "/v1/users/" + p.ModifiedBy.Hex() + "/",
-		"credential": "/v1/users/" + p.ScmCredential.Hex() + "/",
-		"last_job": "/v1/project_updates/" + p.LastJob.Hex() + "/",
 		"notification_templates_error": "/v1/projects/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/projects/" + ID + "/notification_templates_success/",
 		"object_roles": "/v1/projects/" + ID + "/object_roles/",
@@ -30,8 +28,16 @@ func ProjectMetadata(p *models.Project) error {
 		"teams": "/v1/projects/" + ID + "/teams/",
 		"activity_stream": "/v1/projects/" + ID + "/activity_stream/",
 		"organization": "/v1/organizations/" + p.OrganizationID.Hex() + "/",
-		"last_update": "/v1/project_updates/" + p.LastJob.Hex() + "/",
 	}
+
+	if p.ScmCredentialID != nil {
+		related["credential"] = "/v1/credentials/" + (*p.ScmCredentialID).Hex() + "/"
+	}
+	if p.LastJob != nil {
+		related["last_job"] = "/v1/project_updates/" + (*p.LastJob).Hex() + "/"
+	}
+
+	p.Related = related
 
 	if err := projectSummary(p); err != nil {
 		return err
@@ -41,28 +47,25 @@ func ProjectMetadata(p *models.Project) error {
 }
 
 func projectSummary(p *models.Project) error {
-	dbcu := db.MongoDb.C(db.USERS)
-	dbc := db.MongoDb.C(db.CREDENTIALS)
-	dbco := db.MongoDb.C(db.ORGANIZATIONS)
 
 	var modified models.User
 	var created models.User
 	var cred models.Credential
 	var org models.Organization
 
-	if err := dbcu.FindId(p.CreatedBy).One(&created); err != nil {
+	if err := db.Users().FindId(p.CreatedBy).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbcu.FindId(p.ModifiedBy).One(&modified); err != nil {
+	if err := db.Users().FindId(p.ModifiedBy).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbc.FindId(p.ScmCredential).One(&cred); err != nil {
+	if err := db.Credentials().FindId(*p.ScmCredentialID).One(&cred); err != nil {
 		return err
 	}
 
-	if err := dbco.FindId(p.OrganizationID).One(&org); err != nil {
+	if err := db.Organizations().FindId(p.OrganizationID).One(&org); err != nil {
 		return err
 	}
 

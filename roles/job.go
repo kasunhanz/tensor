@@ -16,8 +16,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 
 	//need to get project for organization
 	var project models.Project
-	cProjects := db.C(db.PROJECTS)
-	err := cProjects.FindId(jtemplate.ProjectID).One(&project)
+	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Println("Error while getting project")
 		return false
@@ -25,8 +24,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is read it doesn't matter what permission assined to the user
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational memeber:", err)
 		return false
@@ -50,8 +48,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	cTeams := db.C(db.TEAMS)
-	count, err = cTeams.Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -72,8 +69,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 
 	//need to get project for organization
 	var project models.Project
-	cProjects := db.C(db.PROJECTS)
-	err := cProjects.FindId(jtemplate.ProjectID).One(&project)
+	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Println("Error while getting project")
 		return false
@@ -81,8 +77,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -107,12 +102,11 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{
 		"_id:": bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
-	count, err = cTeams.Find(query).Count()
+	count, err = db.Teams().Find(query).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -133,8 +127,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 
 	//need to get project for organization id
 	var project models.Project
-	cProjects := db.C(db.PROJECTS)
-	err := cProjects.FindId(jtemplate.ProjectID).One(&project)
+	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Println("Error while getting project")
 		return false
@@ -142,8 +135,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -171,14 +163,12 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
-
 	query := bson.M{
 		"_id:": bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 
-	count, err = cTeams.Find(query).Count()
+	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)

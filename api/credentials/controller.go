@@ -13,6 +13,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 )
 
 const _CTX_CREDENTIAL = "credential"
@@ -20,12 +21,21 @@ const _CTX_CREDENTIAL_ID = "credential_id"
 const _CTX_USER = "user"
 
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_CREDENTIAL_ID)
+	ID, err := util.GetIdParam(_CTX_CREDENTIAL_ID, c)
+
+	if err != nil {
+		log.Print("Error while getting the Credential:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.CREDENTIALS)
 	var credential models.Credential
-	if err := collection.FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
+	err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential);
+	if err != nil {
 		log.Print("Error while getting the Credential:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
@@ -68,8 +78,6 @@ func GetCredential(c *gin.Context) {
 func GetCredentials(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	dbc := db.C(db.CREDENTIALS)
-
 	parser := util.NewQueryParser(c)
 	match := parser.Match([]string{"kind"})
 
@@ -83,7 +91,7 @@ func GetCredentials(c *gin.Context) {
 		}
 	}
 
-	query := dbc.Find(match)
+	query := db.Credentials().Find(match)
 
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
@@ -154,39 +162,45 @@ func AddCredential(c *gin.Context) {
 		return
 	}
 
+
+	// check whether the organization exist or not
+	if req.OrganizationID != nil {
+		if !helpers.OrganizationExist(*req.OrganizationID, c) {
+			return
+		}
+	}
+
 	req.ID = bson.NewObjectId()
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()
 	req.Modified = time.Now()
 
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.Password)
-		req.Password = &password
+	if req.Password != "" {
+		password := crypt.Encrypt(req.Password)
+		req.Password = password
 	}
 
-	if req.Password != nil {
-		data := crypt.Encrypt(*req.SshKeyData)
-		req.SshKeyData = &data
+	if req.Password != "" {
+		data := crypt.Encrypt(req.SshKeyData)
+		req.SshKeyData = data
 
-		if req.SshKeyUnlock != nil {
-			unlock := crypt.Encrypt(*req.SshKeyUnlock)
-			req.SshKeyUnlock = &unlock
+		if req.SshKeyUnlock != "" {
+			unlock := crypt.Encrypt(req.SshKeyUnlock)
+			req.SshKeyUnlock = unlock
 		}
 	}
 
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.BecomePassword)
-		req.BecomePassword = &password
+	if req.Password != "" {
+		password := crypt.Encrypt(req.BecomePassword)
+		req.BecomePassword = password
 	}
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.VaultPassword)
-		req.VaultPassword = &password
+	if req.Password != "" {
+		password := crypt.Encrypt(req.VaultPassword)
+		req.VaultPassword = password
 	}
 
-	collection := db.C(db.CREDENTIALS)
-
-	err := collection.Insert(req)
+	err := db.Credentials().Insert(req)
 	if err != nil {
 		log.Println("Error while creating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -236,28 +250,35 @@ func UpdateCredential(c *gin.Context) {
 		return
 	}
 
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.Password)
-		credential.Password = &password
-	}
-
-	if req.Password != nil {
-		data := crypt.Encrypt(*req.SshKeyData)
-		credential.SshKeyData = &data
-
-		if req.SshKeyUnlock != nil {
-			unlock := crypt.Encrypt(*credential.SshKeyUnlock)
-			credential.SshKeyUnlock = &unlock
+	// check whether the organization exist or not
+	if req.OrganizationID != nil {
+		if !helpers.OrganizationExist(*req.OrganizationID, c) {
+			return
 		}
 	}
 
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.BecomePassword)
-		credential.BecomeUsername = &password
+	if req.Password != "" {
+		password := crypt.Encrypt(req.Password)
+		credential.Password = password
 	}
-	if req.Password != nil {
-		password := crypt.Encrypt(*req.VaultPassword)
-		credential.VaultPassword = &password
+
+	if req.Password != "" {
+		data := crypt.Encrypt(req.SshKeyData)
+		credential.SshKeyData = data
+
+		if req.SshKeyUnlock != "" {
+			unlock := crypt.Encrypt(credential.SshKeyUnlock)
+			credential.SshKeyUnlock = unlock
+		}
+	}
+
+	if req.Password != "" {
+		password := crypt.Encrypt(req.BecomePassword)
+		credential.BecomeUsername = password
+	}
+	if req.Password != "" {
+		password := crypt.Encrypt(req.VaultPassword)
+		credential.VaultPassword = password
 	}
 
 	// system generated
@@ -267,9 +288,7 @@ func UpdateCredential(c *gin.Context) {
 	req.ModifiedByID = user.ID
 	req.Modified = time.Now()
 
-	dbc := db.C(db.CREDENTIALS)
-
-	if err := dbc.UpdateId(credential.ID, req); err != nil {
+	if err := db.Credentials().UpdateId(credential.ID, req); err != nil {
 		log.Println("Failed to update Credential", err)
 
 		c.JSON(http.StatusInternalServerError,
@@ -290,13 +309,13 @@ func RemoveCredential(c *gin.Context) {
 	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 	u := c.MustGet(_CTX_USER).(models.User)
 
-	dbc := db.C(db.CREDENTIALS)
+	if err := db.Credentials().RemoveId(crd.ID); err != nil {
+		log.Println("Error while deleting Credential:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while deleting Credential",
+		})
 
-	if err := dbc.RemoveId(crd.ID); err != nil {
-		log.Println("Failed to remove Credential", err)
-
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"status": "error", "message": "Failed to remove Credential"})
 		return
 	}
 
@@ -310,12 +329,11 @@ func OwnerTeams(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	var tms []models.Team
-	collection := db.C(db.TEAMS)
 
 	for _, v := range credential.Roles {
 		if v.Type == "team" {
 			var team models.Team
-			err := collection.FindId(v.TeamID).One(&team)
+			err := db.Teams().FindId(v.TeamID).One(&team)
 			if err != nil {
 				log.Println("Error while getting owner teams for credential", credential.ID, err)
 				continue //skip iteration
@@ -346,12 +364,10 @@ func OwnerUsers(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	var usrs []models.User
-	collection := db.C(db.USERS)
-
 	for _, v := range credential.Roles {
 		if v.Type == "user" {
 			var user models.User
-			err := collection.FindId(v.UserID).One(&user)
+			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
 				log.Println("Error while getting owner users for credential", credential.ID, err)
 				continue //skip iteration
@@ -383,8 +399,7 @@ func ActivityStream(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	var activities []models.Activity
-	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)

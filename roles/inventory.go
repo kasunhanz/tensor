@@ -16,8 +16,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is read it doesn't matter what permission assined to the user
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational memeber:", err)
 		return false
@@ -41,8 +40,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	cTeams := db.C(db.TEAMS)
-	count, err = cTeams.Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID, }).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -63,8 +61,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -89,9 +86,8 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }
-	count, err = cTeams.Find(query).Count()
+	count, err = db.Teams().Find(query).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -112,8 +108,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational admin:", err)
 		return false
@@ -139,9 +134,8 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }
-	count, err = cTeams.Find(query).Count()
+	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
@@ -164,11 +158,10 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(
+	count, err := db.Organizations().Find(
 		bson.M{
 			"roles.user_id": user.ID,
-			"organization_id": inventory.OrganizationID,
+			"_id": inventory.OrganizationID,
 			"roles.role": ORGANIZATION_ADMIN},
 	).Count()
 	if err != nil {
@@ -199,12 +192,11 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{
 		"_id:": bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
-	count, err = cTeams.Find(query).Count()
+	count, err = db.Teams().Find(query).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false

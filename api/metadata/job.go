@@ -8,8 +8,8 @@ import (
 
 func JobMetadata(job *models.Job) error {
 	ID := job.ID.Hex()
-	job.Type = "inventory"
-	job.Url = "/v1/inventories/" + ID + "/"
+	job.Type = "job"
+	job.Url = "/v1/jobs/" + ID + "/"
 	job.Related = gin.H{
 		"created_by": "/api/v1/users/" + job.CreatedByID.Hex() + "/",
 		"modified_by": "/api/v1/users/" + job.ModifiedByID.Hex() + "/",
@@ -17,7 +17,6 @@ func JobMetadata(job *models.Job) error {
 		"inventory": "/api/v1/inventories/" + job.InventoryID.Hex() + "/",
 		"project": "/api/v1/projects/" + job.ProjectID.Hex() + "/",
 		"credential": "/api/v1/credentials/" + job.MachineCredentialID.Hex() + "/",
-		"unified_job_template": "/api/v1/job_templates/" + job.JobTemplateID + "/",
 		"stdout": "/api/v1/jobs/" + ID + "/stdout/",
 		"job_host_summaries": "/api/v1/jobs/" + ID + "/job_host_summaries/",
 		"job_tasks": "/api/v1/jobs/" + ID + "/job_tasks/",
@@ -25,26 +24,20 @@ func JobMetadata(job *models.Job) error {
 		"job_events": "/api/v1/jobs/" + ID + "/job_events/",
 		"notifications": "/api/v1/jobs/" + ID + "/notifications/",
 		"activity_stream": "/api/v1/jobs/" + ID + "/activity_stream/",
-		"job_template": "/api/v1/job_templates/" + job.JobTemplateID + "/",
+		"job_template": "/api/v1/job_templates/" + job.JobTemplateID.Hex() + "/",
 		"start": "/api/v1/jobs/" + ID + "/start/",
 		"cancel": "/api/v1/jobs/" + ID + "/cancel/",
 		"relaunch": "/api/v1/jobs/" + ID + "/relaunch/",
 	}
 
-	if err := jobSummary(job); err != nil {
+	if err := JobSummary(job); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func jobSummary(job *models.Job) error {
-
-	cuser := db.C(db.USERS)
-	cinv := db.C(db.INVENTORIES)
-	cjtemp := db.C(db.JOB_TEMPLATES)
-	ccred := db.C(db.CREDENTIALS)
-	cprj := db.C(db.PROJECTS)
+func JobSummary(job *models.Job) error {
 
 	var modified models.User
 	var created models.User
@@ -53,38 +46,38 @@ func jobSummary(job *models.Job) error {
 	var cred models.Credential
 	var proj models.Project
 
-	if err := cuser.FindId(job.CreatedByID).One(&created); err != nil {
+	if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := cuser.FindId(job.ModifiedByID).One(&modified); err != nil {
+	if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
-	if err := cinv.FindId(job.InventoryID).One(&inv); err != nil {
+	if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
 		return err
 	}
 
-	if err := cjtemp.FindId(job.JobTemplateID).One(&jtemp); err == nil {
+	if err := db.JobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
 		return err
 	}
 
-	if err := ccred.FindId(job.MachineCredentialID).One(&cred); err != nil {
+	if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
 		return err
 	}
 
-	if err := cprj.FindId(job.ProjectID).One(&proj); err != nil {
+	if err := db.Projects().FindId(job.ProjectID).One(&proj); err != nil {
 		return err
 	}
 
 	job.Summary = gin.H{
 		"job_template": gin.H{
-			"id": jtemp.ID,
+			"id": jtemp.ID.Hex(),
 			"name": jtemp.Name,
 			"description": jtemp.Description,
 		},
 		"inventory": gin.H{
-			"id": inv.ID,
+			"id": inv.ID.Hex(),
 			"name": inv.Name,
 			"description": inv.Description,
 			"has_active_failures": inv.HasActiveFailures,
@@ -105,7 +98,7 @@ func jobSummary(job *models.Job) error {
 		},
 		"project": gin.H{
 			"id": proj.ID,
-			"name": proj.Description,
+			"name": proj.Name,
 			"description": proj.Description,
 			"status": proj.Status,
 		},

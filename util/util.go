@@ -76,9 +76,9 @@ func GetU64IntParam(name string, c *gin.Context) (uint64, error) {
 	return intParam, nil
 }
 
-// GetObjectIdParam is to Get ObjectID url parameter
+// GetIdParam is to Get ObjectID url parameter
 // If the parameter is not an ObjectId it will terminate the request
-func GetObjectIdParam(name string, c *gin.Context) (string, error) {
+func GetIdParam(name string, c *gin.Context) (string, error) {
 	param := c.Params.ByName(name)
 
 	if !bson.IsObjectIdHex(param) {

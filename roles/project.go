@@ -16,8 +16,7 @@ func ProjectRead(user models.User, project models.Project) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is read it doesn't matter what permission assined to the user
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, err := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID}).Count()
 	if err != nil {
 		log.Println("Error while checking the user and organizational memeber:", err)
 		return false
@@ -41,8 +40,7 @@ func ProjectRead(user models.User, project models.Project) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	cTeams := db.C(db.TEAMS)
-	count, err = cTeams.Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
 	if err != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -63,8 +61,7 @@ func ProjectWrite(user models.User, project models.Project) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, error := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, error := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if error != nil {
 		log.Println("Error while checking the user and organizational admin:", error)
 		return false
@@ -89,12 +86,11 @@ func ProjectWrite(user models.User, project models.Project) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{
 		"_id:": bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
-	count, error = cTeams.Find(query).Count()
+	count, error = db.Teams().Find(query).Count()
 	if error != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", error)
 		return false
@@ -115,8 +111,7 @@ func ProjectUse(user models.User, project models.Project) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	cOrgnization := db.C(db.ORGANIZATIONS)
-	count, error := cOrgnization.Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, error := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if error != nil {
 		log.Println("Error while checking the user and organizational admin:", error)
 		return false
@@ -142,12 +137,11 @@ func ProjectUse(user models.User, project models.Project) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	cTeams := db.C(db.TEAMS)
 	query := bson.M{
 		"_id:": bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
-	count, error = cTeams.Find(query).Count()
+	count, error = db.Teams().Find(query).Count()
 	if error != nil {
 		log.Println("Error while checking the user is granted teams' memeber:", error)
 		return false

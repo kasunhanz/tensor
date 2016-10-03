@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 )
 
 const _CTX_HOST = "host"
@@ -22,12 +23,19 @@ const _CTX_HOST_ID = "host_id"
 // fetches host data from the database
 // it set host data under key host in gin.Context
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_HOST_ID)
+	ID, err := util.GetIdParam(_CTX_HOST_ID, c)
 
-	dbc := db.C(db.HOSTS)
+	if err != nil {
+		log.Print("Error while getting the Host:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
 
 	var h models.Host
-	if err := dbc.FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
+	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
 		log.Print("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
@@ -52,7 +60,6 @@ func GetHost(c *gin.Context) {
 
 // GetHosts returns a JSON array of projects
 func GetHosts(c *gin.Context) {
-	dbc := db.C(db.HOSTS)
 
 	parser := util.NewQueryParser(c)
 
@@ -70,7 +77,7 @@ func GetHosts(c *gin.Context) {
 	}
 
 	//prepare the query
-	query := dbc.Find(match)
+	query := db.Hosts().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
@@ -132,22 +139,25 @@ func AddHost(c *gin.Context) {
 		return
 	}
 
-	host := models.Host{
-		ID:bson.NewObjectId(),
-		Name: req.Name,
-		Description: req.Description,
-		InventoryID: req.InventoryID,
-		Variables: req.Variables,
-		Enabled: req.Enabled,
-		Created: time.Now(),
-		Modified: time.Now(),
-		CreatedByID: user.ID,
-		ModifiedByID: user.ID,
+	// check whether the inventory exist or not
+	if !helpers.InventoryExist(req.InventoryID, c) {
+		return
 	}
 
-	dbc := db.C(db.HOSTS)
+	// check whether the group exist or not
+	if req.GroupID != nil {
+		if !helpers.GroupExist(*req.GroupID, c) {
+			return
+		}
+	}
 
-	if err := dbc.Insert(host); err != nil {
+	req.ID = bson.NewObjectId()
+	req.Created = time.Now()
+	req.Modified = time.Now()
+	req.CreatedByID = user.ID
+	req.ModifiedByID = user.ID
+
+	if err := db.Hosts().Insert(req); err != nil {
 		log.Println("Error while creating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -158,9 +168,9 @@ func AddHost(c *gin.Context) {
 
 
 	// add new activity to activity stream
-	addActivity(host.ID, user.ID, "Host " + host.Name + " created")
+	addActivity(req.ID, user.ID, "Host " + req.Name + " created")
 
-	if err := metadata.HostMetadata(&host); err != nil {
+	if err := metadata.HostMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -169,7 +179,7 @@ func AddHost(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, host)
+	c.JSON(http.StatusCreated, req)
 }
 // update will update a Host
 // from request values
@@ -187,17 +197,26 @@ func UpdateHost(c *gin.Context) {
 		})
 	}
 
-	host.Name = req.Name
-	host.Description = req.Description
-	host.Variables = req.Variables
-	host.Enabled = req.Enabled
-	host.Modified = time.Now()
-	host.ModifiedByID = user.ID
 
-	dbc := db.C(db.HOSTS)
+	// check whether the inventory exist or not
+	if !helpers.InventoryExist(req.InventoryID, c) {
+		return
+	}
+
+	// check whether the group exist or not
+	if req.GroupID != nil {
+		if !helpers.GroupExist(*req.GroupID, c) {
+			return
+		}
+	}
+
+	req.Created = host.Created
+	req.Modified = host.Modified
+	req.CreatedByID = user.ID
+	req.ModifiedByID = user.ID
 
 	//update object
-	if err := dbc.UpdateId(host.ID, host); err != nil {
+	if err := db.Hosts().UpdateId(host.ID, req); err != nil {
 		log.Println("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -206,10 +225,10 @@ func UpdateHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(host.ID, user.ID, "Host " + host.Name + " created")
+	addActivity(req.ID, user.ID, "Host " + req.Name + " created")
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, host)
+	c.JSON(http.StatusOK, req)
 }
 
 func RemoveHost(c *gin.Context) {
@@ -218,9 +237,7 @@ func RemoveHost(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	dbc := db.MongoDb.C(db.HOSTS)
-
-	if err := dbc.RemoveId(host.ID); err != nil {
+	if err := db.Hosts().RemoveId(host.ID); err != nil {
 		log.Println("Error while removing Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -240,11 +257,11 @@ func VariableData(c *gin.Context) {
 
 	variables := gin.H{}
 
-	if err := json.Unmarshal([]byte(*host.Variables), &variables); err != nil {
-		log.Println("Error while getting host variables")
+	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
+		log.Println("Error while getting Host variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code": http.StatusInternalServerError,
-			"message": "Error while getting host variables",
+			"message": "Error while getting Host variables",
 		})
 		return
 	}
@@ -257,13 +274,11 @@ func VariableData(c *gin.Context) {
 func Groups(c *gin.Context) {
 	host := c.MustGet(_CTX_HOST).(models.Host)
 
-	collection := db.MongoDb.C(db.GROUPS)
-
 	var group models.Group
 
 	if host.GroupID != nil {
 		// find group for the host
-		if err := collection.FindId(host.GroupID).One(&group); err != nil {
+		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			log.Println("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"code": http.StatusInternalServerError,
@@ -289,14 +304,12 @@ func Groups(c *gin.Context) {
 func AllGroups(c *gin.Context) {
 	host := c.MustGet(_CTX_HOST).(models.Host)
 
-	collection := db.MongoDb.C(db.GROUPS)
-
 	var outobjects []models.Group
 	var group models.Group
 
 	if host.GroupID != nil {
 		// find group for the host
-		if err := collection.FindId(host.GroupID).One(&group); err != nil {
+		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			log.Println("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code: http.StatusInternalServerError,
@@ -314,7 +327,7 @@ func AllGroups(c *gin.Context) {
 
 		for group.ParentGroupID != nil {
 			// find group for the host
-			if err := collection.FindId(host.GroupID).One(&group); err != nil {
+			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 				log.Println("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code: http.StatusInternalServerError,
@@ -358,5 +371,37 @@ func AllGroups(c *gin.Context) {
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count: 0,
+	})
+}
+
+// TODO: not complete
+func ActivityStream(c *gin.Context) {
+	host := c.MustGet(_CTX_HOST).(models.Host)
+
+	var activities []models.Activity
+	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": _CTX_HOST}).All(&activities)
+
+	if err != nil {
+		log.Println("Error while retriving Activity data from the db:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while Activities",
+		})
+		return
+	}
+
+	count := len(activities)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:count,
+		Next: pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results: activities[pgi.Skip():pgi.End()],
 	})
 }

@@ -15,7 +15,7 @@ type LocalToken struct {
 	Expire string
 }
 
-func NewAuthToken() (*LocalToken, error) {
+func NewAuthToken(t *LocalToken) error {
 	// Initial middleware default setting.
 	HeaderAuthMiddleware.MiddlewareInit()
 
@@ -23,13 +23,11 @@ func NewAuthToken() (*LocalToken, error) {
 	token := jwt.New(jwt.GetSigningMethod(HeaderAuthMiddleware.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
-	collection := db.C(db.USERS)
-
 	var admin models.User
 
-	if err := collection.Find(bson.M{"username": "admin"}).One(&admin); err != nil {
+	if err := db.Users().Find(bson.M{"username": "admin"}).One(&admin); err != nil {
 		log.Println("User not found, Create JWT Token faild")
-		return nil, errors.New("User not found, Create JWT Token faild")
+		return errors.New("User not found, Create JWT Token faild")
 	}
 
 	expire := time.Now().Add(HeaderAuthMiddleware.Timeout)
@@ -41,8 +39,9 @@ func NewAuthToken() (*LocalToken, error) {
 
 	if err != nil {
 		log.Println("Create JWT Token faild")
-		return nil, errors.New("Create JWT Token faild")
+		return errors.New("Create JWT Token faild")
 	}
 
-	return &LocalToken{Token:  tokenString, Expire: expire.Format(time.RFC3339), }, nil
+	t = &LocalToken{Token:  tokenString, Expire: expire.Format(time.RFC3339), }
+	return nil
 }

@@ -54,7 +54,6 @@ func Route(r *gin.Engine) {
 		v1.GET("/dashboard", dashboard.GetInfo)
 		v1.GET("/ws", sockets.Handler)
 		v1.GET("/me", users.GetUser)
-		v1.GET("/events", getEvents)
 
 		// organizations
 		gOrganizations := v1.Group("/organizations")
@@ -63,6 +62,7 @@ func Route(r *gin.Engine) {
 			gOrganizations.POST("/", organizations.AddOrganization)
 			gOrganizations.GET("/:organization_id", organizations.Middleware, organizations.GetOrganization)
 			gOrganizations.PUT("/:organization_id", organizations.Middleware, organizations.UpdateOrganization)
+			gOrganizations.DELETE("/:organization_id", organizations.Middleware, organizations.RemoveOrganization)
 
 			//related
 			gOrganizations.GET("/:organization_id/users/", organizations.Middleware, organizations.GetUsers)
@@ -119,7 +119,7 @@ func Route(r *gin.Engine) {
 			gProjects.GET("/:project_id/teams", projects.Middleware, projects.Teams)
 			gProjects.GET("/:project_id/playbooks", projects.Middleware, projects.Playbooks)
 			gProjects.GET("/:project_id/access_list", projects.Middleware, projects.AccessList)
-			gProjects.GET("/:project_id/update", projects.Middleware, notImplemented) //TODO: implement
+			gProjects.GET("/:project_id/update", projects.Middleware, projects.SCMUpdate)
 			gProjects.GET("/:project_id/project_updates", projects.Middleware, projects.ProjectUpdates)
 
 			gProjects.GET("/:project_id/schedules", projects.Middleware, notImplemented) //TODO: implement
@@ -172,11 +172,11 @@ func Route(r *gin.Engine) {
 
 			//related
 			gInventories.GET("/:inventory_id/job_templates", inventories.Middleware, inventories.JobTemplates)
-			gInventories.GET("/:inventory_id/variable_data", inventories.Middleware, notImplemented) //TODO: implement
+			gInventories.GET("/:inventory_id/variable_data", inventories.Middleware, inventories.VariableData)
 			gInventories.GET("/:inventory_id/root_groups", inventories.Middleware, inventories.RootGroups)
 			gInventories.GET("/:inventory_id/ad_hoc_commands", inventories.Middleware, notImplemented) //TODO: implement
 			gInventories.GET("/:inventory_id/tree", inventories.Middleware, notImplemented) //TODO: implement
-			gInventories.GET("/:inventory_id/access_list", inventories.Middleware, notImplemented) //TODO: implement
+			gInventories.GET("/:inventory_id/access_list", inventories.Middleware, inventories.AccessList)
 			gInventories.GET("/:inventory_id/hosts", inventories.Middleware, inventories.Hosts)
 			gInventories.GET("/:inventory_id/groups", inventories.Middleware, inventories.Groups)
 			gInventories.GET("/:inventory_id/activity_stream", inventories.Middleware, inventories.ActivityStream)
@@ -198,9 +198,9 @@ func Route(r *gin.Engine) {
 			gHosts.GET("/:host_id/job_events", hosts.Middleware, notImplemented) //TODO: implement
 			gHosts.GET("/:host_id/ad_hoc_commands", hosts.Middleware, notImplemented) //TODO: implement
 			gHosts.GET("/:host_id/inventory_sources", hosts.Middleware, notImplemented) //TODO: implement
-			gHosts.GET("/:host_id/activity_stream", hosts.Middleware, notImplemented) //TODO: implement
+			gHosts.GET("/:host_id/activity_stream", hosts.Middleware, hosts.ActivityStream)
 			gHosts.GET("/:host_id/ad_hoc_command_events", hosts.Middleware, notImplemented) //TODO: implement
-			gHosts.GET("/:host_id/variable_data", hosts.Middleware, notImplemented)
+			gHosts.GET("/:host_id/variable_data", hosts.Middleware, hosts.VariableData)
 			gHosts.GET("/:host_id/groups", hosts.Middleware, hosts.Groups)
 			gHosts.GET("/:host_id/all_groups", hosts.Middleware, hosts.AllGroups)
 
@@ -216,8 +216,7 @@ func Route(r *gin.Engine) {
 			gGroups.DELETE("/:group_id", groups.Middleware, groups.RemoveGroup)
 
 			//related
-			gGroups.GET("/:group_id/job_host_summaries", groups.Middleware, notImplemented) //TODO: implement
-			gGroups.GET("/:group_id/variable_data", groups.Middleware, notImplemented) //TODO: implement
+			gGroups.GET("/:group_id/variable_data", groups.Middleware, groups.VariableData)
 			gGroups.GET("/:group_id/job_events", groups.Middleware, notImplemented) //TODO: implement
 			gGroups.GET("/:group_id/potential_children", groups.Middleware, notImplemented) //TODO: implement
 			gGroups.GET("/:group_id/ad_hoc_commands", groups.Middleware, notImplemented) //TODO: implement
@@ -225,6 +224,8 @@ func Route(r *gin.Engine) {
 			gGroups.GET("/:group_id/activity_stream", groups.Middleware, notImplemented) //TODO: implement
 			gGroups.GET("/:group_id/hosts", groups.Middleware, notImplemented) //TODO: implement
 			gGroups.GET("/:group_id/children", groups.Middleware, notImplemented) //TODO: implement
+
+			gGroups.GET("/:group_id/job_host_summaries", groups.Middleware, notImplemented) //TODO: implement
 		}
 
 		// job_templates
@@ -240,7 +241,8 @@ func Route(r *gin.Engine) {
 			gJobTemplates.GET("/:job_template_id/jobs/", jtemplate.Middleware, jtemplate.Jobs)
 			gJobTemplates.GET("/:job_template_id/object_roles/", jtemplate.Middleware, jtemplate.ObjectRoles)
 			gJobTemplates.GET("/:job_template_id/access_list/", jtemplate.Middleware, jtemplate.AccessList)
-			gJobTemplates.GET("/:job_template_id/launch/", jtemplate.Middleware, jtemplate.Launch)
+			gJobTemplates.GET("/:job_template_id/launch/", jtemplate.Middleware, jtemplate.LaunchInfo)
+			gJobTemplates.POST("/:job_template_id/launch/", jtemplate.Middleware, jtemplate.Launch)
 			gJobTemplates.GET("/:job_template_id/activity_stream/", jtemplate.Middleware, jtemplate.ActivityStream)
 
 			gJobTemplates.GET("/:job_template_id/schedules/", jtemplate.Middleware, notImplemented) //TODO: implement
@@ -253,7 +255,6 @@ func Route(r *gin.Engine) {
 		gJobs := v1.Group("/jobs")
 		{
 			gJobs.GET("/", jobs.GetJobs)
-			gJobs.POST("/", jobs.GetJob)
 			gJobs.GET("/:job_id", jobs.Middleware, jobs.GetJob)
 			gJobs.DELETE("/:job_id", jobs.Middleware, jobs.GetJob)
 

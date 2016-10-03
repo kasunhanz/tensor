@@ -20,11 +20,19 @@ const _CTX_USER_ID = "user_id"
 
 func Middleware(c *gin.Context) {
 
-	userID := c.Params.ByName(_CTX_USER_ID)
-	var user models.User
-	collection := db.C(db.USERS)
+	userID, err := util.GetIdParam(_CTX_USER_ID, c)
 
-	err := collection.FindId(bson.ObjectIdHex(userID)).One(&user);
+	if err != nil {
+		log.Print("Error while getting the User:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
+
+	var user models.User
+	err = db.Users().FindId(bson.ObjectIdHex(userID)).One(&user);
 	if err != nil {
 		log.Print("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
@@ -54,7 +62,6 @@ func GetUser(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	dbc := db.C(db.USERS)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -63,7 +70,7 @@ func GetUsers(c *gin.Context) {
 		match = con
 	}
 
-	query := dbc.Find(match)
+	query := db.Users().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
@@ -122,9 +129,7 @@ func AddUser(c *gin.Context) {
 	user.ID = bson.NewObjectId()
 	user.Created = time.Now()
 
-	collection := db.C(db.USERS)
-
-	err = collection.Insert(user);
+	err = db.Users().Insert(user);
 	if err != nil {
 		log.Println("Error while creating User:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -148,9 +153,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	col := db.C("users")
-
-	if err := col.UpdateId(oldUser.ID,
+	if err := db.Users().UpdateId(oldUser.ID,
 		bson.M{"first_name": user.FirstName, "last_name":user.LastName, "username": user.Username, "email": user.Email}); err != nil {
 		panic(err)
 	}
@@ -170,9 +173,8 @@ func UpdateUserPassword(c *gin.Context) {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
 
-	col := db.C(db.USERS)
 
-	if err := col.UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
+	if err := db.Users().UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
 		panic(err)
 	}
 
@@ -182,18 +184,14 @@ func UpdateUserPassword(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(models.User)
 
-	col := db.C("projects")
-
-	info, err := col.UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
+	info, err := db.Projects().UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println(info.Matched)
 
-	userCol := db.C(db.USERS)
-
-	if err := userCol.RemoveId(user.ID); err != nil {
+	if err := db.Users().RemoveId(user.ID); err != nil {
 		panic(err)
 	}
 
@@ -203,11 +201,9 @@ func DeleteUser(c *gin.Context) {
 func Projects(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.PROJECTS)
-
 	var projts []models.Project
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
+	iter := db.Projects().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
 	var tmpProjct models.Project
 	// iterate over all and only get valid objects
@@ -252,11 +248,9 @@ func Projects(c *gin.Context) {
 func Credentials(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.CREDENTIALS)
-
 	var creds []models.Credential
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
+	iter := db.Credentials().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
 	var tmpCredential models.Credential
 	// iterate over all and only get valid objects
@@ -301,11 +295,9 @@ func Credentials(c *gin.Context) {
 func Teams(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.TEAMS)
-
 	var tms []models.Team
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
+	iter := db.Teams().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
 	var tmpTeam models.Team
 	// iterate over all and only get valid objects
@@ -350,11 +342,9 @@ func Teams(c *gin.Context) {
 func Organizations(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.ORGANIZATIONS)
-
 	var orgs []models.Organization
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
+	iter := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
 	var tmpOrganization models.Organization
 	// iterate over all and only get valid objects
@@ -399,11 +389,9 @@ func Organizations(c *gin.Context) {
 func AdminsOfOrganizations(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	collection := db.C(db.ORGANIZATIONS)
-
 	var orgs []models.Organization
 	// new mongodb iterator
-	iter := collection.Find(bson.M{"roles.user_id": user.ID, "roles.type": "user", "roles.role": "admin"}).Iter()
+	iter := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user", "roles.role": "admin"}).Iter()
 	// loop through each result and modify for our needs
 	var tmpOrganization models.Organization
 	// iterate over all and only get valid objects
@@ -450,8 +438,7 @@ func ActivityStream(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var activities []models.Activity
-	collection := db.C(db.ACTIVITY_STREAM)
-	err := collection.Find(bson.M{"actor_id": user.ID}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"actor_id": user.ID}).All(&activities)
 
 	if err != nil {
 		log.Println("Error while retriving Activity data from the db:", err)

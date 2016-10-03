@@ -37,22 +37,19 @@ func HostMetadata(host *models.Host) error {
 
 func hostSummary(host *models.Host) error {
 
-	dbu := db.MongoDb.C(db.USERS)
-	dbci := db.MongoDb.C(db.INVENTORIES)
-
 	var modified models.User
 	var created models.User
 	var inv models.Inventory
 
-	if err := dbu.FindId(host.CreatedByID).One(&created); err != nil {
+	if err := db.Users().FindId(host.CreatedByID).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(host.ModifiedByID).One(&modified); err != nil {
+	if err := db.Users().FindId(host.ModifiedByID).One(&modified); err != nil {
 		return err
 	}
 
-	if err := dbci.FindId(host.InventoryID).One(&inv); err != nil {
+	if err := db.Inventories().FindId(host.InventoryID).One(&inv); err != nil {
 		return err
 	}
 

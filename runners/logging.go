@@ -5,48 +5,51 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"log"
 	"time"
+	"bitbucket.pearson.com/apseng/tensor/models"
 )
 
-func (t *AnsibleJob) start() {
-	t.job.Status = "running"
-	t.job.Started = time.Now()
+const _CTX_JOB = "job"
 
-	c := db.C(db.JOBS)
+func (t *AnsibleJob) start() {
+	t.Job.Status = "running"
+	t.Job.Started = time.Now()
 
 	d := bson.M{
 		"$set": bson.M{
-			"status": t.job.Status,
+			"status": t.Job.Status,
 			"failed": false,
-			"started": t.job.Started,
+			"started": t.Job.Started,
 		},
 	}
 
-	if err := c.UpdateId(t.job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.job.Status, err)
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+		log.Println("Failed to update job status, status was", t.Job.Status, err)
 	}
 }
 
 func (t *AnsibleJob) fail() {
-	t.job.Status = "failed"
-	t.job.Finished = time.Now()
-	t.job.Failed = true
-
-	c := db.C(db.JOBS)
+	t.Job.Status = "failed"
+	t.Job.Finished = time.Now()
+	t.Job.Failed = true
 
 	//get elapsed time in minutes
-	diff := t.job.Finished.Sub(t.job.Started)
+	diff := t.Job.Finished.Sub(t.Job.Started)
 
 	d := bson.M{
 		"$set": bson.M{
-			"status": t.job.Status,
-			"failed": t.job.Failed,
-			"finished": t.job.Finished,
+			"status": t.Job.Status,
+			"failed": t.Job.Failed,
+			"finished": t.Job.Finished,
 			"elapsed": diff.Minutes(),
+			"result_stdout": t.Job.ResultStdout,
+			"job_args": t.Job.JobARGS,
+			"job_env": t.Job.JobENV,
+			"job_cwd": t.Job.JobCWD,
 		},
 	}
 
-	if err := c.UpdateId(t.job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.job.Status, err)
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+		log.Println("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -54,27 +57,29 @@ func (t *AnsibleJob) fail() {
 }
 
 func (t *AnsibleJob) success() {
-	t.job.Status = "success"
-	t.job.Finished = time.Now()
-	t.job.Failed = false
+	t.Job.Status = "success"
+	t.Job.Finished = time.Now()
+	t.Job.Failed = false
 
-	c := db.C(db.JOBS)
 
 	//get elapsed time in minutes
-	diff := t.job.Finished.Sub(t.job.Started)
+	diff := t.Job.Finished.Sub(t.Job.Started)
 
 	d := bson.M{
 		"$set": bson.M{
-			"status": t.job.Status,
-			"failed": t.job.Failed,
-			"finished": t.job.Finished,
+			"status": t.Job.Status,
+			"failed": t.Job.Failed,
+			"finished": t.Job.Finished,
 			"elapsed": diff.Minutes(),
-			"stdout_text": t.job.StdoutText,
+			"result_stdout": t.Job.ResultStdout,
+			"job_args": t.Job.JobARGS,
+			"job_env": t.Job.JobENV,
+			"job_cwd": t.Job.JobCWD,
 		},
 	}
 
-	if err := c.UpdateId(t.job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.job.Status, err)
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+		log.Println("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -82,33 +87,47 @@ func (t *AnsibleJob) success() {
 }
 
 func (t *AnsibleJob) updateProject() {
-	c := db.C(db.PROJECTS)
 
 	d := bson.M{
 		"$set": bson.M{
-			"last_job_run": t.job.Started,
-			"last_job_failed": t.job.Failed,
-			"status": t.job.Status,
+			"last_job_run": t.Job.Started,
+			"last_job_failed": t.Job.Failed,
+			"status": t.Job.Status,
 		},
 	}
 
-	if err := c.UpdateId(t.project.ID, d); err != nil {
+	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
 		log.Println("Failed to update project", err)
 	}
 }
 
 func (t *AnsibleJob) updateJobTemplate() {
-	c := db.C(db.JOB_TEMPLATES)
 
 	d := bson.M{
 		"$set": bson.M{
-			"last_job_run": t.job.Started,
-			"last_job_failed": t.job.Failed,
-			"status": t.job.Status,
+			"last_job_run": t.Job.Started,
+			"last_job_failed": t.Job.Failed,
+			"status": t.Job.Status,
 		},
 	}
 
-	if err := c.UpdateId(t.template.ID, d); err != nil {
-		log.Println("Failed to update JobTemplate", t.job.Status, err)
+	if err := db.JobTemplates().UpdateId(t.Template.ID, d); err != nil {
+		log.Println("Failed to update JobTemplate", t.Job.Status, err)
+	}
+}
+
+func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
+
+	a := models.Activity{
+		ID: bson.NewObjectId(),
+		ActorID: userID,
+		Type: _CTX_JOB,
+		ObjectID: crdID,
+		Description: desc,
+		Created: time.Now(),
+	}
+
+	if err := db.ActivityStream().Insert(a); err != nil {
+		log.Println("Failed to add new Activity", err)
 	}
 }

@@ -16,11 +16,8 @@ import (
 func AccessList(c *gin.Context) {
 	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 
-	collection := db.C(db.PROJECTS)
-	cOrganization := db.C(db.ORGANIZATIONS)
-
 	var project models.Project
-	err := collection.Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
+	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
 	if err != nil {
 		log.Println("Error while retriving Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -31,7 +28,7 @@ func AccessList(c *gin.Context) {
 	}
 
 	var organization models.Organization
-	err = cOrganization.FindId(project.OrganizationID).One(&organization)
+	err = db.Organizations().FindId(project.OrganizationID).One(&organization)
 	if err != nil {
 		log.Println("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -160,13 +157,11 @@ func AccessList(c *gin.Context) {
 
 	}
 
-	cUser := db.C(db.USERS)
-
 	var usrs []models.AccessUser
 
 	for k, v := range allaccess {
 		var user models.AccessUser
-		err := cUser.FindId(k).One(&user)
+		err := db.Users().FindId(k).One(&user)
 		if err != nil {
 			log.Println("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{

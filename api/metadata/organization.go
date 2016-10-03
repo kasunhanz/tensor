@@ -41,17 +41,15 @@ func OrganizationMetadata(o *models.Organization) error {
 
 func organizationSummary(o *models.Organization) error {
 
-	dbu := db.MongoDb.C(db.USERS)
-
 	var modified models.User
 	var created models.User
 	var owners []models.User
 
-	if err := dbu.FindId(o.CreatedBy).One(&created); err != nil {
+	if err := db.Users().FindId(o.CreatedBy).One(&created); err != nil {
 		return err
 	}
 
-	if err := dbu.FindId(o.ModifiedBy).One(&modified); err != nil {
+	if err := db.Users().FindId(o.ModifiedBy).One(&modified); err != nil {
 		return err
 	}
 

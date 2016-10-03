@@ -24,12 +24,19 @@ const _CTX_JOB_ID = "job_id"
 // takes _CTX_JOB_ID parameter form the request, fetches the Job
 // and set it under key _CTX_JOB in gin.Context
 func Middleware(c *gin.Context) {
-	ID := c.Params.ByName(_CTX_JOB_ID) //get Job ID
+	ID, err := util.GetIdParam(_CTX_JOB_ID, c)
 
-	collection := db.C(db.JOBS)
+	if err != nil {
+		log.Print("Error while getting the Job:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Message: "Not Found",
+		})
+		return
+	}
+
 	var job models.Job
-
-	err := collection.FindId(bson.ObjectIdHex(ID)).One(&job);
+	err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job);
 	if err != nil {
 		log.Print("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
@@ -49,7 +56,15 @@ func Middleware(c *gin.Context) {
 func GetJob(c *gin.Context) {
 	//get Job set by the middleware
 	job := c.MustGet(_CTX_JOB).(models.Job)
-	metadata.JobMetadata(&job)
+
+	if err := metadata.JobMetadata(&job); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Message: "Error while getting Jobs",
+		})
+		return
+	}
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, job)
@@ -58,7 +73,6 @@ func GetJob(c *gin.Context) {
 // GetJobs renders the Job as JSON
 func GetJobs(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
-	collection := db.C(db.JOBS)
 
 	parser := util.NewQueryParser(c)
 	match := parser.Match([]string{"status", "type", "failed", })
@@ -66,7 +80,7 @@ func GetJobs(c *gin.Context) {
 		match = con
 	}
 
-	query := collection.Find(match) // prepare the query
+	query := db.Jobs().Find(match) // prepare the query
 
 	// set sort value to the query based on request parameters
 	if order := parser.OrderBy(); order != "" {
@@ -90,7 +104,7 @@ func GetJobs(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Credentials",
+				Message: "Error while getting Jobs",
 			})
 			return
 		}

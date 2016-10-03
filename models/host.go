@@ -13,10 +13,10 @@ type Host struct {
 	Name                 string         `bson:"name" json:"name" binding:"required"`
 	InventoryID          bson.ObjectId  `bson:"inventory_id" json:"inventory"`
 
-	Description          *string         `bson:"description,omitempty" json:"description"`
+	Description          string         `bson:"description,omitempty" json:"description"`
 	GroupID              *bson.ObjectId  `bson:"group_id,omitempty" json:"inventory"`
-	InstanceID           *string         `bson:"instance_id,omitempty" json:"instance_id"`
-	Variables            *string         `bson:"variables,omitempty" json:"variables"`
+	InstanceID           string         `bson:"instance_id,omitempty" json:"instance_id"`
+	Variables            string         `bson:"variables,omitempty" json:"variables"`
 	LastJobID            *bson.ObjectId  `bson:"last_job_id,omitempty,omitempty" json:"last_job"`
 	LastJobHostSummaryID *bson.ObjectId  `bson:"last_job_host_summary_id,omitempty" json:"last_job_host_summary"`
 

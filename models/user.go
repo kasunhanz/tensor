@@ -14,7 +14,6 @@ type User struct {
 	Url             string        `bson:"-" json:"url"`
 	Related         gin.H         `bson:"-" json:"related"`
 
-	Created         time.Time     `bson:"created" json:"created"`
 	Username        string        `bson:"username" json:"username" binding:"required"`
 	FirstName       string        `bson:"first_name" json:"first_name"`
 	LastName        string        `bson:"last_name" json:"last_name"`
@@ -22,7 +21,9 @@ type User struct {
 	IsSuperUser     bool          `bson:"is_superuser" json:"is_superuser"`
 	IsSystemAuditor bool          `bson:"is_system_auditor" json:"is_system_auditor"`
 	Password        string        `bson:"password" json:"-"`
-	OrganizationID  bson.ObjectId `bson:"organization_id" json:"organization"`
+	OrganizationID  *bson.ObjectId `bson:"organization_id" json:"organization"`
+
+	Created         time.Time     `bson:"created" json:"created"`
 }
 
 type AccessUser struct {
