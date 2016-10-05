@@ -44,22 +44,14 @@ else
 endif
 DEBUILD = $(DEBUILD_BIN) $(DEBUILD_OPTS)
 DEB_PPA ?= ppa#
-Choose the desired Ubuntu release: lucid precise saucy trusty xenial
-DEB_DIST = unstable
+DEB_DIST = all
 
 default: build
 
-build64:
+build: vet
 	export GOARCH="amd64"
-	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensord ./tensord/...
-	go build -v -o ./build/$(NAME)-$(VERSION)_amd64/tensor ./cmd/...
-
-build386:
-	export GOARCH="386"
-	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensord ./tensord/...
-	go build -v -o ./build/$(NAME)-$(VERSION)_i386/tensor ./cmd/...
-
-build: vet build64 build386
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensord ./tensord/...
+	go build -v -o ./build/$(NAME)-$(VERSION)/tensor ./cmd/...
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -81,10 +73,6 @@ debian:	build
 	cp -a packaging/debian deb-build/$(NAME)-$(VERSION)/
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;s|%DATE%|$(DEB_DATE)|g;" deb-build/$(NAME)-$(VERSION)/debian/changelog
 	sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$(DEB_DIST)|g;" deb-build/$(NAME)-$(VERSION)/debian/control
-	#fix permission issues
-	chmod +x deb-build/$(NAME)-$(VERSION)/systemd/tensord.service
-	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensord
-	chmod +x deb-build/$(NAME)-$(VERSION)/bin/tensor
 
 deb: debian
 	cd deb-build/$(NAME)-$(VERSION)/ && $(DEBUILD) -b
@@ -114,7 +102,7 @@ lint:
 	@golint ./... || true
 	@eslint client || true
 
-serve:
+run:
 	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
 
 test:

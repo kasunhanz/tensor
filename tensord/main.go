@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/gamunu/tensor/api"
-	"github.com/gamunu/tensor/api/addhoctasks"
-	"github.com/gamunu/tensor/api/sockets"
-	"github.com/gamunu/tensor/api/tasks"
-	database "github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/util"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"log"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/gin-gonic/gin"
+	"bitbucket.pearson.com/apseng/tensor/api"
+	"bitbucket.pearson.com/apseng/tensor/api/sockets"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	"bitbucket.pearson.com/apseng/tensor/runners"
+	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func main() {
@@ -19,12 +18,12 @@ func main() {
 	fmt.Printf("MongoDB : %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
 	fmt.Printf("Tmp Path (projects home) : %v\n", util.Config.TmpPath)
 
-	if err := database.Connect(); err != nil {
+	if err := db.Connect(); err != nil {
 		log.Fatal(err)
 	}
 
 	defer func() {
-		database.MongoDb.Session.Close()
+		db.MongoDb.Session.Close()
 	}()
 
 	go sockets.StartWS()
@@ -37,8 +36,8 @@ func main() {
 
 	api.Route(r)
 
-	go tasks.StartRunner()
-	go addhoctasks.StartRunner()
+	go runners.StartAnsibleRunner()
+	//go addhoctasks.StartRunner()
 
 	r.Run(util.Config.Port)
 

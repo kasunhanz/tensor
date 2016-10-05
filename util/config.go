@@ -26,13 +26,14 @@ type MongoDBConfig struct {
 }
 
 type configType struct {
-	MongoDB MongoDBConfig `yaml:"mongodb"`
+	MongoDB          MongoDBConfig `yaml:"mongodb"`
 	// Format `:port_num` eg, :3000
-	Port string `yaml:"port"`
-	UiPort string `yaml:"uiport"`
+	Port             string `yaml:"port"`
+	UiPort           string `yaml:"uiport"`
 
 	// Tensor stores projects here
-	TmpPath string `yaml:"tmp_path"`
+	TmpPath          string `yaml:"tmp_path"`
+	HomePath         string `yaml:"home_path"`
 
 	// cookie hashing & encryption
 	CookieHash       string `yaml:"cookie_hash"`
@@ -83,11 +84,15 @@ func init() {
 	}
 
 	if len(Config.UiPort) == 0 {
-		Config.Port = ":8080"
+		Config.UiPort = ":8080"
 	}
 
 	if len(Config.TmpPath) == 0 {
 		Config.TmpPath = "/tmp/tensor"
+	}
+
+	if len(Config.TmpPath) == 0 {
+		Config.TmpPath = "/var/lib/tensor"
 	}
 
 	var encryption []byte
