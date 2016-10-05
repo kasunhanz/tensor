@@ -125,7 +125,7 @@ func GetHosts(c *gin.Context) {
 	})
 }
 
-// AddInventory creates a new project
+// AddHost creates a new project
 func AddHost(c *gin.Context) {
 	var req models.Host
 	user := c.MustGet(_CTX_USER).(models.User)

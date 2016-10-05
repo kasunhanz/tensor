@@ -1,18 +1,14 @@
 # Latest version of centos
 FROM centos:centos7
 
-# ansible
-RUN yum clean all && \
-    yum -y install epel-release && yum -y update && \
-    yum -y install PyYAML python-jinja2 python-httplib2 python-keyczar python-paramiko python-setuptools git python-pip python-requests wget
-
-RUN yum -y install ansible
-# Adding hosts
-RUN mkdir -p /etc/ansible && echo 'localhost' > /etc/ansible/hosts
-
-# install proot
-RUN wget http://download.opensuse.org/repositories/home:cedric-vincent/CentOS_CentOS-5/home:cedric-vincent.repo  -O /etc/yum.repos.d/cedric-vincent.repo
-RUN yum -y update && yum -y install proot
+# gcc for cgo and ansible dependencies
+RUN apt-get update && apt-get install -y -q --no-install-recommends \
+        curl  g++  gcc  libc6-dev  make  git subversion mercurial ca-certificates openssl \
+		build-essential python-pip python-dev python-yaml libffi-dev libssl-dev \
+        libxml2-dev libxslt1-dev zlib1g-dev iputils-ping proot && \
+        pip install -U pip && \
+        pip install --upgrade wheel setuptools && \
+        pip install --upgrade pyyaml jinja2 pycrypto requests
 
 # GO lang
 ENV GOLANG_VERSION 1.7.1
@@ -28,6 +24,35 @@ ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+# ansible
+
+# Download ansible's source tree
+RUN git clone git://github.com/ansible/ansible.git --recursive
+
+# Compile ansible
+RUN cd ansible && bash -c 'source ./hacking/env-setup'  && \
+    mkdir -p /opt/ansible                && \
+    mv /ansible/bin   /opt/ansible/bin   && \
+    mv /ansible/lib   /opt/ansible/lib   && \
+    mv /ansible/docs  /opt/ansible/docs  && \
+    rm -rf /ansible
+
+# Optinal tools
+RUN apt-get install -y sshpass openssh-client
+
+# Clean up
+RUN apt-get remove -y --auto-remove build-essential python-pip python-dev libffi-dev libssl-dev  && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Adding hosts
+RUN mkdir -p /etc/ansible && echo 'localhost' > /etc/ansible/hosts
+
+
+
+ENV PATH        /opt/ansible/bin:$PATH
+ENV PYTHONPATH  /opt/ansible/lib:$PYTHONPATH
+ENV MANPATH /opt/ansible/docs/man:$MANPATH
 
 # tensor
 RUN mkdir -p /opt/tensor/bin/

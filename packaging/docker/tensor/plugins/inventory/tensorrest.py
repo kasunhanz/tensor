@@ -66,7 +66,7 @@ class InventoryScript(object):
         url = urlparse.urlunsplit([parts.scheme,
                                    '%s:%d' % (parts.hostname, port),
                                    parts.path, parts.query, parts.fragment])
-        url_path = '/v1/inventories/%d/script/' % self.inventory_id
+        url_path = '/v1/inventories/%s/script/' % self.inventory_id
         q = {}
         if self.show_all:
             q['all'] = 1
@@ -93,13 +93,12 @@ class InventoryScript(object):
             if not (parts.username and parts.password) and not self.auth_token:
                 raise ValueError('No username/password specified in REST API '
                                  'URL, and no REST API token provided')
-            try:
-                # Command line argument takes precedence over environment
-                # variable.
-                self.inventory_id = int(self.options.get('inventory_id', 0) or
-                                        os.getenv('INVENTORY_ID', 0))
-            except ValueError:
-                raise ValueError('Inventory ID must be an integer')
+
+            # Command line argument takes precedence over environment
+            # variable.
+            self.inventory_id = self.options.get('inventory_id', 0) or \
+                os.getenv('INVENTORY_ID', '')
+
             if not self.inventory_id:
                 raise ValueError('No inventory ID specified')
             self.hostname = self.options.get('hostname', '')

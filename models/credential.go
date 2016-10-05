@@ -9,6 +9,7 @@ import (
 const (
 	CREDENTIAL_KIND_SSH = "ssh"
 	CREDENTIAL_KIND_NET = "net"
+	CREDENTIAL_KIND_WIN = "win"
 	CREDENTIAL_KIND_SCM = "scm"
 	CREDENTIAL_KIND_AWS = "aws"
 	CREDENTIAL_KIND_RAX = "rax"

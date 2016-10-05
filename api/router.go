@@ -19,7 +19,6 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/jobs"
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/api/cors"
-	"bitbucket.pearson.com/apseng/tensor/api/gzip"
 	"bitbucket.pearson.com/apseng/tensor/api/jwt"
 	"bitbucket.pearson.com/apseng/tensor/models"
 )
@@ -36,7 +35,8 @@ func Route(r *gin.Engine) {
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
-	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	// causing some issues
+	//r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	r.GET("", util.GetAPIVersion)
 	// set up the namespace

@@ -42,6 +42,7 @@ func NewAuthToken(t *LocalToken) error {
 		return errors.New("Create JWT Token faild")
 	}
 
-	t = &LocalToken{Token:  tokenString, Expire: expire.Format(time.RFC3339), }
+	t.Token = tokenString
+	t.Expire = expire.Format(time.RFC3339)
 	return nil
 }

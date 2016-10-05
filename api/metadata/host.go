@@ -10,8 +10,8 @@ import (
 func HostMetadata(host *models.Host) error {
 
 	ID := host.ID.Hex()
-	host.Type = "inventory"
-	host.Url = "/v1/inventories/" + ID + "/"
+	host.Type = "host"
+	host.Url = "/v1/hosts/" + ID + "/"
 	host.Related = gin.H{
 		"created_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",
 		"modified_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",

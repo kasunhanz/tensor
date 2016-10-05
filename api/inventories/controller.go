@@ -283,11 +283,13 @@ func RemoveInventory(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// note: we are not using var varname []string specially because
+// output json must include [] for each array and {} for each object
 func Script(c *gin.Context) {
 	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
 
 	// query variables
-	qall := c.Query("all")
+	//qall := c.Query("all")
 	qhostvars := c.Query("hostvars")
 	qhost := c.Query("host")
 
@@ -337,7 +339,9 @@ func Script(c *gin.Context) {
 		return
 	}
 
-	var allhosts []models.Host
+	allhosts := []models.Host{}
+
+	// get all
 
 	// loop through parent groups and get their hosts and
 	// child groups
@@ -377,18 +381,43 @@ func Script(c *gin.Context) {
 			return
 		}
 
-		var hostnames []string
+		hostnames := []string{}
 		//add host to group
 		for _, v := range hosts {
 			hostnames = append(hostnames, v.Name)
 		}
 
-		var groupnames []string
-		var groupvars []gin.H
+		groupnames := []string{}
 		//add host to group
 		for _, v := range childgroups {
 			groupnames = append(groupnames, v.Name)
+		}
 
+		gv := gin.H{}
+		if v.Variables != "" {
+			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+				log.Println("Error while unmarshalling group vars", err)
+				// send a brief error description to client
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": http.StatusInternalServerError,
+					"message": "Error while getting Hosts",
+				})
+				return
+			}
+		}
+
+		resp[v.Name] = gin.H{
+			"hosts": hostnames,
+			"children": groupnames,
+			"vars": gv,
+		}
+
+	}
+
+	//if hostvars parameter exist
+	hostvars := gin.H{}
+	for _, v := range allhosts {
+		if v.Variables != "" {
 			var gv gin.H
 			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
 				log.Println("Error while unmarshalling group vars", err)
@@ -399,33 +428,41 @@ func Script(c *gin.Context) {
 				})
 				return
 			}
-			groupvars = append(groupvars, gv)
+			//add host variables to hostvars
+			hostvars[v.Name] = gv
 		}
-
-		resp[v.Name] = gin.H{
-			"hosts": hostnames,
-			"children": groupnames,
-			"vars": groupvars,
-		}
-
 	}
 
-	//if hostvars parameter exist
-	var hostvars gin.H
-	var hosts []string
-	for _, v := range allhosts {
-		var gv gin.H
-		if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
-			log.Println("Error while unmarshalling group vars", err)
-			// send a brief error description to client
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
-				"message": "Error while getting Hosts",
-			})
-			return
+	// add non-grouped hosts
+	nghosts := []models.Host{}
+	q = bson.M{"inventory_id": inv.ID, "group_id": nil}
+
+	if err := db.Hosts().Find(q).All(&nghosts); err != nil {
+		log.Println("Error while getting non-grouped hosts", err)
+		// send a brief error description to client
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"message": "Error while getting non-grouped Hosts",
+		})
+		return
+	}
+
+	hosts := []string{}
+	for _, v := range nghosts {
+		if v.Variables != "" {
+			var gv gin.H
+			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
+				log.Println("Error while unmarshalling group vars", err)
+				// send a brief error description to client
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": http.StatusInternalServerError,
+					"message": "Error while getting Hosts",
+				})
+				return
+			}
+			//add host variables to hostvars
+			hostvars[v.Name] = gv
 		}
-		//add host variables to hostvars
-		hostvars[v.Name] = gv
 		//add host names to hosts
 		hosts = append(hosts, v.Name)
 	}
@@ -437,11 +474,8 @@ func Script(c *gin.Context) {
 		}
 	}
 
-	//if all parameter exist
-	if qall != "" {
-		resp["all"] = gin.H{
-			"hosts": hosts,
-		}
+	resp["all"] = gin.H{
+		"hosts": hosts,
 	}
 
 	c.JSON(http.StatusOK, resp)

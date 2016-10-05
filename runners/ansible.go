@@ -12,7 +12,8 @@ import (
 	"os"
 	"strings"
 	"os/exec"
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"io"
+	"bytes"
 )
 
 // JobPaths
@@ -129,6 +130,7 @@ func (j *AnsibleJob) run() {
 	j.Job.ResultStdout = string(output)
 	if err != nil {
 		log.Println("Running playbook failed", err)
+		j.Job.JobExplanation = err.Error()
 		j.fail()
 		return
 	}
@@ -181,6 +183,15 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 
 	if j.MachineCred.Username != "" {
 		pPlaybook = append(pPlaybook, "-u", j.MachineCred.Username)
+
+		if j.MachineCred.Password != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
+			pSecure = append(pSecure, "-e", "'ansible_ssh_pass=" + crypt.Decrypt(j.MachineCred.Password) + "'")
+		}
+
+		// if credential type is windows the issue a kinit to acquire a kerberos ticket
+		if j.MachineCred.Password != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_WIN {
+			j.kinit()
+		}
 	}
 
 	if j.Job.BecomeEnabled && j.MachineCred.BecomeMethod != "" &&
@@ -194,12 +205,12 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 	}
 
 	pargs := []string{}
-	argproot := pPlaybook// append(pProot[:], pPlaybook[:]...)
+	//argproot := append(pProot, pPlaybook...)
 	if len(pSSHAgent) > 0 {
 		// add ssh agent parameters
 		pargs = append(pargs, pSSHAgent...)
 		// add proot and ansible paramters
-		pargs = append(pargs, argproot...)
+		pargs = append(pargs, pPlaybook...)
 
 		j.Job.JobARGS = pargs
 
@@ -208,7 +219,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 
 	} else {
 		// add proot and ansible paramters
-		pargs = append(pargs, argproot...)
+		pargs = append(pargs, pPlaybook...)
 
 		j.Job.JobARGS = pargs
 
@@ -216,29 +227,33 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 		pargs = append(pargs, pSecure...)
 	}
 
-	//For example, if I type something like:
-	//$ exec /usr/bin/ssh-agent /bin/bash
-	//from my shell prompt, I end up in a bash that is setup correctly with the agent. As soon as that bash dies, or any process that replaced bash with exec dies, the agent exits.
+	// set job arguments, exclude unencrypted passwords etc.
+	j.Job.JobARGS = []string{"ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
+
+	// For example, if I type something like:
+	// $ exec /usr/bin/ssh-agent /bin/bash
+	// from my shell prompt, I end up in a bash that is setup correctly with the agent.
+	// As soon as that bash dies, or any process that replaced bash with exec dies, the agent exits.
 	// add -c for shell, yes it's ugly but meh! this is golden
 	arguments := strings.Join(pargs, " ")
 	csh := []string{
 		"-c",
 		"ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + arguments + " " + j.Job.Playbook + "'",
 	}
+	log.Println("ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + arguments + " " + j.Job.Playbook + "'")
 	cmd := exec.Command("/bin/sh", csh...)
 	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
 
+	//"ANSIBLE_USE_VENV": "True",
 	cmd.Env = append(os.Environ(), []string{
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
 		"PS1=(tensor)",
 		"ANSIBLE_CALLBACK_PLUGINS=/opt/tensor/plugins/callback",
-		"LANG=en_US.UTF-8",
-		"TZ=America/New_York",
 		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
 		"ANSIBLE_FORCE_COLOR=True",
-		"REST_API_URL=http://127.0.0.1:" + util.Config.Port,
+		"REST_API_URL=http://localhost:8010",
 		"INVENTORY_HOSTVARS=True",
 		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
 	}...)
@@ -257,6 +272,9 @@ func (j *AnsibleJob) installKey() error {
 // createJobDirs
 func (j *AnsibleJob) createJobDirs() {
 	// create credential paths
+	if err := os.MkdirAll(j.JobPaths.EtcTower, 0770); err != nil {
+		log.Println("Unable to create directory: ", j.JobPaths.EtcTower)
+	}
 	if err := os.MkdirAll(j.JobPaths.CredentialPath, 0770); err != nil {
 		log.Println("Unable to create directory: ", j.JobPaths.CredentialPath)
 	}
@@ -362,5 +380,58 @@ func (j *AnsibleJob) buildParams(params []string) {
 	if err != nil {
 		log.Println("Error while marshalling parameters")
 	}
-	params = append(params, "-e \\'{" + string(rp) + "}\\'")
+	params = append(params, "-e '{" + string(rp) + "}'")
+}
+
+func (j *AnsibleJob) kinit() error {
+
+	// Create two command structs for echo and kinit
+	echo := exec.Command("echo", "-n", crypt.Decrypt(j.MachineCred.Password))
+	kinit := exec.Command("kinit", j.MachineCred.Username)
+	kinit.Env = os.Environ()
+
+	// Create asynchronous in memory pipe
+	r, w := io.Pipe()
+
+	// set pipe writer to echo std out
+	echo.Stdout = w
+	// set pip reader to kinit std in
+	kinit.Stdin = r
+
+	// initialize new buffer
+	var buffer bytes.Buffer
+	kinit.Stdout = &buffer
+
+	// start two commands
+	if err := echo.Start(); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if err := kinit.Start(); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if err := echo.Wait(); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if err := kinit.Wait(); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	return nil
 }

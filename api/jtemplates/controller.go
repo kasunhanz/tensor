@@ -247,6 +247,7 @@ func UpdateJTemplate(c *gin.Context) {
 		}
 	}
 
+	req.ID = jobTemplate.ID
 	req.Created = jobTemplate.Created
 	req.Modified = time.Now()
 	req.CreatedByID = jobTemplate.CreatedByID

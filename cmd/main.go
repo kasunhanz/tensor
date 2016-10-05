@@ -77,7 +77,7 @@ func doSetup() int {
 		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 11)
 		user.Password = string(pwdHash)
 
-		if err := userc.Insert(user); err != nil {
+		if err := db.Users().Insert(user); err != nil {
 			fmt.Printf(" Failed to create. If you already setup a user, you can disregard this error.\n %v\n", err.Error())
 			os.Exit(1)
 		}
