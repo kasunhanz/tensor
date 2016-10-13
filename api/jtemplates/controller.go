@@ -394,6 +394,9 @@ func Launch(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
+	//var req models.Launch
+	//err := c.BindJSON(&req);
+
 	job := models.Job{
 		ID: bson.NewObjectId(),
 		Name: template.Name,
