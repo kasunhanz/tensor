@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin/binding"
-	"gopkg.in/go-playground/validator.v8"
+	"gopkg.in/go-playground/validator.v9"
 	"regexp"
 )
 
@@ -38,8 +38,8 @@ func (v *SpaceValidator) ValidateStruct(obj interface{}) error {
 
 func (v *SpaceValidator) lazyinit() {
 	v.once.Do(func() {
-		config := &validator.Config{TagName: "binding"}
-		v.validate = validator.New(config)
+		v.validate = validator.New()
+		v.validate.SetTagName("binding")
 
 		// Register custom validator functions
 		v.validate.RegisterValidation("ansible_becomemethod", isAnsibleBecomeMethod)
@@ -56,10 +56,10 @@ func kindOfData(data interface{}) reflect.Kind {
 	return valueType
 }
 
-func isAnsibleBecomeMethod(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	return ansibleBecomeMethodRegex.MatchString(field.String())
+func isAnsibleBecomeMethod(fl validator.FieldLevel) bool {
+	return ansibleBecomeMethodRegex.MatchString(fl.Field().String())
 }
 
-func isDomainServer(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value, field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string) bool {
-	return domainServerRegex.MatchString(field.String())
+func isDomainServer(fl validator.FieldLevel) bool {
+	return domainServerRegex.MatchString(fl.Field().String())
 }

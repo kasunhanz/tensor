@@ -17,7 +17,7 @@ type Inventory struct {
 	SummaryFields                gin.H         `bson:"-" json:"summary_fields"`
 
 	// required feilds
-	Name                         string        `bson:"name" json:"name" binding:"required"`
+	Name                         string        `bson:"name" json:"name" binding:"required,ip|"`
 	OrganizationID               bson.ObjectId `bson:"organization_id" json:"organization" binding:"required"`
 
 	Description                  string        `bson:"description,omitempty" json:"description"`
