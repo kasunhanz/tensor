@@ -88,7 +88,6 @@ func Route(r *gin.Engine) {
 			gUsers.POST("/", users.AddUser)
 			gUsers.GET("/:user_id", users.Middleware, users.GetUser)
 			gUsers.PUT("/:user_id", users.Middleware, users.UpdateUser)
-			gUsers.POST("/:user_id/password", users.Middleware, users.UpdateUserPassword)
 			gUsers.DELETE("/:user_id", users.Middleware, users.DeleteUser)
 
 			//related

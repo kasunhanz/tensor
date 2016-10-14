@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"gopkg.in/mgo.v2/bson"
-	"golang.org/x/crypto/bcrypt"
 	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"

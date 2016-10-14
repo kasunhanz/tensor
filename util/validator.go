@@ -76,7 +76,7 @@ func (v *SpaceValidator) lazyinit() {
 		// Register custom validator functions
 		v.validate.RegisterValidation("become_method", isBecome)
 		v.validate.RegisterValidation("dnsname", IsDNSName)
-		v.validate.RegisterValidation("host", IsHost)
+		v.validate.RegisterValidation("iphost", IsHost)
 		v.validate.RegisterValidation("credentialkind", IsCredentialKind)
 		v.validate.RegisterValidation("naproperty", NaProperty)
 		v.validate.RegisterValidation("scmtype", IsScmType)
@@ -117,6 +117,13 @@ func (v *SpaceValidator) lazyinit() {
 			return ut.Add("jobtype", "{0} must have either one of run,check,scan", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("jobtype", fe.Field())
+
+			return t
+		})
+		v.validate.RegisterTranslation("iphost", trans, func(ut ut.Translator) error {
+			return ut.Add("iphost", "{0} must have valid hostname or ip address", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("iphost", fe.Field())
 
 			return t
 		})
