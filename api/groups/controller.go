@@ -145,7 +145,7 @@ func AddGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -209,7 +209,7 @@ func UpdateGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}

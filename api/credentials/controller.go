@@ -157,7 +157,7 @@ func AddCredential(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -181,7 +181,7 @@ func AddCredential(c *gin.Context) {
 		req.Password = password
 	}
 
-	if req.Password != "" {
+	if req.SshKeyData != "" {
 		data := crypt.Encrypt(req.SshKeyData)
 		req.SshKeyData = data
 
@@ -191,11 +191,11 @@ func AddCredential(c *gin.Context) {
 		}
 	}
 
-	if req.Password != "" {
+	if req.BecomePassword != "" {
 		password := crypt.Encrypt(req.BecomePassword)
 		req.BecomePassword = password
 	}
-	if req.Password != "" {
+	if req.VaultPassword != "" {
 		password := crypt.Encrypt(req.VaultPassword)
 		req.VaultPassword = password
 	}
@@ -245,7 +245,7 @@ func UpdateCredential(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}

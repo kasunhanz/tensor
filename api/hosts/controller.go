@@ -134,7 +134,7 @@ func AddHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -193,7 +193,7 @@ func UpdateHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 	}
 

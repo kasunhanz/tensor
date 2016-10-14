@@ -121,7 +121,7 @@ func AddUser(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -150,31 +150,16 @@ func UpdateUser(c *gin.Context) {
 
 	var user models.User
 	if err := c.BindJSON(&user); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: util.GetValidationErrors(err),
+		})
 		return
 	}
 
 	if err := db.Users().UpdateId(oldUser.ID,
 		bson.M{"first_name": user.FirstName, "last_name":user.LastName, "username": user.Username, "email": user.Email}); err != nil {
-		panic(err)
-	}
-
-	c.AbortWithStatus(204)
-}
-
-func UpdateUserPassword(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
-	var pwd struct {
-		Pwd string `json:"password"`
-	}
-
-	if err := c.BindJSON(&pwd); err != nil {
-		return
-	}
-
-	password, _ := bcrypt.GenerateFromPassword([]byte(pwd.Pwd), 11)
-
-
-	if err := db.Users().UpdateId(user.ID, bson.M{"password": string(password)}); err != nil {
 		panic(err)
 	}
 

@@ -145,7 +145,7 @@ func AddJTemplate(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request, " + err.Error(),
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -223,7 +223,7 @@ func UpdateJTemplate(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -394,6 +394,16 @@ func Launch(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
+	var req models.Launch
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: util.GetValidationErrors(err),
+		})
+		return
+	}
+
 	job := models.Job{
 		ID: bson.NewObjectId(),
 		Name: template.Name,
@@ -422,6 +432,35 @@ func Launch(c *gin.Context) {
 		ModifiedByID:user.ID,
 		Created:time.Now(),
 		Modified:time.Now(),
+	}
+
+	// add launch parameters
+	if len(req.ExtraVars) > 0 && template.PromptVariables {
+		job.ExtraVars = req.ExtraVars
+	}
+
+	if len(req.Limit) > 0 && template.PromptLimit {
+		job.Limit = req.Limit
+	}
+
+	if len(req.JobTags) > 0 && template.PromptTags {
+		job.JobTags = req.JobTags
+	}
+
+	if len(req.SkipTags) > 0 && template.PromptSkipTags {
+		job.SkipTags = req.SkipTags
+	}
+
+	if len(req.JobType) > 0 && template.PromptJobType {
+		job.JobType = req.JobType
+	}
+
+	if len(req.InventoryID) == 24 {
+		job.InventoryID = req.InventoryID
+	}
+
+	if len(req.MachineCredentialID) == 24 {
+		job.MachineCredentialID = req.MachineCredentialID
 	}
 
 	runnerJob := runners.AnsibleJob{

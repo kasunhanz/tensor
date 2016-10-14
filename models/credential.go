@@ -27,7 +27,7 @@ type Credential struct {
 	ID                bson.ObjectId   `bson:"_id" json:"id"`
 	// required feilds
 	Name              string          `bson:"name" json:"name" binding:"required"`
-	Kind              string          `bson:"kind" json:"kind" binding:"required"`
+	Kind              string          `bson:"kind" json:"kind" binding:"required,credentialkind"`
 
 	//optional feilds
 	Cloud             bool            `bson:"cloud,omitempty" json:"cloud"`
@@ -40,7 +40,7 @@ type Credential struct {
 	Domain            string         `bson:"domain,omitempty" json:"domain"`
 	SshKeyData        string         `bson:"ssh_key_data,omitempty" json:"ssh_key_data"`
 	SshKeyUnlock      string         `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock"`
-	BecomeMethod      string         `bson:"become_method,omitempty" json:"become_method"`
+	BecomeMethod      string         `bson:"become_method,omitempty" json:"become_method" binding:"become_method"`
 	BecomeUsername    string         `bson:"become_username,omitempty" json:"become_username"`
 	BecomePassword    string         `bson:"become_password,omitempty" json:"become_password"`
 	VaultPassword     string         `bson:"vault_password,omitempty" json:"vault_password"`

@@ -127,13 +127,15 @@ func GetTeams(c *gin.Context) {
 
 // AddTeam creates a new team
 func AddTeam(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Team
 	if err := c.BindJSON(&req); err != nil {
-		log.Println("Failed to parse payload", err)
-		c.JSON(http.StatusBadRequest,
-			gin.H{"status": "Bad Request", "message": "Failed to parse payload"})
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: util.GetValidationErrors(err),
+		})
 		return
 	}
 
@@ -187,7 +189,7 @@ func UpdateTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: "Bad Request",
+			Message: util.GetValidationErrors(err),
 		})
 		return
 	}

@@ -10,7 +10,7 @@ type Host struct {
 	ID                   bson.ObjectId  `bson:"_id" json:"id"`
 
 	// required
-	Name                 string         `bson:"name" json:"name" binding:"required"`
+	Name                 string         `bson:"name" json:"name" binding:"required,host"`
 	InventoryID          bson.ObjectId  `bson:"inventory_id" json:"inventory" binding:"required"`
 
 	Description          string         `bson:"description,omitempty" json:"description,omitempty"`

@@ -37,7 +37,7 @@ func main() {
 	api.Route(r)
 
 	go runners.StartAnsibleRunner()
-	//go addhoctasks.StartRunner()
+	go runners.StartSystemRunner()
 
 	r.Run(util.Config.Port)
 

@@ -5,17 +5,18 @@ import (
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"log"
-	"io/ioutil"
 	"bitbucket.pearson.com/apseng/tensor/crypt"
 	"bitbucket.pearson.com/apseng/tensor/util/unique"
-	"gopkg.in/yaml.v2"
 	"os"
-	"strings"
 	"os/exec"
 	"io"
 	"bytes"
+	"golang.org/x/crypto/ssh/agent"
+	"bitbucket.pearson.com/apseng/tensor/ssh"
+	"strings"
 )
 
+var SSHAgent (agent.Agent)
 // JobPaths
 type JobPaths struct {
 	EtcTower        string
@@ -28,19 +29,6 @@ type JobPaths struct {
 	ProjectRoot     string
 	AnsiblePath     string
 	CredentialPath  string
-}
-
-type AnsibleJob struct {
-	Job         models.Job
-	Template    models.JobTemplate
-	MachineCred models.Credential
-	NetworkCred models.Credential
-	CloudCred   models.Credential
-	Inventory   models.Inventory
-	Project     models.Project
-	User        models.User
-	Token       string
-	JobPaths    JobPaths
 }
 
 type AnsibleJobPool struct {
@@ -85,6 +73,19 @@ func (p *AnsibleJobPool) run() {
 
 func StartAnsibleRunner() {
 	AnsiblePool.run()
+}
+
+type AnsibleJob struct {
+	Job         models.Job
+	Template    models.JobTemplate
+	MachineCred models.Credential
+	NetworkCred models.Credential
+	CloudCred   models.Credential
+	Inventory   models.Inventory
+	Project     models.Project
+	User        models.User
+	Token       string
+	JobPaths    JobPaths
 }
 
 func (j *AnsibleJob) run() {
@@ -139,44 +140,13 @@ func (j *AnsibleJob) run() {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-// runPlaybook uses ansible proot for environment isolation to secure host machine
-//
-//  PRoot is a user-space implementation of chroot, mount --bind, and binfmt_misc.
-//	This means that users don't need any privileges or setup to do things like using an arbitrary directory
-// 	as the new root filesystem, making files accessible somewhere else in the
-// 	filesystem hierarchy, or executing programs built for another CPU architecture transparently through QEMU user-mode.
-// 	Also, developers can add their own features or use
-// 	PRoot as a Linux process instrumentation  engine  thanks  to  its  extension  mechanism.
-// 	Technically PRoot relies on ptrace, an unprivileged system-call available in every Linux kernel.
-// 	for more information use linux man pages
-// 	this routine uses PRoot -b path, --bind=path, -m path, --mount=path and  -w path, --pwd=path, --cwd=path
-// 	option -b is to Make the content of path accessible in the guest rootfs.
-// 	option -w Set the initial working directory to path.
 func (j *AnsibleJob) runPlaybook() ([]byte, error) {
-
-	// if add this if credential type is ssh
-	pSSHAgent := []string{}
-	j.buildSSHParams(j.JobPaths.CredentialPath, pSSHAgent)
-
-	// proot parameters
-	/*pProot := []string{
-		"proot -v 0 -r /",
-		"-b " + j.JobPaths.EtcTower + ":/etc/tensor",
-		"-b " + j.JobPaths.Tmp + ":/tmp",
-		"-b " + j.JobPaths.VarLib + ":/opt/tensor",
-		"-b " + j.JobPaths.VarLibJobStatus + ":/opt/tensor/job_status",
-		"-b " + j.JobPaths.VarLibProjects + ":/opt/tensor/projects",
-		"-b " + j.JobPaths.TmpRand + ":" + j.JobPaths.TmpRand,
-		"-b " + j.JobPaths.ProjectRoot + ":" + j.JobPaths.ProjectRoot,
-		"-b " + j.JobPaths.AnsiblePath + ":" + j.JobPaths.AnsiblePath,
-		"-w " + j.JobPaths.ProjectRoot,
-	}*/
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
-		"ansible-playbook", "-i", "/opt/tensor/plugins/inventory/tensorrest.py",
+		"-i", "/opt/tensor/plugins/inventory/tensorrest.py",
 	}
-	j.buildParams(pPlaybook)
+	pPlaybook = j.buildParams(pPlaybook)
 
 	// parameters that are hidden from output
 	pSecure := []string{}
@@ -194,57 +164,99 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 		}
 	}
 
-	if j.Job.BecomeEnabled && j.MachineCred.BecomeMethod != "" &&
-		j.MachineCred.BecomeUsername != "" {
+	if j.Job.BecomeEnabled {
+		pPlaybook = append(pPlaybook, "-b")
 
-		pPlaybook = append(pPlaybook, "-b", j.MachineCred.BecomeUsername)
+		// default become method is sudo
+		if j.MachineCred.BecomeMethod != "" {
+			pPlaybook = append(pPlaybook, "--become-method=" + j.MachineCred.BecomeMethod)
+		}
 
+		// default become user is root
+		if j.MachineCred.BecomeUsername != "" {
+			pPlaybook = append(pPlaybook, "--become-user=" + j.MachineCred.BecomeUsername)
+		}
+
+		// for now this is more convenient than --ask-become-pass with sshpass
 		if j.MachineCred.BecomePassword != "" {
 			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + crypt.Decrypt(j.MachineCred.BecomePassword) + "'")
 		}
 	}
 
 	pargs := []string{}
-	//argproot := append(pProot, pPlaybook...)
-	if len(pSSHAgent) > 0 {
-		// add ssh agent parameters
-		pargs = append(pargs, pSSHAgent...)
-		// add proot and ansible paramters
-		pargs = append(pargs, pPlaybook...)
+	// add proot and ansible paramters
+	pargs = append(pargs, pPlaybook...)
+	j.Job.JobARGS = pargs
+	// should not included in any output
+	pargs = append(pargs, pSecure...)
 
-		j.Job.JobARGS = pargs
+	// Start SSH agent
+	client, socket, cleanup := ssh.StartAgent()
 
-		// should not included in any output
-		pargs = append(pargs, pSecure...)
+	if j.MachineCred.SshKeyData != "" {
 
-	} else {
-		// add proot and ansible paramters
-		pargs = append(pargs, pPlaybook...)
+		if j.MachineCred.SshKeyUnlock != "" {
+			key, err := ssh.GetEncryptedKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)), crypt.Decrypt(j.MachineCred.SshKeyUnlock))
+			if err != nil {
+				return []byte("stdout capture is missing"), err
+			}
+			if client.Add(key); err != nil {
+				return []byte("stdout capture is missing"), err
+			}
+		}
 
-		j.Job.JobARGS = pargs
+		key, err := ssh.GetKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)))
+		if err != nil {
+			return []byte("stdout capture is missing"), err
+		}
 
-		// should not included in any output
-		pargs = append(pargs, pSecure...)
+		if client.Add(key); err != nil {
+			return []byte("stdout capture is missing"), err
+		}
+
 	}
 
+	if j.NetworkCred.SshKeyData != "" {
+		if j.NetworkCred.SshKeyUnlock != "" {
+			key, err := ssh.GetEncryptedKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)), crypt.Decrypt(j.NetworkCred.SshKeyUnlock))
+			if err != nil {
+				return []byte("stdout capture is missing"), err
+			}
+			if client.Add(key); err != nil {
+				return []byte("stdout capture is missing"), err
+			}
+		}
+
+		key, err := ssh.GetKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)))
+		if err != nil {
+			return []byte("stdout capture is missing"), err
+		}
+
+		if client.Add(key); err != nil {
+			return []byte("stdout capture is missing"), err
+		}
+
+	}
+
+	defer func() {
+		// cleanup the mess
+		cleanup()
+	}()
+
+
 	// set job arguments, exclude unencrypted passwords etc.
-	j.Job.JobARGS = []string{"ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
+	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
 
 	// For example, if I type something like:
 	// $ exec /usr/bin/ssh-agent /bin/bash
 	// from my shell prompt, I end up in a bash that is setup correctly with the agent.
 	// As soon as that bash dies, or any process that replaced bash with exec dies, the agent exits.
 	// add -c for shell, yes it's ugly but meh! this is golden
-	arguments := strings.Join(pargs, " ")
-	csh := []string{
-		"-c",
-		"ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + arguments + " " + j.Job.Playbook + "'",
-	}
-	log.Println("ssh-agent -a " + j.JobPaths.CredentialPath + "/ssh_auth.sock /bin/sh -c '" + arguments + " " + j.Job.Playbook + "'")
-	cmd := exec.Command("/bin/sh", csh...)
+	pargs = append(pargs, j.Job.Playbook)
+
+	cmd := exec.Command("ansible-playbook", pargs...)
 	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
 
-	//"ANSIBLE_USE_VENV": "True",
 	cmd.Env = append(os.Environ(), []string{
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
@@ -256,17 +268,12 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 		"REST_API_URL=http://localhost:8010",
 		"INVENTORY_HOSTVARS=True",
 		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
+		"SSH_AUTH_SOCK=" + socket,
 	}...)
 
 	j.Job.JobENV = cmd.Env
 
 	return cmd.CombinedOutput()
-}
-
-func (j *AnsibleJob) installKey() error {
-	fmt.Println("SSH Credential " + j.MachineCred.Name + " installed")
-	err := ioutil.WriteFile(j.JobPaths.CredentialPath + "/machine_credential", []byte(crypt.Decrypt(j.MachineCred.Secret)), 0600)
-	return err
 }
 
 // createJobDirs
@@ -298,23 +305,7 @@ func (j *AnsibleJob) createJobDirs() {
 	}
 }
 
-func (j *AnsibleJob) buildSSHParams(path string, prms []string) {
-	if j.MachineCred.ID != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
-		prms = []string{
-			"ssh-add", path + "/machine_credential",
-			"&&", "rm -f " + path + "/machine_credential &&",
-		}
-	}
-
-	if j.NetworkCred.ID != "" && j.NetworkCred.Kind == models.CREDENTIAL_KIND_NET {
-		prms = append(prms,
-			"ssh-add", path + "/network_credential &&",
-			"rm -f " + path + "/network_credential &&",
-		)
-	}
-}
-
-func (j *AnsibleJob) buildParams(params []string) {
+func (j *AnsibleJob) buildParams(params []string) []string {
 	// forks -f NUM, --forks=NUM
 	if j.Job.Forks != 0 {
 		params = append(params, "-f", string(j.Job.Forks))
@@ -368,19 +359,21 @@ func (j *AnsibleJob) buildParams(params []string) {
 	}
 
 	// Parameters required by the system
-	rp, err := yaml.Marshal(map[interface{}]interface{}{
-		"tower_job_template_name": j.Template.Name,
-		"tower_job_id": j.Job.ID.Hex(),
-		"tower_user_id": j.Job.CreatedByID.Hex(),
-		"tower_job_template_id": j.Template.ID.Hex(),
-		"tower_user_name": "admin",
-		"tower_job_launch_type": j.Job.LaunchType,
+	/*rp, err := yaml.Marshal(map[interface{}]interface{}{
+		"tensor_job_template_name": j.Template.Name,
+		"tensor_job_id": j.Job.ID.Hex(),
+		"tensor_user_id": j.Job.CreatedByID.Hex(),
+		"tensor_job_template_id": j.Template.ID.Hex(),
+		"tensor_user_name": "admin",
+		"tensor_job_launch_type": j.Job.LaunchType,
 	});
 
 	if err != nil {
 		log.Println("Error while marshalling parameters")
 	}
-	params = append(params, "-e '{" + string(rp) + "}'")
+	params = append(params, "-e '{" + string(rp) + "}'")*/
+
+	return params
 }
 
 func (j *AnsibleJob) kinit() error {
