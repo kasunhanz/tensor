@@ -190,7 +190,7 @@ func NaProperty(fl validator.FieldLevel) bool {
 	return false
 }
 
-func GetValidationErrors(err error) string {
+func GetValidationErrors(err error) []string {
 	// translate all error at once
 	errs := err.(validator.ValidationErrors)
 	for _, e := range errs {
@@ -203,9 +203,9 @@ func GetValidationErrors(err error) string {
 			allerrs = append(allerrs, v)
 		}
 
-		return strings.Join(allerrs, ",")
+		return allerrs
 	}
-	return ""
+	return []string{}
 }
 // TODO: openstack,azure,gce,
 func CredentialStructLevelValidation(sl validator.StructLevel) {

@@ -32,7 +32,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -43,7 +43,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -99,7 +99,7 @@ func GetProjects(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Project",
+				Message: []string{"Error while getting Project"},
 			})
 			return
 		}
@@ -110,7 +110,7 @@ func GetProjects(c *gin.Context) {
 		log.Println("Error while retriving Project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Project",
+			Message: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -170,7 +170,7 @@ func AddProject(c *gin.Context) {
 		log.Println("Error while creating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Project",
+			Message: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -183,7 +183,7 @@ func AddProject(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Project",
+			Message: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -234,7 +234,7 @@ func UpdateProject(c *gin.Context) {
 		log.Println("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while updating Project",
+			Message: []string{"Error while updating Project"},
 		})
 		return
 	}
@@ -248,7 +248,7 @@ func UpdateProject(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Project",
+			Message: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -270,7 +270,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project Jobs:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Project Jobs",
+			Message: []string{"Error while removing Project Jobs"},
 		})
 		return
 	}
@@ -282,7 +282,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project Job Templates:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Project Job Templates",
+			Message: []string{"Error while removing Project Job Templates"},
 		})
 		return
 	}
@@ -295,7 +295,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Project",
+			Message: []string{"Error while removing Project"},
 		})
 		return
 	}
@@ -327,7 +327,7 @@ func Playbooks(c *gin.Context) {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Project",
+			Message: []string{"Error while removing Project"},
 		})
 		return
 	}
@@ -348,7 +348,7 @@ func Teams(c *gin.Context) {
 				log.Println("Error while getting Teams:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:http.StatusInternalServerError,
-					Message: "Error while getting Teams",
+					Message: []string{"Error while getting Teams"},
 				})
 				return
 			}
@@ -358,7 +358,7 @@ func Teams(c *gin.Context) {
 				log.Println("Error while setting Metatdata:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:http.StatusInternalServerError,
-					Message: "Error while getting Teams",
+					Message: []string{"Error while getting Teams"},
 				})
 				return
 			}
@@ -394,7 +394,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while Activities",
+			Message: []string{"Error while Activities"},
 		})
 	}
 
@@ -451,7 +451,7 @@ func ProjectUpdates(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Credentials",
+				Message: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -462,7 +462,7 @@ func ProjectUpdates(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Message: []string{"Error while getting Credential"},
 		})
 		return
 	}

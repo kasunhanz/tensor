@@ -9,6 +9,15 @@ import (
 	"net/http"
 )
 
+func IsUniqueInventory(name string) bool {
+	count, err := db.Hosts().FindId(bson.M{"name": name, }).Count();
+	if err == nil && count == 1 {
+		return true
+	}
+
+	return false
+}
+
 func InventoryExist(ID bson.ObjectId, c *gin.Context) bool {
 	count, err := db.Inventories().FindId(ID).Count();
 	if err == nil && count == 1 {
@@ -18,7 +27,7 @@ func InventoryExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Inventory does not exist",
+		Message: []string{"Inventory does not exist"},
 	})
 	return false
 }

@@ -18,7 +18,7 @@ func OrganizationExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "organization does not exist",
+		Message: []string{"Organization does not exist"},
 	})
 	return false
 }

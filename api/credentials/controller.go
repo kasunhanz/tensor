@@ -27,7 +27,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Credential:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -39,7 +39,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Credential:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -48,7 +48,7 @@ func Middleware(c *gin.Context) {
 	if !roles.CredentialRead(user, credential) {
 		c.JSON(http.StatusUnauthorized, models.Error{
 			Code: http.StatusUnauthorized,
-			Message: "Unauthorized",
+			Message: []string{"Unauthorized"},
 		})
 		return
 	}
@@ -67,7 +67,7 @@ func GetCredential(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Message: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -115,7 +115,7 @@ func GetCredentials(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Credentials",
+				Message: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -126,7 +126,7 @@ func GetCredentials(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Message: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -205,7 +205,7 @@ func AddCredential(c *gin.Context) {
 		log.Println("Error while creating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Credential",
+			Message: []string{"Error while creating Credential"},
 		})
 		return
 	}
@@ -215,7 +215,7 @@ func AddCredential(c *gin.Context) {
 		log.Println("Error while adding the user to roles:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while adding the user to roles",
+			Message: []string{"Error while adding the user to roles"},
 		})
 		return
 	}
@@ -227,7 +227,7 @@ func AddCredential(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while setting metadata",
+			Message: []string{"Error while setting metadata"},
 		})
 	}
 
@@ -313,7 +313,7 @@ func RemoveCredential(c *gin.Context) {
 		log.Println("Error while deleting Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while deleting Credential",
+			Message: []string{"Error while deleting Credential"},
 		})
 
 		return
@@ -405,7 +405,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while Activities",
+			Message: []string{"Error while Activities"},
 		})
 		return
 	}

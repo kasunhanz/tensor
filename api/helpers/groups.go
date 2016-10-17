@@ -10,6 +10,15 @@ import (
 )
 
 
+func IsUniqueGroup(name string, IID bson.ObjectId) bool {
+	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
+	if err == nil && count == 1 {
+		return true
+	}
+
+	return false
+}
+
 func _groupExist(ID bson.ObjectId) bool {
 	count, err := db.Groups().FindId(ID).Count();
 	if err == nil && count == 1 {
@@ -26,7 +35,7 @@ func GroupExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Group does not exist",
+		Message: []string{"Group does not exist"},
 	})
 	return false
 }
@@ -38,7 +47,7 @@ func ParentGroupExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Parent Group does not exist",
+		Message: []string{"Parent Group does not exist"},
 	})
 	return false
 }

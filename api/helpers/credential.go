@@ -25,7 +25,7 @@ func MachineCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Machine Credential does not exist",
+		Message: []string{"Machine Credential does not exist"},
 	})
 	return false
 }
@@ -37,7 +37,7 @@ func NetworkCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Network Credential does not exist",
+		Message: []string{"Network Credential does not exist"},
 	})
 	return false
 }
@@ -49,7 +49,7 @@ func CloudCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "Network Credential does not exist",
+		Message: []string{"Network Credential does not exist"},
 	})
 	return false
 }
@@ -61,7 +61,7 @@ func SCMCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
 	// Return 400 if request has bad JSON format
 	c.JSON(http.StatusBadRequest, models.Error{
 		Code:http.StatusBadRequest,
-		Message: "SCM Credential does not exist",
+		Message: []string{"SCM Credential does not exist"},
 	})
 	return false
 }

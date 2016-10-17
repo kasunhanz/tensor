@@ -34,7 +34,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -46,7 +46,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -102,7 +102,7 @@ func GetJTemplates(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Job Template",
+				Message: []string{"Error while getting Job Template"},
 			})
 			return
 		}
@@ -113,7 +113,7 @@ func GetJTemplates(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Message: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -187,7 +187,7 @@ func AddJTemplate(c *gin.Context) {
 		log.Println("Error while creating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating  Job Template",
+			Message: []string{"Error while creating  Job Template"},
 		})
 		return
 	}
@@ -201,7 +201,7 @@ func AddJTemplate(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Job Template",
+			Message: []string{"Error while creating Job Template"},
 		})
 		return
 	}
@@ -259,7 +259,7 @@ func UpdateJTemplate(c *gin.Context) {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while updating Job Template",
+			Message: []string{"Error while updating Job Template"},
 		})
 		return
 	}
@@ -273,7 +273,7 @@ func UpdateJTemplate(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Job Template",
+			Message: []string{"Error while creating Job Template"},
 		})
 		return
 	}
@@ -296,7 +296,7 @@ func RemoveJTemplate(c *gin.Context) {
 		log.Println("Error while removing Job Temlate:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Job Template",
+			Message: []string{"Error while removing Job Template"},
 		})
 		return
 	}
@@ -320,7 +320,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while Activities",
+			Message: []string{"Error while Activities"},
 		})
 		return
 	}
@@ -355,7 +355,7 @@ func Jobs(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Jobs",
+				Message: []string{"Error while getting Jobs"},
 			})
 			return
 		}
@@ -367,7 +367,7 @@ func Jobs(c *gin.Context) {
 		log.Println("Error while retriving jobs data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Jobs",
+			Message: []string{"Error while getting Jobs"},
 		})
 		return
 	}
@@ -475,7 +475,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Machine Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Machine Credential",
+			Message: []string{"Error while getting Machine Credential"},
 		})
 		return
 	}
@@ -488,7 +488,7 @@ func Launch(c *gin.Context) {
 			log.Println("Error while getting Network Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Network Credential",
+				Message: []string{"Error while getting Network Credential"},
 			})
 			return
 		}
@@ -502,7 +502,7 @@ func Launch(c *gin.Context) {
 			log.Println("Error while getting Cloud Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Cloud Credential",
+				Message: []string{"Error while getting Cloud Credential"},
 			})
 			return
 		}
@@ -516,7 +516,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Inventory",
+			Message: []string{"Error while getting Inventory"},
 		})
 		return
 	}
@@ -529,7 +529,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Project",
+			Message: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -542,7 +542,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Token:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Token",
+			Message: []string{"Error while getting Token"},
 		})
 		return
 	}
@@ -553,7 +553,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while creating Job:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Job",
+			Message: []string{"Error while creating Job"},
 		})
 		return
 	}
@@ -564,7 +564,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while setting metatdata",
+			Message: []string{"Error while setting metatdata"},
 		})
 		return
 	}

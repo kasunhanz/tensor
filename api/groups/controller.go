@@ -30,7 +30,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -42,7 +42,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Message: []string{"Not Found"},
 		})
 		return
 	}
@@ -59,7 +59,7 @@ func GetGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Group",
+			Message: []string{"Error while getting Group"},
 		})
 		return
 	}
@@ -102,7 +102,7 @@ func GetGroups(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Groups",
+				Message: []string{"Error while getting Groups"},
 			})
 			return
 		}
@@ -113,7 +113,7 @@ func GetGroups(c *gin.Context) {
 		log.Println("Error while retriving Group data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Group",
+			Message: []string{"Error while getting Group"},
 		})
 		return
 	}
@@ -150,6 +150,16 @@ func AddGroup(c *gin.Context) {
 		return
 	}
 
+	// check wheather the hostname is unique
+	if !helpers.IsUniqueGroup(req.Name, req.InventoryID) {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: []string{"Group with this Name and Inventory already exists."},
+		})
+		return
+	}
+
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID, c) {
 		return
@@ -174,7 +184,7 @@ func AddGroup(c *gin.Context) {
 		log.Println("Error while creating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Group",
+			Message: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -187,7 +197,7 @@ func AddGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Group",
+			Message: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -215,6 +225,16 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 
+	// check wheather the hostname is unique
+	if !helpers.IsUniqueGroup(req.Name, req.InventoryID) {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Message: []string{"Group with this Name and Inventory already exists."},
+		})
+		return
+	}
+
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID, c) {
 		return
@@ -238,7 +258,7 @@ func UpdateGroup(c *gin.Context) {
 		log.Println("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while updating Group",
+			Message: []string{"Error while updating Group"},
 		})
 		return
 	}
@@ -252,7 +272,7 @@ func UpdateGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating Group",
+			Message: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -283,7 +303,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while getting child Groups:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Group",
+			Message: []string{"Error while removing Group"},
 		})
 		return
 	}
@@ -301,7 +321,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while removing Group Hosts:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Group Hosts",
+			Message: []string{"Error while removing Group Hosts"},
 		})
 		return
 	}
@@ -313,7 +333,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while removing Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while removing Group",
+			Message: []string{"Error while removing Group"},
 		})
 		return
 	}
@@ -335,7 +355,7 @@ func VariableData(c *gin.Context) {
 		log.Println("Error while getting Group variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code": http.StatusInternalServerError,
-			"message": "Error while getting Group variables",
+			"message": []string{"Error while getting Group variables"},
 		})
 		return
 	}

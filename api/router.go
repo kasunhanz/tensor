@@ -290,6 +290,6 @@ func getSystemInfo(c *gin.Context) {
 func notImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, models.Error{
 		Code:http.StatusNotImplemented,
-		Message: "Method not implemented",
+		Message: []string{"Method not implemented"},
 	})
 }
