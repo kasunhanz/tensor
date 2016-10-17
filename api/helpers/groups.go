@@ -13,10 +13,10 @@ import (
 func IsUniqueGroup(name string, IID bson.ObjectId) bool {
 	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
 	if err == nil && count == 1 {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func _groupExist(ID bson.ObjectId) bool {

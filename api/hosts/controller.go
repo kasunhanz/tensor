@@ -207,16 +207,6 @@ func UpdateHost(c *gin.Context) {
 		})
 	}
 
-	// check wheather the hostname is unique
-	if !helpers.IsUniqueHost(req.Name, req.InventoryID) {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Message: []string{"Host with this Name and Inventory already exists."},
-		})
-		return
-	}
-
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID, c) {
 		return

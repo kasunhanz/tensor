@@ -150,7 +150,7 @@ func AddGroup(c *gin.Context) {
 		return
 	}
 
-	// check wheather the hostname is unique
+	// check wheather the hostname is not unique
 	if !helpers.IsUniqueGroup(req.Name, req.InventoryID) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -220,17 +220,6 @@ func UpdateGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Message: util.GetValidationErrors(err),
-		})
-		return
-	}
-
-
-	// check wheather the hostname is unique
-	if !helpers.IsUniqueGroup(req.Name, req.InventoryID) {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Message: []string{"Group with this Name and Inventory already exists."},
 		})
 		return
 	}

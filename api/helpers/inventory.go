@@ -12,10 +12,10 @@ import (
 func IsUniqueInventory(name string) bool {
 	count, err := db.Hosts().FindId(bson.M{"name": name, }).Count();
 	if err == nil && count == 1 {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func InventoryExist(ID bson.ObjectId, c *gin.Context) bool {

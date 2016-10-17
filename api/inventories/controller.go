@@ -213,16 +213,6 @@ func UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	// check wheather the hostname is unique
-	if !helpers.IsUniqueInventory(req.Name) {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Message: []string{"Inventory with this Name already exists."},
-		})
-		return
-	}
-
 	// check whether the organization exist or not
 	if !helpers.OrganizationExist(req.OrganizationID, c) {
 		return
