@@ -34,7 +34,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -46,7 +46,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -102,7 +102,7 @@ func GetJTemplates(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Job Template"},
+				Messages: []string{"Error while getting Job Template"},
 			})
 			return
 		}
@@ -113,7 +113,7 @@ func GetJTemplates(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Credential"},
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -145,32 +145,48 @@ func AddJTemplate(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID, c) {
+	if !helpers.InventoryExist(req.InventoryID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Inventory does not exists"},
+		})
 		return
 	}
 
 	// check whether the machine credential exist or not
-	if !helpers.MachineCredentialExist(req.MachineCredentialID, c) {
+	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Machine Credential does not exists"},
+		})
 		return
 	}
 
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
-		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID, c) {
+		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Messages: []string{"Network Credential does not exists"},
+			})
 			return
 		}
 	}
 
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
-		if !helpers.CloudCredentialExist(*req.CloudCredentialID, c) {
+		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Messages: []string{"Cloud Credential does not exists"},
+			})
 			return
 		}
 	}
@@ -187,7 +203,7 @@ func AddJTemplate(c *gin.Context) {
 		log.Println("Error while creating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating  Job Template"},
+			Messages: []string{"Error while creating  Job Template"},
 		})
 		return
 	}
@@ -201,7 +217,7 @@ func AddJTemplate(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Job Template"},
+			Messages: []string{"Error while creating Job Template"},
 		})
 		return
 	}
@@ -220,29 +236,40 @@ func UpdateJTemplate(c *gin.Context) {
 	var req models.JobTemplate
 	err := c.BindJSON(&req);
 	if err != nil {
-		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the machine credential exist or not
-	if !helpers.MachineCredentialExist(req.MachineCredentialID, c) {
+	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Machine Credential does not exists"},
+		})
 		return
 	}
 
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
-		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID, c) {
+		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Messages: []string{"Network Credential does not exists"},
+			})
 			return
 		}
 	}
 
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
-		if !helpers.CloudCredentialExist(*req.CloudCredentialID, c) {
+		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:http.StatusInternalServerError,
+				Messages: []string{"Cloud Credential does not exists"},
+			})
 			return
 		}
 	}
@@ -259,7 +286,7 @@ func UpdateJTemplate(c *gin.Context) {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while updating Job Template"},
+			Messages: []string{"Error while updating Job Template"},
 		})
 		return
 	}
@@ -273,7 +300,7 @@ func UpdateJTemplate(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Job Template"},
+			Messages: []string{"Error while creating Job Template"},
 		})
 		return
 	}
@@ -281,6 +308,100 @@ func UpdateJTemplate(c *gin.Context) {
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, req)
 }
+
+// PatchJTemplate will update the Job Template
+func PatchJTemplate(c *gin.Context) {
+	// get template from the gin.Context
+	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.PatchJobTemplate
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	if len(req.MachineCredentialID) == 12 {
+		// check whether the machine credential exist or not
+		if !helpers.MachineCredentialExist(req.MachineCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Machine Credential does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the network credential exist or not
+	if req.NetworkCredentialID != nil {
+		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Network Credential does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the network credential exist or not
+	if req.CloudCredentialID != nil {
+		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Cloud Credential does not exists."},
+			})
+			return
+		}
+	}
+
+	req.Modified = time.Now()
+	req.ModifiedByID = user.ID
+
+	// update object
+	changeinf, err := db.JobTemplates().UpsertId(bson.M{"_id" :jobTemplate.ID}, req);
+	if err != nil {
+		log.Println("Error while updating Job Template:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while updating Job Template"},
+		})
+		return
+	}
+
+	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
+	// add new activity to activity stream
+	addActivity(jobTemplate.ID, user.ID, "Job Template " + req.Name + " updated")
+
+	// get newly updated JobTempate
+	var resp models.JobTemplate
+	if err = db.Hosts().FindId(jobTemplate.ID).One(&resp); err != nil {
+		log.Print("Error while getting the updated Job Template:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Messages: []string{"Error while getting the updated Job Template"},
+		})
+		return
+	}
+
+	// set `related` and `summary` feilds
+	err = metadata.JTemplateMetadata(&resp);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while creating Job Template"},
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, resp)
+}
+
 
 // RemoveJTemplate will remove the Job Template
 // from the db.DBC_JOB_TEMPLATES collection
@@ -296,7 +417,7 @@ func RemoveJTemplate(c *gin.Context) {
 		log.Println("Error while removing Job Temlate:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Job Template"},
+			Messages: []string{"Error while removing Job Template"},
 		})
 		return
 	}
@@ -320,7 +441,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while Activities"},
+			Messages: []string{"Error while Activities"},
 		})
 		return
 	}
@@ -355,7 +476,7 @@ func Jobs(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Jobs"},
+				Messages: []string{"Error while getting Jobs"},
 			})
 			return
 		}
@@ -367,7 +488,7 @@ func Jobs(c *gin.Context) {
 		log.Println("Error while retriving jobs data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Jobs"},
+			Messages: []string{"Error while getting Jobs"},
 		})
 		return
 	}
@@ -399,7 +520,7 @@ func Launch(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -475,7 +596,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Machine Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Machine Credential"},
+			Messages: []string{"Error while getting Machine Credential"},
 		})
 		return
 	}
@@ -488,7 +609,7 @@ func Launch(c *gin.Context) {
 			log.Println("Error while getting Network Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Network Credential"},
+				Messages: []string{"Error while getting Network Credential"},
 			})
 			return
 		}
@@ -502,7 +623,7 @@ func Launch(c *gin.Context) {
 			log.Println("Error while getting Cloud Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Cloud Credential"},
+				Messages: []string{"Error while getting Cloud Credential"},
 			})
 			return
 		}
@@ -516,7 +637,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Inventory"},
+			Messages: []string{"Error while getting Inventory"},
 		})
 		return
 	}
@@ -529,7 +650,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Project"},
+			Messages: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -542,7 +663,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while getting Token:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Token"},
+			Messages: []string{"Error while getting Token"},
 		})
 		return
 	}
@@ -553,7 +674,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while creating Job:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Job"},
+			Messages: []string{"Error while creating Job"},
 		})
 		return
 	}
@@ -564,7 +685,7 @@ func Launch(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while setting metatdata"},
+			Messages: []string{"Error while setting metatdata"},
 		})
 		return
 	}
@@ -606,7 +727,7 @@ func LaunchInfo(c *gin.Context) {
 
 	var inven models.Inventory
 
-	if err := db.Inventories().FindId(jt.MachineCredentialID).One(&inven); err != nil {
+	if err := db.Inventories().FindId(jt.InventoryID).One(&inven); err != nil {
 		log.Println("Cound not find Inventory", err)
 		defaults["inventory"] = nil
 		isInventoryNeeded = true

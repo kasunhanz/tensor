@@ -21,7 +21,6 @@ type Team struct {
 
 	Description    *string             `bson:"description,omitempty" json:"description"`
 
-
 	CreatedBy      bson.ObjectId      `bson:"created_by" json:"-"`
 	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`
 
@@ -29,4 +28,12 @@ type Team struct {
 	Modified       time.Time          `bson:"modified" json:"modified"`
 
 	Roles          []AccessControl    `bson:"roles" json:"-"`
+}
+
+type PatchTeam struct {
+	Name           string             `bson:"name,omitempty" json:"name,omitempty"`
+	OrganizationID bson.ObjectId      `bson:"organization_id,omitempty" json:"organization,omitempty"`
+	Description    string             `bson:"description,omitempty" json:"description,omitempty"`
+	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`
+	Modified       time.Time          `bson:"modified" json:"-"`
 }

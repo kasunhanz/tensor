@@ -16,6 +16,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"strings"
 )
 
 const _CTX_PROJECT = "project"
@@ -32,7 +33,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -43,7 +44,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -99,7 +100,7 @@ func GetProjects(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Project"},
+				Messages: []string{"Error while getting Project"},
 			})
 			return
 		}
@@ -110,7 +111,7 @@ func GetProjects(c *gin.Context) {
 		log.Println("Error while retriving Project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Project"},
+			Messages: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -142,22 +143,43 @@ func AddProject(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID, c) {
+	if !helpers.OrganizationExist(req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Organization does not exists."},
+		})
+		return
+	}
+
+	// if a project exists within the Organization, reject the request
+	if helpers.IsNotUniqueProject(req.Name, req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Project with this Name and Organization already exists."},
+		})
 		return
 	}
 
 	// check whether the scm credential exist or not
 	if req.ScmCredentialID != nil {
-		if !helpers.SCMCredentialExist(*req.ScmCredentialID, c) {
+		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"SCM Credential does not exists."},
+			})
 			return
 		}
 	}
+
+	// trim strings white space
+	req.Name = strings.Trim(req.Name, " ")
+	req.Description = strings.Trim(req.Description, " ")
 
 	req.ID = bson.NewObjectId()
 	req.CreatedBy = user.ID
@@ -170,7 +192,7 @@ func AddProject(c *gin.Context) {
 		log.Println("Error while creating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Project"},
+			Messages: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -178,12 +200,11 @@ func AddProject(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Project " + req.Name + " created")
 
-	err = metadata.ProjectMetadata(&req);
-	if err != nil {
+	if err := metadata.ProjectMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Project"},
+			Messages: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -205,24 +226,45 @@ func UpdateProject(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
-
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID, c) {
+	if !helpers.OrganizationExist(req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Organization does not exists."},
+		})
+		return
+	}
+
+	// if the project not exists within the Organization, reject the request
+	if helpers.IsUniqueProject(req.Name, req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Project with this Name and Organization does not exists."},
+		})
 		return
 	}
 
 	// check whether the ScmCredential exist or not
 	if req.ScmCredentialID != nil {
-		if !helpers.SCMCredentialExist(*req.ScmCredentialID, c) {
+		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"SCM Credential does not exists."},
+			})
 			return
 		}
 	}
 
+	// trim strings white space
+	req.Name = strings.Trim(req.Name, " ")
+	req.Description = strings.Trim(req.Description, " ")
+
+	req.ID = project.ID
 	req.CreatedBy = project.CreatedBy
 	req.ModifiedBy = user.ID
 	req.Created = project.Created
@@ -234,7 +276,7 @@ func UpdateProject(c *gin.Context) {
 		log.Println("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while updating Project"},
+			Messages: []string{"Error while updating Project"},
 		})
 		return
 	}
@@ -248,13 +290,112 @@ func UpdateProject(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Project"},
+			Messages: []string{"Error while creating Project"},
 		})
 		return
 	}
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, req)
+}
+
+// UpdateProject will update the Project
+func PatchProject(c *gin.Context) {
+	// get Project from the gin.Context
+	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.PatchProject
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	if len(req.OrganizationID) == 12 {
+		// check whether the organization exist or not
+		if !helpers.OrganizationExist(req.OrganizationID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Organization does not exists."},
+			})
+			return
+		}
+	}
+
+	if len(req.Name) > 0 {
+		ogID := project.OrganizationID
+		if len(req.OrganizationID) == 12 {
+			ogID = req.OrganizationID
+		}
+		// if a project not exists within the Organization, reject the request
+		if helpers.IsUniqueProject(req.Name, ogID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Project with this Name and Organization does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the ScmCredential exist or not
+	if req.ScmCredentialID != nil {
+		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"SCM Credential does not exists."},
+			})
+			return
+		}
+	}
+
+	// trim strings white space
+	req.Name = strings.Trim(req.Name, " ")
+	req.Description = strings.Trim(req.Description, " ")
+
+	req.ModifiedBy = user.ID
+	req.Modified = time.Now()
+
+	// update object
+	if err := db.Projects().UpdateId(project.ID, bson.M{"$set": req}); err != nil {
+		log.Println("Error while updating Project:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while updating Project"},
+		})
+		return
+	}
+
+	// add new activity to activity stream
+	addActivity(project.ID, user.ID, "Project " + req.Name + " updated")
+
+	// get newly updated host
+	var resp models.Project
+	if err := db.Projects().FindId(project.ID).One(&resp); err != nil {
+		log.Print("Error while getting the updated Project:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Messages: []string{"Error while getting the updated Project"},
+		})
+		return
+	}
+
+	// set `related` and `summary` feilds
+	if err := metadata.ProjectMetadata(&resp); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Project Information"},
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, resp)
 }
 
 // RemoveProject will remove the Project
@@ -270,7 +411,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project Jobs:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Project Jobs"},
+			Messages: []string{"Error while removing Project Jobs"},
 		})
 		return
 	}
@@ -282,7 +423,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project Job Templates:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Project Job Templates"},
+			Messages: []string{"Error while removing Project Job Templates"},
 		})
 		return
 	}
@@ -295,7 +436,7 @@ func RemoveProject(c *gin.Context) {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Project"},
+			Messages: []string{"Error while removing Project"},
 		})
 		return
 	}
@@ -327,7 +468,7 @@ func Playbooks(c *gin.Context) {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Project"},
+			Messages: []string{"Error while removing Project"},
 		})
 		return
 	}
@@ -348,7 +489,7 @@ func Teams(c *gin.Context) {
 				log.Println("Error while getting Teams:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:http.StatusInternalServerError,
-					Message: []string{"Error while getting Teams"},
+					Messages: []string{"Error while getting Teams"},
 				})
 				return
 			}
@@ -358,7 +499,7 @@ func Teams(c *gin.Context) {
 				log.Println("Error while setting Metatdata:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:http.StatusInternalServerError,
-					Message: []string{"Error while getting Teams"},
+					Messages: []string{"Error while getting Teams"},
 				})
 				return
 			}
@@ -394,7 +535,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while Activities"},
+			Messages: []string{"Error while Activities"},
 		})
 	}
 
@@ -451,7 +592,7 @@ func ProjectUpdates(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Credentials"},
+				Messages: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -462,7 +603,7 @@ func ProjectUpdates(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Credential"},
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}

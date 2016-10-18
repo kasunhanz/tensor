@@ -26,3 +26,11 @@ type Organization struct {
 
 	Roles         []AccessControl    `bson:"roles" json:"-"`
 }
+
+type PatchOrganization struct {
+	Name          string             `bson:"name,omitempty" json:"name,omitempty"`
+	Description   string             `bson:"description,omitempty" json:"description,omitempty"`
+
+	ModifiedBy    bson.ObjectId      `bson:"modified_by" json:"-"`
+	Modified      time.Time          `bson:"modified" json:"-"`
+}

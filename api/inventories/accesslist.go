@@ -22,7 +22,7 @@ func AccessList(c *gin.Context) {
 		log.Println("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Access List"},
+			Messages: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -198,7 +198,7 @@ func AccessList(c *gin.Context) {
 			log.Println("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Access List"},
+				Messages: []string{"Error while getting Access List"},
 			})
 			return
 		}

@@ -23,6 +23,8 @@ type User struct {
 	Password        string        `bson:"password" json:"-"`
 	OrganizationID  *bson.ObjectId `bson:"organization_id" json:"organization"`
 
+	Deleted         bool          `bson:"deleted" json:"-"`
+
 	Created         time.Time     `bson:"created" json:"created"`
 }
 

@@ -30,7 +30,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -41,7 +41,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -91,7 +91,7 @@ func GetTeams(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Teams"},
+				Messages: []string{"Error while getting Teams"},
 			})
 			return
 		}
@@ -102,7 +102,7 @@ func GetTeams(c *gin.Context) {
 		log.Println("Error while retriving Team data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Team"},
+			Messages: []string{"Error while getting Team"},
 		})
 		return
 	}
@@ -133,13 +133,26 @@ func AddTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID, c) {
+	if !helpers.OrganizationExist(req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Organization does not exists."},
+		})
+		return
+	}
+
+	// if the team exist in the collection it is not unique
+	if helpers.IsNotUniqueTeam(req.Name, req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Team with this Name and Organization already exists."},
+		})
 		return
 	}
 
@@ -154,7 +167,7 @@ func AddTeam(c *gin.Context) {
 		log.Println("Error while creating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Team"},
+			Messages: []string{"Error while creating Team"},
 		})
 		return
 	}
@@ -167,7 +180,7 @@ func AddTeam(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Team"},
+			Messages: []string{"Error while creating Team"},
 		})
 		return
 	}
@@ -188,13 +201,26 @@ func UpdateTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID, c) {
+	if !helpers.OrganizationExist(req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Organization does not exists."},
+		})
+		return
+	}
+
+	// if the group exist in the collection it is not unique
+	if helpers.IsUniqueTeam(req.Name, req.OrganizationID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Team with this Name and Organization does not exists."},
+		})
 		return
 	}
 
@@ -208,7 +234,7 @@ func UpdateTeam(c *gin.Context) {
 		log.Println("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while updating Team"},
+			Messages: []string{"Error while updating Team"},
 		})
 		return
 	}
@@ -221,13 +247,101 @@ func UpdateTeam(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Team"},
+			Messages: []string{"Error while creating Team"},
 		})
 		return
 	}
 
 	// render JSON with 200 status code
 	c.JSON(http.StatusOK, req)
+}
+
+// UpdateTeam will update the Job Template
+func PatchTeam(c *gin.Context) {
+	// get Team from the gin.Context
+	team := c.MustGet(_CTX_TEAM).(models.Team)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.PatchTeam
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	if len(req.OrganizationID) == 12 {
+		// check whether the organization exist or not
+		if !helpers.OrganizationExist(req.OrganizationID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Organization does not exists."},
+			})
+			return
+		}
+	}
+
+	if len(req.Name) > 0 {
+		objId := team.OrganizationID
+		if len(req.OrganizationID) == 12 {
+			objId = req.OrganizationID
+		}
+		// check wheather the team exist in the collection, if not fail.
+		// if the team unique then it is not in the collection, abort any updates
+		if helpers.IsUniqueTeam(req.Name, objId) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Team with this Name and Organization does not exists."},
+			})
+			return
+		}
+	}
+
+	req.Modified = time.Now()
+	req.ModifiedBy = user.ID
+
+	// update object
+	changeinf, err := db.JobTemplates().UpsertId(team.ID, req);
+	if err != nil {
+		log.Println("Error while updating Team:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while updating Team"},
+		})
+		return
+	}
+
+	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
+
+	// add new activity to activity stream
+	addActivity(team.ID, user.ID, "Team " + req.Name + " updated")
+
+	// get newly updated host
+	var resp models.Team
+	if err = db.Hosts().FindId(team.ID).One(&resp); err != nil {
+		log.Print("Error while getting the updated Team:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Messages: []string{"Error while getting the updated Team"},
+		})
+		return
+	}
+
+	// set `related` and `summary` feilds
+	if err := metadata.TeamMetadata(&resp); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Team Information"},
+		})
+		return
+	}
+
+	// render JSON with 200 status code
+	c.JSON(http.StatusOK, resp)
 }
 
 // RemoveTeam will remove the Team
@@ -244,7 +358,7 @@ func RemoveTeam(c *gin.Context) {
 		log.Println("Error while removing Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Team"},
+			Messages: []string{"Error while removing Team"},
 		})
 		return
 	}
@@ -313,7 +427,7 @@ func Credentials(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Credentials"},
+				Messages: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -324,7 +438,7 @@ func Credentials(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Credential"},
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -365,7 +479,7 @@ func Projects(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Projects"},
+				Messages: []string{"Error while getting Projects"},
 			})
 			return
 		}
@@ -376,7 +490,7 @@ func Projects(c *gin.Context) {
 		log.Println("Error while retriving Projects data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Projects"},
+			Messages: []string{"Error while getting Projects"},
 		})
 		return
 	}
@@ -408,7 +522,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while Activities"},
+			Messages: []string{"Error while Activities"},
 		})
 	}
 

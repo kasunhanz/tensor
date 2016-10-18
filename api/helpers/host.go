@@ -7,9 +7,18 @@ import (
 
 func IsUniqueHost(name string, IID bson.ObjectId) bool {
 	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
-	if err == nil && count == 1 {
+	if err == nil && count > 0 {
 		return false
 	}
 
 	return true
+}
+
+func IsNotUniqueHost(name string, IID bson.ObjectId) bool {
+	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
+	if err == nil && count > 0 {
+		return true
+	}
+
+	return false
 }

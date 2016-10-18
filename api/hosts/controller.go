@@ -29,7 +29,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -39,7 +39,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -93,7 +93,7 @@ func GetHosts(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Hosts"},
+				Messages: []string{"Error while getting Hosts"},
 			})
 			return
 		}
@@ -104,7 +104,7 @@ func GetHosts(c *gin.Context) {
 		log.Println("Error while retriving Host data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Hosts"},
+			Messages: []string{"Error while getting Hosts"},
 		})
 		return
 	}
@@ -134,29 +134,37 @@ func AddHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
-	// check wheather the hostname is unique
-	if !helpers.IsUniqueHost(req.Name, req.InventoryID) {
+	// if the host exist in the collection it is not unique
+	if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: []string{"Host with this Name and Inventory already exists."},
+			Messages: []string{"Host with this Name and Inventory already exists."},
 		})
 		return
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID, c) {
+	if !helpers.InventoryExist(req.InventoryID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Inventory does not exists."},
+		})
 		return
 	}
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
-		if !helpers.GroupExist(*req.GroupID, c) {
+		if !helpers.GroupExist(*req.GroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group does not exists."},
+			})
 			return
 		}
 	}
@@ -171,7 +179,7 @@ func AddHost(c *gin.Context) {
 		log.Println("Error while creating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Host"},
+			Messages: []string{"Error while creating Host"},
 		})
 		return
 	}
@@ -184,7 +192,7 @@ func AddHost(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Host"},
+			Messages: []string{"Error while creating Host"},
 		})
 		return
 	}
@@ -203,18 +211,29 @@ func UpdateHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 	}
 
+
+	// if the host does not exist on the collection it is unique
+	if helpers.IsUniqueHost(req.Name, req.InventoryID) {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Host with this Name and Inventory does not exists."},
+		})
+		return
+	}
+
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID, c) {
+	if !helpers.InventoryExist(req.InventoryID) {
 		return
 	}
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
-		if !helpers.GroupExist(*req.GroupID, c) {
+		if !helpers.GroupExist(*req.GroupID) {
 			return
 		}
 	}
@@ -229,15 +248,106 @@ func UpdateHost(c *gin.Context) {
 		log.Println("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while updating Host"},
+			Messages: []string{"Error while updating Host"},
 		})
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Host " + req.Name + " created")
+	addActivity(req.ID, user.ID, "Host " + req.Name + " updated")
+
+	if err := metadata.HostMetadata(&req); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Host Information"},
+		})
+		return
+	}
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, req)
+}
+
+// Patch will patch a Host
+// from request values
+func PatchHost(c *gin.Context) {
+	host := c.MustGet(_CTX_HOST).(models.Host)
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.PatchHost
+
+	if err := c.BindJSON(&req); err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+	}
+
+	// check whether the inventory exist or not
+	if len(req.InventoryID) == 12 {
+		if !helpers.InventoryExist(req.InventoryID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Inventory does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the group exist or not
+	if req.GroupID != nil {
+		if !helpers.GroupExist(*req.GroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group does not exists."},
+			})
+			return
+		}
+	}
+
+	req.Modified = host.Modified
+	req.ModifiedByID = user.ID
+
+	//update object
+	changeinf, err := db.Hosts().UpsertId(host.ID, req);
+	if err != nil {
+		log.Println("Error while updating Host:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while updating Host"},
+		})
+		return
+	}
+
+	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
+
+	// add new activity to activity stream
+	addActivity(host.ID, user.ID, "Host " + req.Name + " updated")
+
+	// get newly updated host
+	var resp models.Host
+	if err = db.Hosts().FindId(host.ID).One(&resp); err != nil {
+		log.Print("Error while getting the updated Host:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Messages: []string{"Error while getting the updated Host"},
+		})
+		return
+	}
+
+	// set `related` and `summary` feilds
+	if err := metadata.HostMetadata(&resp); err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Host Information"},
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, resp)
 }
 
 func RemoveHost(c *gin.Context) {
@@ -250,7 +360,7 @@ func RemoveHost(c *gin.Context) {
 		log.Println("Error while removing Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Host"},
+			Messages: []string{"Error while removing Host"},
 		})
 		return
 	}
@@ -322,7 +432,7 @@ func AllGroups(c *gin.Context) {
 			log.Println("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code: http.StatusInternalServerError,
-				Message: []string{"Error while getting groups"},
+				Messages: []string{"Error while getting groups"},
 			})
 			return
 		}
@@ -340,7 +450,7 @@ func AllGroups(c *gin.Context) {
 				log.Println("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code: http.StatusInternalServerError,
-					Message: []string{"Error while getting groups"},
+					Messages: []string{"Error while getting groups"},
 				})
 				return
 			}
@@ -394,7 +504,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while Activities"},
+			Messages: []string{"Error while Activities"},
 		})
 		return
 	}

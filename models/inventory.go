@@ -41,3 +41,16 @@ type Inventory struct {
 
 	Roles                        []AccessControl    `bson:"roles" json:"-"`
 }
+
+
+// PatchInventory is the model for patch requests
+type PatchInventory struct {
+	// required feilds
+	Name           string        `bson:"name,omitempty" json:"name,omitempty"`
+	OrganizationID bson.ObjectId `bson:"organization_id,omitempty" json:"organization,omitempty"`
+	Description    string        `bson:"description,omitempty" json:"description,omitempty"`
+	Variables      string        `bson:"variables,omitempty" json:"variables,omitempty"`
+
+	ModifiedBy     bson.ObjectId `bson:"modified_by" json:"-"`
+	Modified       time.Time     `bson:"modified" json:"-"`
+}

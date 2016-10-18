@@ -1,6 +1,6 @@
 package models
 
 type Error struct {
-	Code    int    `json:"code"`
-	Message interface{} `json:"message"`
+	Code     int    `json:"code"`
+	Messages interface{} `json:"messages"`
 }

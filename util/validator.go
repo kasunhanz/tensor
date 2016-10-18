@@ -130,7 +130,7 @@ func (v *SpaceValidator) lazyinit() {
 
 		//struct level validations
 		v.validate.RegisterStructValidation(CredentialStructLevelValidation, models.Credential{})
-		v.validate.RegisterStructValidation(ProjectStructLevelValidation, models.Credential{})
+		v.validate.RegisterStructValidation(ProjectStructLevelValidation, models.Project{})
 	})
 }
 

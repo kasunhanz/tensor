@@ -30,7 +30,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -42,7 +42,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -59,7 +59,7 @@ func GetGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Group"},
+			Messages: []string{"Error while getting Group"},
 		})
 		return
 	}
@@ -102,7 +102,7 @@ func GetGroups(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Groups"},
+				Messages: []string{"Error while getting Groups"},
 			})
 			return
 		}
@@ -113,7 +113,7 @@ func GetGroups(c *gin.Context) {
 		log.Println("Error while retriving Group data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Group"},
+			Messages: []string{"Error while getting Group"},
 		})
 		return
 	}
@@ -145,29 +145,36 @@ func AddGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
 
-	// check wheather the hostname is not unique
-	if !helpers.IsUniqueGroup(req.Name, req.InventoryID) {
-		// Return 400 if request has bad JSON format
+	// if the group exist in the collection it is not unique
+	if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: []string{"Group with this Name and Inventory already exists."},
+			Messages: []string{"Group with this Name and Inventory already exists."},
 		})
 		return
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID, c) {
+	if !helpers.InventoryExist(req.InventoryID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Inventory does not exists."},
+		})
 		return
 	}
 
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
-		if !helpers.ParentGroupExist(*req.ParentGroupID, c) {
+		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Parent Group does not exists."},
+			})
 			return
 		}
 	}
@@ -184,7 +191,7 @@ func AddGroup(c *gin.Context) {
 		log.Println("Error while creating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Group"},
+			Messages: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -197,7 +204,7 @@ func AddGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Group"},
+			Messages: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -219,19 +226,36 @@ func UpdateGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// if the group exist in the collection it is not unique
+	if helpers.IsUniqueGroup(req.Name, req.InventoryID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Group with this Name and Inventory does not exists."},
 		})
 		return
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID, c) {
+	if !helpers.InventoryExist(req.InventoryID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Inventory does not exists."},
+		})
 		return
 	}
 
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
-		if !helpers.ParentGroupExist(*req.ParentGroupID, c) {
+		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Parent Group does not exists."},
+			})
 			return
 		}
 	}
@@ -247,7 +271,7 @@ func UpdateGroup(c *gin.Context) {
 		log.Println("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while updating Group"},
+			Messages: []string{"Error while updating Group"},
 		})
 		return
 	}
@@ -261,13 +285,119 @@ func UpdateGroup(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while creating Group"},
+			Messages: []string{"Error while creating Group"},
 		})
 		return
 	}
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, req)
+}
+
+
+// UpdateGroup will update the Group
+func PatchGroup(c *gin.Context) {
+	// get Group from the gin.Context
+	group := c.MustGet(_CTX_GROUP).(models.Group)
+	// get user from the gin.Context
+	user := c.MustGet(_CTX_USER).(models.User)
+
+	var req models.PatchGroup
+	err := c.BindJSON(&req);
+	if err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// since this is a patch request if the name specified check the
+	// inventory name is unique
+	if len(req.Name) > 0 {
+		objId := group.InventoryID
+		// if inventory id specified use it otherwise use
+		// old inventory id
+		if len(req.InventoryID) == 12 {
+			objId = req.InventoryID
+		}
+		// check wheather the group exist in the collection, if not fail.
+		// if the group unique then it is not in the collection, abort any updates
+		if helpers.IsUniqueGroup(req.Name, objId) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group with this Name and Inventory does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the inventory exist or not
+	if len(req.InventoryID) == 12 {
+		if !helpers.InventoryExist(req.InventoryID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Inventory does not exists."},
+			})
+			return
+		}
+	}
+
+	// check whether the group exist or not
+	if req.ParentGroupID != nil {
+		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Parent Group does not exists."},
+			})
+			return
+		}
+	}
+
+	req.Modified = time.Now()
+	req.ModifiedByID = user.ID
+
+	// update object
+	changeinf, err := db.Hosts().UpsertId(bson.M{"_id" :group.ID}, req);
+	if err != nil {
+		log.Println("Error while updating Group:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while updating Group"},
+		})
+		return
+	}
+
+	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
+
+	// add new activity to activity stream
+	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
+
+	// get newly updated group
+	var resp models.Group
+	if err = db.Groups().FindId(group.ID).One(&resp); err != nil {
+		log.Print("Error while getting the updated Group:", err) // log error to the system log
+		c.JSON(http.StatusNotFound, models.Error{
+			Code:http.StatusNotFound,
+			Messages: []string{"Error while getting the updated Group"},
+		})
+		return
+	}
+
+	// set `related` and `summary` feilds
+	err = metadata.GroupMetadata(&resp);
+	if err != nil {
+		log.Println("Error while setting metatdata:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Group Infomation"},
+		})
+		return
+	}
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, resp)
 }
 
 // RemoveGroup will remove the Group
@@ -292,7 +422,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while getting child Groups:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Group"},
+			Messages: []string{"Error while removing Group"},
 		})
 		return
 	}
@@ -310,7 +440,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while removing Group Hosts:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Group Hosts"},
+			Messages: []string{"Error while removing Group Hosts"},
 		})
 		return
 	}
@@ -322,7 +452,7 @@ func RemoveGroup(c *gin.Context) {
 		log.Println("Error while removing Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while removing Group"},
+			Messages: []string{"Error while removing Group"},
 		})
 		return
 	}

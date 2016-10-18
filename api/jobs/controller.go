@@ -30,7 +30,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -41,7 +41,7 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: []string{"Not Found"},
+			Messages: []string{"Not Found"},
 		})
 		return
 	}
@@ -61,7 +61,7 @@ func GetJob(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Jobs"},
+			Messages: []string{"Error while getting Jobs"},
 		})
 		return
 	}
@@ -104,7 +104,7 @@ func GetJobs(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: []string{"Error while getting Jobs"},
+				Messages: []string{"Error while getting Jobs"},
 			})
 			return
 		}
@@ -115,7 +115,7 @@ func GetJobs(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: []string{"Error while getting Credential"},
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}
