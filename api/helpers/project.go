@@ -22,3 +22,18 @@ func IsNotUniqueProject(name string, OID bson.ObjectId) bool {
 
 	return false
 }
+
+func _projectExist(ID bson.ObjectId) bool {
+	count, err := db.Projects().FindId(ID).Count();
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func ProjectExist(ID bson.ObjectId) bool {
+	if _credentialExist(ID) {
+		return true
+	}
+	return false
+}

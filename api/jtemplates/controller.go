@@ -16,6 +16,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/api/jwt"
 	"github.com/gin-gonic/gin/binding"
+	"io"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -211,8 +212,25 @@ func AddJTemplate(c *gin.Context) {
 		return
 	}
 
+	// check the project exist or not
+	if !helpers.ProjectExist(req.ProjectID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Project does not exists"},
+		})
+		return
+	}
 
-	// check whether the inventory exist or not
+	// if the JobTemplate exist in the collection it is not unique
+	if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+		c.JSON(http.StatusBadRequest, models.Error{
+			Code:http.StatusBadRequest,
+			Messages: []string{"Job Template with this Name already exists."},
+		})
+		return
+	}
+
+	// check the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -221,7 +239,7 @@ func AddJTemplate(c *gin.Context) {
 		return
 	}
 
-	// check whether the machine credential exist or not
+	// check the machine credential exist or not
 	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -230,7 +248,7 @@ func AddJTemplate(c *gin.Context) {
 		return
 	}
 
-	// check whether the network credential exist or not
+	// check the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
 			c.JSON(http.StatusInternalServerError, models.Error{
@@ -241,7 +259,7 @@ func AddJTemplate(c *gin.Context) {
 		}
 	}
 
-	// check whether the network credential exist or not
+	// check the network credential exist or not
 	if req.CloudCredentialID != nil {
 		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
 			c.JSON(http.StatusInternalServerError, models.Error{
@@ -303,6 +321,15 @@ func UpdateJTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// check the project exist or not
+	if !helpers.ProjectExist(req.ProjectID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -389,6 +416,15 @@ func PatchJTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// check the project exist or not
+	if !helpers.ProjectExist(req.ProjectID) {
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -621,10 +657,11 @@ func Launch(c *gin.Context) {
 
 	// create a new Launch model
 	var req models.Launch
-	// accept nil request body for POST request, since all the feilds are optional
-	if c.Request.Body != nil {
-		// if the body present deserialize it
-		if err := binding.JSON.Bind(c.Request, &req); err != nil {
+
+	// if the body present deserialize it
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		// accept nil request body for POST request, since all the feilds are optional
+		if err != io.EOF {
 			// Return 400 if request has bad JSON
 			// and return formatted validation errors
 			c.JSON(http.StatusBadRequest, models.Error{
@@ -635,6 +672,8 @@ func Launch(c *gin.Context) {
 		}
 	}
 
+
+
 	// create new Job
 	job := models.Job{
 		ID: bson.NewObjectId(),
@@ -642,7 +681,7 @@ func Launch(c *gin.Context) {
 		Description: template.Description,
 		LaunchType: "manual",
 		CancelFlag: false,
-		Status: "pending",
+		Status: "new",
 		JobType: models.JOBTYPE_ANSIBLE_JOB,
 		Playbook:template.Playbook,
 		Forks:template.Forks,

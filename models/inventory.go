@@ -23,15 +23,15 @@ type Inventory struct {
 	Variables                    string        `bson:"variables,omitempty" json:"variables"`
 
 	// only output
-	TotalHosts                   uint32        `bson:"total_hosts,omitempty" json:"total_hosts" binding:"naproperty"`
-	HostsWithActiveFailures      uint32        `bson:"hosts_with_active_failures,omitempty" json:"hosts_with_active_failures" binding:"naproperty"`
-	TotalGroups                  uint32        `bson:"total_groups,omitempty" json:"total_groups" binding:"naproperty"`
-	GroupsWithActiveFailures     uint32        `bson:"groups_with_active_failures,omitempty" json:"groups_with_active_failures" binding:"naproperty"`
-	TotalInventorySources        uint32        `bson:"total_inventory_sources,omitempty" json:"total_inventory_sources" binding:"naproperty"`
-	InventorySourcesWithFailures uint32        `bson:"inventory_sources_with_failures,omitempty" json:"inventory_sources_with_failures" binding:"naproperty"`
+	TotalHosts                   uint32        `bson:"total_hosts,omitempty" json:"total_hosts" binding:"omitempty,naproperty"`
+	HostsWithActiveFailures      uint32        `bson:"hosts_with_active_failures,omitempty" json:"hosts_with_active_failures" binding:"omitempty,naproperty"`
+	TotalGroups                  uint32        `bson:"total_groups,omitempty" json:"total_groups" binding:"omitempty,naproperty"`
+	GroupsWithActiveFailures     uint32        `bson:"groups_with_active_failures,omitempty" json:"groups_with_active_failures" binding:"omitempty,naproperty"`
+	TotalInventorySources        uint32        `bson:"total_inventory_sources,omitempty" json:"total_inventory_sources" binding:"omitempty,naproperty"`
+	InventorySourcesWithFailures uint32        `bson:"inventory_sources_with_failures,omitempty" json:"inventory_sources_with_failures" binding:"omitempty,naproperty"`
 
-	HasInventorySources          bool          `bson:"has_inventory_sources" json:"has_inventory_sources" binding:"naproperty"`
-	HasActiveFailures            bool          `bson:"has_active_failures" json:"has_active_failures" binding:"naproperty"`
+	HasInventorySources          bool          `bson:"has_inventory_sources" json:"has_inventory_sources" binding:"omitempty,naproperty"`
+	HasActiveFailures            bool          `bson:"has_active_failures" json:"has_active_failures" binding:"omitempty,naproperty"`
 
 	CreatedBy                    bson.ObjectId `bson:"created_by" json:"-"`
 	ModifiedBy                   bson.ObjectId `bson:"modified_by" json:"-"`

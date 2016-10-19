@@ -11,12 +11,11 @@ import (
 	"os/exec"
 	"io"
 	"bytes"
-	"golang.org/x/crypto/ssh/agent"
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"strings"
+	"gopkg.in/mgo.v2/bson"
 )
 
-var SSHAgent (agent.Agent)
 // JobPaths
 type JobPaths struct {
 	EtcTower        string
@@ -71,6 +70,21 @@ func (p *AnsibleJobPool) run() {
 	}
 }
 
+func (p *AnsibleJobPool) RemoveFromPool(id bson.ObjectId) bool {
+	for k, v := range p.queue {
+		if v.Job.ID == id {
+			p.queue = append(p.queue[:k], p.queue[k + 1:]...)
+			v.jobCancel() // update job in database
+			return true
+		}
+	}
+	return false
+}
+
+func CancelJob(id bson.ObjectId) bool {
+	return AnsiblePool.RemoveFromPool(id)
+}
+
 func StartAnsibleRunner() {
 	AnsiblePool.run()
 }
@@ -90,10 +104,37 @@ type AnsibleJob struct {
 
 func (j *AnsibleJob) run() {
 
-	// TODO: update job template if requested
+	j.status("pending")
+	// update if requested
 	if j.Project.ScmUpdateOnLaunch {
-		// TODO: update code
-		// since this is already ag
+		// wait for scm update
+		j.status("waiting")
+		err, updateID := UpdateProject(j.Project)
+
+		if err != nil {
+			j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+			j.Job.ResultStdout = "stdout capture is missing"
+			j.jobError()
+			return
+		}
+
+		ticker := time.NewTicker(time.Second * 2)
+
+		for range ticker.C {
+			status, err := getJobStatus(updateID)
+			if status == "failed" || status == "error" || err != nil {
+				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+				j.Job.ResultStdout = "stdout capture is missing"
+				j.jobError()
+				return
+			}
+			if status == "successful" {
+				// stop the ticker and break the loop
+				ticker.Stop()
+				break
+			}
+
+		}
 	}
 
 	AnsiblePool.running = j
@@ -127,36 +168,16 @@ func (j *AnsibleJob) run() {
 	// create job directories
 	j.createJobDirs()
 
-
-	// update if requested
-	if j.Project.ScmUpdateOnLaunch {
-		UpdateProject(j.Project)
-
-		ticker := time.NewTicker(time.Second * 2)
-
-		for range ticker.C {
-			sync, err := IsJobFailed(j.Job.ID)
-
-			if !sync || err != nil {
-				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + j.Job.ID.Hex() + "\"}"
-				j.Job.ResultStdout = "stdout capture is missing"
-				j.fail()
-				return
-			}
-
-		}
-	}
-
 	output, err := j.runPlaybook();
 	j.Job.ResultStdout = string(output)
 	if err != nil {
 		log.Println("Running playbook failed", err)
 		j.Job.JobExplanation = err.Error()
-		j.fail()
+		j.jobFail()
 		return
 	}
 	//success
-	j.success()
+	j.jobSuccess()
 }
 
 // runPlaybook runs a Job using ansible-playbook command

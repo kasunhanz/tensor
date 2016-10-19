@@ -57,7 +57,7 @@ func (t *SystemJob) fail() {
 }
 
 func (t *SystemJob) success() {
-	t.Job.Status = "success"
+	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
 

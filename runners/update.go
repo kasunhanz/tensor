@@ -170,7 +170,7 @@ func (j *SystemJob) installScmCred() error {
 	return err
 }
 
-func UpdateProject(p models.Project) error {
+func UpdateProject(p models.Project) (error, bson.ObjectId) {
 	job := models.SystemJob{
 		ID: bson.NewObjectId(),
 		Name: p.Name + " update Job",
@@ -216,7 +216,7 @@ func UpdateProject(p models.Project) error {
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
 		log.Println("Error while creating update Job:", err)
-		return errors.New("Error while creating update Job:")
+		return errors.New("Error while creating update Job:"), ""
 	}
 
 	// create new background job
@@ -229,22 +229,21 @@ func UpdateProject(p models.Project) error {
 		var credential models.Credential
 		if err := db.Credentials().FindId(job.CredentialID).One(&credential); err != nil {
 			log.Println("Error while getting SCM Credential", err)
-			return errors.New("Error while getting SCM Credential")
+			return errors.New("Error while getting SCM Credential"), ""
 		}
 		runnerJob.Credential = credential
 	}
 
 	SystemPool.Register <- &runnerJob
 
-	return nil
+	return nil, job.ID
 }
 
-func IsJobFailed(id bson.ObjectId) (bool, error) {
+func getJobStatus(id bson.ObjectId) (string, error) {
 	var job models.SystemJob
 	if err := db.Jobs().FindId(id).One(&job); err != nil {
 		log.Println("Error while getting SCM update Job", err)
-		return false, errors.New("Error while getting SCM update Job")
+		return "", errors.New("Error while getting SCM update Job")
 	}
-
-	return job.Failed, nil
+	return job.Status, nil
 }

@@ -200,8 +200,8 @@ func AddProject(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Project " + req.Name + " created")
 
 	// before set metadata update the project
-	if err := runners.UpdateProject(req); err != nil {
-		log.Println("Error while scm update", err)
+	if err, sysJobID := runners.UpdateProject(req); err != nil {
+		log.Println("Error while scm update " + sysJobID.Hex(), err)
 	}
 
 	if err := metadata.ProjectMetadata(&req); err != nil {
