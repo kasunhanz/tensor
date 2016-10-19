@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_HOST = "host"
@@ -130,7 +131,7 @@ func AddHost(c *gin.Context) {
 	var req models.Host
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -207,7 +208,7 @@ func UpdateHost(c *gin.Context) {
 
 	var req models.Host
 
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -276,7 +277,7 @@ func PatchHost(c *gin.Context) {
 
 	var req models.PatchHost
 
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

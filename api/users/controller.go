@@ -12,6 +12,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_USER = "_user"
@@ -115,8 +116,7 @@ func AddUser(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.User
-	err := c.BindJSON(&req);
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -128,8 +128,7 @@ func AddUser(c *gin.Context) {
 	user.ID = bson.NewObjectId()
 	user.Created = time.Now()
 
-	err = db.Users().Insert(user);
-	if err != nil {
+	if err := db.Users().Insert(user); err != nil {
 		log.Println("Error while creating User:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,

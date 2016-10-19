@@ -18,6 +18,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 	"strings"
 	"bitbucket.pearson.com/apseng/tensor/runners"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_PROJECT = "project"
@@ -138,7 +139,7 @@ func AddProject(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Project
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -225,7 +226,7 @@ func UpdateProject(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Project
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -308,7 +309,7 @@ func PatchProject(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchProject
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

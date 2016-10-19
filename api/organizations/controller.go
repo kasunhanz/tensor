@@ -14,6 +14,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 	"strings"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_ORGANIZATION = "organization"
@@ -149,7 +150,7 @@ func AddOrganization(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Organization
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -291,7 +292,7 @@ func UpdateOrganization(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Organization
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
@@ -351,7 +352,7 @@ func PatchOrganization(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchOrganization
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

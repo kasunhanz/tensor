@@ -13,6 +13,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_TEAM = "team"
@@ -129,7 +130,7 @@ func AddTeam(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Team
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -197,7 +198,7 @@ func UpdateTeam(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Team
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -264,7 +265,7 @@ func PatchTeam(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchTeam
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

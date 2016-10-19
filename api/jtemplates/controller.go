@@ -15,6 +15,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/api/jwt"
+	"github.com/gin-gonic/gin/binding"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -200,7 +201,7 @@ func AddJTemplate(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -297,7 +298,7 @@ func UpdateJTemplate(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.JobTemplate
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -384,7 +385,7 @@ func PatchJTemplate(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchJobTemplate
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
@@ -623,7 +624,7 @@ func Launch(c *gin.Context) {
 	// accept nil request body for POST request, since all the feilds are optional
 	if c.Request.Body != nil {
 		// if the body present deserialize it
-		if err := c.BindJSON(&req); err != nil {
+		if err := binding.JSON.Bind(c.Request, &req); err != nil {
 			// Return 400 if request has bad JSON
 			// and return formatted validation errors
 			c.JSON(http.StatusBadRequest, models.Error{

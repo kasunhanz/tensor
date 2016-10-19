@@ -15,6 +15,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 	"strings"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_CREDENTIAL = "credential"
@@ -155,7 +156,7 @@ func AddCredential(c *gin.Context) {
 
 	var req models.Credential
 
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		log.Println("Bad payload:", err)
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -259,7 +260,7 @@ func UpdateCredential(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	var req models.Credential
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -353,7 +354,7 @@ func PatchCredential(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	var req models.PatchCredential
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

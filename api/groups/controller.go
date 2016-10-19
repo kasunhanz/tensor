@@ -13,6 +13,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_GROUP = "group"
@@ -140,7 +141,7 @@ func AddGroup(c *gin.Context) {
 	// get user from the gin.Context
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -221,7 +222,7 @@ func UpdateGroup(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Group
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -303,7 +304,7 @@ func PatchGroup(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchGroup
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{

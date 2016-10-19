@@ -14,6 +14,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_INVENTORY = "inventory"
@@ -138,7 +139,7 @@ func AddInventory(c *gin.Context) {
 	var req models.Inventory
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -206,7 +207,7 @@ func UpdateInventory(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Inventory
-	err := c.BindJSON(&req);
+	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -277,7 +278,7 @@ func PatchInventory(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchInventory
-	if err := c.BindJSON(&req); err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,

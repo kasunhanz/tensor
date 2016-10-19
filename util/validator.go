@@ -14,6 +14,7 @@ import (
 	"github.com/go-playground/universal-translator"
 	"fmt"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"io"
 )
 
 const (
@@ -191,6 +192,13 @@ func NaProperty(fl validator.FieldLevel) bool {
 }
 
 func GetValidationErrors(err error) []string {
+	if err == io.EOF {
+		return []string{"Request body cannot be empty"}
+	}
+
+	if reflect.Ptr == reflect.TypeOf(err).Kind() {
+		return []string{"Invalid request body"}
+	}
 	// translate all error at once
 	errs := err.(validator.ValidationErrors)
 	for _, e := range errs {
