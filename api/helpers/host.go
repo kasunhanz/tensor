@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueHost(name string, IID bson.ObjectId) bool {
-	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
+	count, err := db.Hosts().Find(bson.M{"name": name, "inventory_id": IID}).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -15,7 +15,7 @@ func IsUniqueHost(name string, IID bson.ObjectId) bool {
 }
 
 func IsNotUniqueHost(name string, IID bson.ObjectId) bool {
-	count, err := db.Hosts().FindId(bson.M{"name": name, "inventory_id": IID}).Count();
+	count, err := db.Hosts().Find(bson.M{"name": name, "inventory_id": IID}).Count();
 	if err == nil && count > 0 {
 		return true
 	}

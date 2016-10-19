@@ -17,6 +17,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/api/helpers"
 	"strings"
+	"bitbucket.pearson.com/apseng/tensor/runners"
 )
 
 const _CTX_PROJECT = "project"
@@ -134,12 +135,10 @@ func GetProjects(c *gin.Context) {
 
 // AddProject creates a new project
 func AddProject(c *gin.Context) {
-	var req models.Project
-
 	user := c.MustGet(_CTX_USER).(models.User)
 
-	err := c.BindJSON(&req);
-	if err != nil {
+	var req models.Project
+	if err := c.BindJSON(&req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -187,8 +186,7 @@ func AddProject(c *gin.Context) {
 	req.Created = time.Now()
 	req.Modified = time.Now()
 
-	err = db.Projects().Insert(req);
-	if err != nil {
+	if err := db.Projects().Insert(req); err != nil {
 		log.Println("Error while creating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -199,6 +197,11 @@ func AddProject(c *gin.Context) {
 
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Project " + req.Name + " created")
+
+	// before set metadata update the project
+	if err := runners.UpdateProject(req); err != nil {
+		log.Println("Error while scm update", err)
+	}
 
 	if err := metadata.ProjectMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
@@ -271,8 +274,7 @@ func UpdateProject(c *gin.Context) {
 	req.Modified = time.Now()
 
 	// update object
-	err := db.Projects().UpdateId(project.ID, req);
-	if err != nil {
+	if err := db.Projects().UpdateId(project.ID, req); err != nil {
 		log.Println("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -285,8 +287,7 @@ func UpdateProject(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Project " + req.Name + " updated")
 
 	// set `related` and `summary` feilds
-	err = metadata.ProjectMetadata(&req);
-	if err != nil {
+	if err := metadata.ProjectMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -431,8 +432,7 @@ func RemoveProject(c *gin.Context) {
 	log.Println("Job Template remove info:", changes.Removed)
 
 	// remove object from the collection
-	err = db.Projects().RemoveId(project.ID);
-	if err != nil {
+	if err = db.Projects().RemoveId(project.ID); err != nil {
 		log.Println("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,

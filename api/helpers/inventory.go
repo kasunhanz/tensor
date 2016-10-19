@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueInventory(name string, OID bson.ObjectId) bool {
-	count, err := db.Inventories().FindId(bson.M{"name": name, "organization_id": OID }).Count();
+	count, err := db.Inventories().Find(bson.M{"name": name, "organization_id": OID }).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -14,7 +14,7 @@ func IsUniqueInventory(name string, OID bson.ObjectId) bool {
 }
 
 func IsNotUniqueInventory(name string, OID bson.ObjectId) bool {
-	count, err := db.Inventories().FindId(bson.M{"name": name, "organization_id": OID}).Count();
+	count, err := db.Inventories().Find(bson.M{"name": name, "organization_id": OID}).Count();
 	if err == nil && count > 0 {
 		return true
 	}

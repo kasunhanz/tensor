@@ -10,6 +10,9 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"net/http"
+	"bitbucket.pearson.com/apseng/tensor/crashy"
 )
 
 func main() {
@@ -32,7 +35,7 @@ func main() {
 	binding.Validator = &util.SpaceValidator{}
 
 	r := gin.New()
-	r.Use(gin.Recovery(), recovery, gin.Logger())
+	r.Use(gin.Recovery(), recovery, gin.Logger(), crashy.Recovery(recoveryHandler))
 
 	api.Route(r)
 
@@ -47,4 +50,13 @@ func recovery(c *gin.Context) {
 
 	//report to bug nofiy system
 	c.Next()
+}
+
+func recoveryHandler(c *gin.Context, err interface{}) {
+	c.JSON(http.StatusInternalServerError, models.Error{
+		Code: http.StatusInternalServerError,
+		Messages: "You have not gotten any error messages recently," +
+			" so here is a random one just to let you know that we haven't caring.",
+	})
+	c.Abort()
 }

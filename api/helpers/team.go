@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueTeam(name string, OID bson.ObjectId) bool {
-	count, err := db.Teams().FindId(bson.M{"name": name, "organization_id": OID}).Count();
+	count, err := db.Teams().Find(bson.M{"name": name, "organization_id": OID}).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -15,7 +15,7 @@ func IsUniqueTeam(name string, OID bson.ObjectId) bool {
 }
 
 func IsNotUniqueTeam(name string, OID bson.ObjectId) bool {
-	count, err := db.Teams().FindId(bson.M{"name": name, "organization_id": OID}).Count();
+	count, err := db.Teams().Find(bson.M{"name": name, "organization_id": OID}).Count();
 	if err == nil && count > 0 {
 		return true
 	}

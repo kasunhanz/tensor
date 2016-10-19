@@ -127,6 +127,26 @@ func (j *AnsibleJob) run() {
 	// create job directories
 	j.createJobDirs()
 
+
+	// update if requested
+	if j.Project.ScmUpdateOnLaunch {
+		UpdateProject(j.Project)
+
+		ticker := time.NewTicker(time.Second * 2)
+
+		for range ticker.C {
+			sync, err := IsJobFailed(j.Job.ID)
+
+			if !sync || err != nil {
+				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + j.Job.ID.Hex() + "\"}"
+				j.Job.ResultStdout = "stdout capture is missing"
+				j.fail()
+				return
+			}
+
+		}
+	}
+
 	output, err := j.runPlaybook();
 	j.Job.ResultStdout = string(output)
 	if err != nil {

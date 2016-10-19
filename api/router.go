@@ -25,18 +25,17 @@ import (
 
 // Route declare all routes
 func Route(r *gin.Engine) {
+
 	// Apply the middleware to the router (works with groups too)
 	r.Use(cors.Middleware(cors.Config{
 		Origins:         "*",
-		Methods:         "GET, PUT, POST, DELETE",
+		Methods:         "GET, PUT, POST, DELETE, PATCH",
 		RequestHeaders:  "Origin, Authorization, Content-Type",
 		ExposedHeaders:  "",
 		MaxAge:          50 * time.Second,
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
-	// causing some issues
-	//r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	r.GET("", util.GetAPIVersion)
 	// set up the namespace

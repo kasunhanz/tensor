@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueOrganization(name string) bool {
-	count, err := db.Organizations().FindId(bson.M{"name": name}).Count();
+	count, err := db.Organizations().Find(bson.M{"name": name}).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -15,7 +15,7 @@ func IsUniqueOrganization(name string) bool {
 }
 
 func IsNotUniqueOrganization(name string) bool {
-	count, err := db.Organizations().FindId(bson.M{"name": name}).Count();
+	count, err := db.Organizations().Find(bson.M{"name": name}).Count();
 	if err == nil && count > 0 {
 		return true
 	}
