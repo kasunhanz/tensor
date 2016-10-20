@@ -175,7 +175,7 @@ func UpdateProject(p models.Project) (error, bson.ObjectId) {
 		ID: bson.NewObjectId(),
 		Name: p.Name + " update Job",
 		Description: "Updates " + p.Name + " Project",
-		LaunchType: "automated",
+		LaunchType: "manual",
 		CancelFlag: false,
 		Status: "pending",
 		JobType: models.JOBTYPE_UPDATE_JOB,

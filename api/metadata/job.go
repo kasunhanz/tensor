@@ -8,13 +8,11 @@ import (
 
 func JobMetadata(job *models.Job) error {
 	ID := job.ID.Hex()
-	job.Type = "job"
+	job.Type = job.JobType
 	job.Url = "/v1/jobs/" + ID + "/"
 	related := gin.H{
 		"labels": "/api/v1/jobs/" + ID + "/labels/",
-		"inventory": "/api/v1/inventories/" + job.InventoryID.Hex() + "/",
 		"project": "/api/v1/projects/" + job.ProjectID.Hex() + "/",
-		"credential": "/api/v1/credentials/" + job.MachineCredentialID.Hex() + "/",
 		"stdout": "/api/v1/jobs/" + ID + "/stdout/",
 		"job_host_summaries": "/api/v1/jobs/" + ID + "/job_host_summaries/",
 		"job_tasks": "/api/v1/jobs/" + ID + "/job_tasks/",
@@ -22,7 +20,6 @@ func JobMetadata(job *models.Job) error {
 		"job_events": "/api/v1/jobs/" + ID + "/job_events/",
 		"notifications": "/api/v1/jobs/" + ID + "/notifications/",
 		"activity_stream": "/api/v1/jobs/" + ID + "/activity_stream/",
-		"job_template": "/api/v1/job_templates/" + job.JobTemplateID.Hex() + "/",
 		"start": "/api/v1/jobs/" + ID + "/start/",
 		"cancel": "/api/v1/jobs/" + ID + "/cancel/",
 		"relaunch": "/api/v1/jobs/" + ID + "/relaunch/",
@@ -32,8 +29,20 @@ func JobMetadata(job *models.Job) error {
 		related["created_by"] = "/api/v1/users/" + job.CreatedByID.Hex() + "/"
 	}
 
-	if len(job.CreatedByID) == 12 {
+	if len(job.ModifiedByID) == 12 {
 		related["modified_by"] = "/api/v1/users/" + job.ModifiedByID.Hex() + "/"
+	}
+
+	if len(job.MachineCredentialID) == 12 {
+		related["credential"] = "/api/v1/credentials/" + job.MachineCredentialID.Hex() + "/"
+	}
+
+	if len(job.InventoryID) == 12 {
+		related["inventory"] = "/api/v1/inventories/" + job.InventoryID.Hex() + "/"
+	}
+
+	if len(job.JobTemplateID) == 12 {
+		related["job_template"] = "/api/v1/job_templates/" + job.JobTemplateID.Hex() + "/"
 	}
 
 	job.Related = related
@@ -45,54 +54,13 @@ func JobMetadata(job *models.Job) error {
 }
 
 func JobSummary(job *models.Job) error {
-
-	var inv models.Inventory
-	var jtemp models.JobTemplate
-	var cred models.Credential
 	var proj models.Project
-
-	if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
-		return err
-	}
-
-	if err := db.JobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
-		return err
-	}
-
-	if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
-		return err
-	}
-
 	if err := db.Projects().FindId(job.ProjectID).One(&proj); err != nil {
 		return err
 	}
 
 	summary := gin.H{
-		"job_template": gin.H{
-			"id": jtemp.ID.Hex(),
-			"name": jtemp.Name,
-			"description": jtemp.Description,
-		},
-		"inventory": gin.H{
-			"id": inv.ID.Hex(),
-			"name": inv.Name,
-			"description": inv.Description,
-			"has_active_failures": inv.HasActiveFailures,
-			"total_hosts": inv.TotalHosts,
-			"hosts_with_active_failures": inv.HostsWithActiveFailures,
-			"total_groups": inv.TotalGroups,
-			"groups_with_active_failures": inv.GroupsWithActiveFailures,
-			"has_inventory_sources": inv.HasInventorySources,
-			"total_inventory_sources": inv.TotalInventorySources,
-			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
-		},
-		"credential": gin.H{
-			"id": cred.ID,
-			"name": cred.Name,
-			"description": cred.Description,
-			"kind": cred.Kind,
-			"cloud": cred.Cloud,
-		},
+		"credential": nil,
 		"project": gin.H{
 			"id": proj.ID,
 			"name": proj.Name,
@@ -103,6 +71,10 @@ func JobSummary(job *models.Job) error {
 			"count": 0,
 			"results": []gin.H{},
 		},
+		"modified_by": nil,
+		"created_by": nil,
+		"inventory": nil,
+		"job_template": nil,
 	}
 
 	if len(job.ModifiedByID) == 12 {
@@ -128,6 +100,54 @@ func JobSummary(job *models.Job) error {
 			"username":   created.Username,
 			"first_name": created.FirstName,
 			"last_name":  created.LastName,
+		}
+	}
+
+	if len(job.InventoryID) == 12 {
+		var inv models.Inventory
+		if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
+			return err
+		}
+
+		summary["inventory"] = gin.H{
+			"id": inv.ID.Hex(),
+			"name": inv.Name,
+			"description": inv.Description,
+			"has_active_failures": inv.HasActiveFailures,
+			"total_hosts": inv.TotalHosts,
+			"hosts_with_active_failures": inv.HostsWithActiveFailures,
+			"total_groups": inv.TotalGroups,
+			"groups_with_active_failures": inv.GroupsWithActiveFailures,
+			"has_inventory_sources": inv.HasInventorySources,
+			"total_inventory_sources": inv.TotalInventorySources,
+			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
+		}
+	}
+
+	if len(job.JobTemplateID) == 12 {
+		var jtemp models.JobTemplate
+		if err := db.JobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
+			return err
+		}
+		summary["job_template"] = gin.H{
+			"id": jtemp.ID.Hex(),
+			"name": jtemp.Name,
+			"description": jtemp.Description,
+		}
+	}
+
+	if len(job.MachineCredentialID) == 12 {
+		var cred models.Credential
+		if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
+			return err
+		}
+
+		summary["credential"] = gin.H{
+			"id": cred.ID,
+			"name": cred.Name,
+			"description": cred.Description,
+			"kind": cred.Kind,
+			"cloud": cred.Cloud,
 		}
 	}
 
