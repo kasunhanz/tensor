@@ -81,8 +81,21 @@ func (p *AnsibleJobPool) RemoveFromPool(id bson.ObjectId) bool {
 	return false
 }
 
+func (p *AnsibleJobPool) CanCancel(id bson.ObjectId) bool {
+	for _, v := range p.queue {
+		if v.Job.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func CancelJob(id bson.ObjectId) bool {
 	return AnsiblePool.RemoveFromPool(id)
+}
+
+func CanCancel(id bson.ObjectId) bool {
+	return AnsiblePool.CanCancel(id)
 }
 
 func StartAnsibleRunner() {

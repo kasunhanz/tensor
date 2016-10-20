@@ -11,6 +11,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/runners"
 )
 
 // _CTX_JOB is the key name of the Job Template in gin.Context
@@ -134,4 +135,29 @@ func GetJobs(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results: jobs[pgi.Skip():pgi.End()],
 	})
+}
+
+// CancelInfo to determine if the job can be cancelled.
+// The response will include the following field:
+// can_cancel: [boolean] Indicates whether this job can be canceled
+func CancelInfo(c *gin.Context) {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, gin.H{"can_cancel": runners.CanCancel(job.ID)})
+}
+
+// Cancel cancels the pending job.
+// The response status code will be 202 if successful, or 405 if the job cannot be
+// canceled.
+func Cancel(c *gin.Context) {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	if runners.CancelJob(job.ID) {
+		c.AbortWithStatus(http.StatusAccepted)
+	}
+
+	c.AbortWithStatus(http.StatusMethodNotAllowed)
 }

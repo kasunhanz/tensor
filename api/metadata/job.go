@@ -10,9 +10,7 @@ func JobMetadata(job *models.Job) error {
 	ID := job.ID.Hex()
 	job.Type = "job"
 	job.Url = "/v1/jobs/" + ID + "/"
-	job.Related = gin.H{
-		"created_by": "/api/v1/users/" + job.CreatedByID.Hex() + "/",
-		"modified_by": "/api/v1/users/" + job.ModifiedByID.Hex() + "/",
+	related := gin.H{
 		"labels": "/api/v1/jobs/" + ID + "/labels/",
 		"inventory": "/api/v1/inventories/" + job.InventoryID.Hex() + "/",
 		"project": "/api/v1/projects/" + job.ProjectID.Hex() + "/",
@@ -30,6 +28,15 @@ func JobMetadata(job *models.Job) error {
 		"relaunch": "/api/v1/jobs/" + ID + "/relaunch/",
 	}
 
+	if len(job.CreatedByID) == 12 {
+		related["created_by"] = "/api/v1/users/" + job.CreatedByID.Hex() + "/"
+	}
+
+	if len(job.CreatedByID) == 12 {
+		related["modified_by"] = "/api/v1/users/" + job.ModifiedByID.Hex() + "/"
+	}
+
+	job.Related = related
 	if err := JobSummary(job); err != nil {
 		return err
 	}
@@ -39,20 +46,10 @@ func JobMetadata(job *models.Job) error {
 
 func JobSummary(job *models.Job) error {
 
-	var modified models.User
-	var created models.User
 	var inv models.Inventory
 	var jtemp models.JobTemplate
 	var cred models.Credential
 	var proj models.Project
-
-	if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
-		return err
-	}
 
 	if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
 		return err
@@ -70,7 +67,7 @@ func JobSummary(job *models.Job) error {
 		return err
 	}
 
-	job.Summary = gin.H{
+	summary := gin.H{
 		"job_template": gin.H{
 			"id": jtemp.ID.Hex(),
 			"name": jtemp.Name,
@@ -102,23 +99,39 @@ func JobSummary(job *models.Job) error {
 			"description": proj.Description,
 			"status": proj.Status,
 		},
-		"created_by": gin.H{
-			"id":         created.ID.Hex(),
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"modified_by": gin.H{
-			"id":         modified.ID.Hex(),
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
-		},
 		"labels": gin.H{
 			"count": 0,
 			"results": []gin.H{},
 		},
 	}
+
+	if len(job.ModifiedByID) == 12 {
+		var modified models.User
+		if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
+			return err
+		}
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
+	}
+	// only if job exist
+	if len(job.CreatedByID) == 12 {
+		var created models.User
+		if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
+			return err
+		}
+		summary["created_by"] = gin.H{
+			"id":         created.ID.Hex(),
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
+		}
+	}
+
+	job.Summary = summary
 
 	return nil
 }

@@ -263,6 +263,8 @@ func Route(r *gin.Engine) {
 			gJobs.GET("/", jobs.GetJobs)
 			gJobs.GET("/:job_id", jobs.Middleware, jobs.GetJob)
 			gJobs.DELETE("/:job_id", jobs.Middleware, jobs.GetJob)
+			gJobs.GET("/:job_id/cancel", jobs.Middleware, jobs.CancelInfo)
+			gJobs.POST("/:job_id/cancel", jobs.Middleware, jobs.Cancel)
 
 			//related
 			gJobs.GET("/:job_id/stdout", jobs.Middleware, notImplemented) //TODO: implement
@@ -272,7 +274,6 @@ func Route(r *gin.Engine) {
 			gJobs.GET("/:job_id/notifications", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/activity_stream", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/start", jobs.Middleware, notImplemented) //TODO: implement
-			gJobs.GET("/:job_id/cancel", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/relaunch", jobs.Middleware, notImplemented) //TODO: implement
 		}
 
