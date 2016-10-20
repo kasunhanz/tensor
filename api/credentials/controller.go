@@ -34,6 +34,7 @@ func Middleware(c *gin.Context) {
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 	user := c.MustGet(_CTX_USER).(models.User)
@@ -45,6 +46,7 @@ func Middleware(c *gin.Context) {
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -54,6 +56,7 @@ func Middleware(c *gin.Context) {
 			Code: http.StatusUnauthorized,
 			Messages: []string{"Unauthorized"},
 		})
+		c.Abort()
 		return
 	}
 

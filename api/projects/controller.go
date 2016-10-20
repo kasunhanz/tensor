@@ -37,6 +37,7 @@ func Middleware(c *gin.Context) {
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -48,6 +49,7 @@ func Middleware(c *gin.Context) {
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 

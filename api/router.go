@@ -36,6 +36,13 @@ func Route(r *gin.Engine) {
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
+	// handle not found
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, models.Error{
+			Code: http.StatusNotFound,
+			Messages: []string{"Not found"},
+		})
+	})
 
 	r.GET("", util.GetAPIVersion)
 	// set up the namespace
