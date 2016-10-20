@@ -227,13 +227,15 @@ func UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	// if the Inventory not exists within the Organization, reject the request
-	if helpers.IsUniqueInventory(req.Name, req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Inventory with this Name and Organization does not exists."},
-		})
-		return
+	if req.Name != inventory.Name {
+		// if inventory exists in the collection
+		if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Inventory with this Name already exists."},
+			})
+			return
+		}
 	}
 
 	req.ID = bson.NewObjectId()
@@ -298,16 +300,16 @@ func PatchInventory(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 {
+	if len(req.Name) > 0 && req.Name != inventory.Name {
 		ogID := inventory.OrganizationID
 		if len(req.OrganizationID) == 12 {
 			ogID = req.OrganizationID
 		}
-		// if the Inventory not exists within the Organization, reject the request
-		if helpers.IsUniqueInventory(req.Name, ogID) {
+		// if inventory exists in the collection
+		if helpers.IsNotUniqueInventory(req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
-				Messages: []string{"Inventory with this Name and Organization does not exists."},
+				Messages: []string{"Inventory with this Name already exists."},
 			})
 			return
 		}

@@ -280,13 +280,15 @@ func UpdateCredential(c *gin.Context) {
 		}
 	}
 
-	// if the credential exist in the collection it is not unique
-	if helpers.IsUniqueCredential(req.Name) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Credential with this Name does not exists."},
-		})
-		return
+	if req.Name != credential.Name {
+		// if the Credential exist in the collection it is not unique
+		if helpers.IsNotUniqueCredential(req.Name) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Credential with this Name already exists."},
+			})
+			return
+		}
 	}
 
 	if req.Password != "" {
@@ -374,12 +376,12 @@ func PatchCredential(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 {
-		// if the credential exist in the collection it is not unique
-		if helpers.IsUniqueCredential(req.Name) {
+	if len(req.Name) > 0 && req.Name != credential.Name {
+		// if the Credential exist in the collection it is not unique
+		if helpers.IsNotUniqueCredential(req.Name) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
-				Messages: []string{"Credential with this Name does not exists."},
+				Messages: []string{"Credential with this Name already exists."},
 			})
 			return
 		}

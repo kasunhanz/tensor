@@ -216,25 +216,33 @@ func UpdateHost(c *gin.Context) {
 		})
 	}
 
-
-	// if the host does not exist on the collection it is unique
-	if helpers.IsUniqueHost(req.Name, req.InventoryID) {
-		// Return 400 if request has bad JSON format
+	// check whether the inventory exist or not
+	if !helpers.InventoryExist(req.InventoryID) {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Messages: []string{"Host with this Name and Inventory does not exists."},
+			Messages: []string{"Inventory does not exists."},
 		})
 		return
 	}
 
-	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID) {
-		return
+	if req.Name != host.Name {
+		// if the host exist in the collection it is not unique
+		if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Host with this Name and Inventory already exists."},
+			})
+			return
+		}
 	}
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
 		if !helpers.GroupExist(*req.GroupID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group does not exists."},
+			})
 			return
 		}
 	}
@@ -291,6 +299,21 @@ func PatchHost(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
+			})
+			return
+		}
+	}
+
+	if len(req.Name) > 0 && req.Name != host.Name {
+		invID := host.ID
+		if len(req.InventoryID) == 12 {
+			invID = req.InventoryID
+		}
+		// if the host exist in the collection it is not unique
+		if helpers.IsNotUniqueHost(req.Name, invID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Host with this Name and Inventory already exists."},
 			})
 			return
 		}

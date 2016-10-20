@@ -17,7 +17,7 @@ type Inventory struct {
 	SummaryFields                gin.H         `bson:"-" json:"summary_fields"`
 
 	// required feilds
-	Name                         string        `bson:"name" json:"name" binding:"required"`
+	Name                         string        `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	OrganizationID               bson.ObjectId `bson:"organization_id" json:"organization" binding:"required"`
 	Description                  string        `bson:"description,omitempty" json:"description"`
 	Variables                    string        `bson:"variables,omitempty" json:"variables"`
@@ -46,7 +46,7 @@ type Inventory struct {
 // PatchInventory is the model for patch requests
 type PatchInventory struct {
 	// required feilds
-	Name           string        `bson:"name,omitempty" json:"name,omitempty"`
+	Name           string        `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
 	OrganizationID bson.ObjectId `bson:"organization_id,omitempty" json:"organization,omitempty"`
 	Description    string        `bson:"description,omitempty" json:"description,omitempty"`
 	Variables      string        `bson:"variables,omitempty" json:"variables,omitempty"`

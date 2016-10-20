@@ -334,6 +334,17 @@ func UpdateJTemplate(c *gin.Context) {
 		return
 	}
 
+	if req.Name != jobTemplate.Name {
+		// if the JobTemplate exist in the collection it is not unique
+		if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Job Template with this Name already exists."},
+			})
+			return
+		}
+	}
+
 	// check whether the machine credential exist or not
 	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -427,6 +438,17 @@ func PatchJTemplate(c *gin.Context) {
 			Messages: []string{"Project does not exists"},
 		})
 		return
+	}
+
+	if len(req.Name) > 0 && req.Name != jobTemplate.Name {
+		// if the JobTemplate exist in the collection it is not unique
+		if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Job Template with this Name already exists."},
+			})
+			return
+		}
 	}
 
 	if len(req.MachineCredentialID) == 12 {

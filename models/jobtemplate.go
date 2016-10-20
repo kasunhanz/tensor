@@ -10,7 +10,7 @@ type JobTemplate struct {
 	ID                  bson.ObjectId  `bson:"_id" json:"id"`
 
 	// required
-	Name                string         `bson:"name" json:"name" binding:"required"`
+	Name                string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	JobType             string         `bson:"job_type" json:"job_type" binding:"required,jobtype"`
 	InventoryID         bson.ObjectId  `bson:"inventory_id" json:"inventory" binding:"required"`
 	ProjectID           bson.ObjectId  `bson:"project_id" json:"project" binding:"required"`
@@ -68,7 +68,7 @@ type JobTemplate struct {
 }
 
 type PatchJobTemplate struct {
-	Name                string         `bson:"name,omitempty" json:"name,omitempty"`
+	Name                string         `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
 	JobType             string         `bson:"job_type,omitempty" json:"job_type,omitempty" binding:"jobtype"`
 	InventoryID         bson.ObjectId  `bson:"inventory_id,omitempty" json:"inventory,omitempty"`
 	ProjectID           bson.ObjectId  `bson:"project_id,omitempty" json:"project,omitempty"`

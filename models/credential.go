@@ -26,7 +26,7 @@ const (
 type Credential struct {
 	ID                bson.ObjectId   `bson:"_id" json:"id"`
 	// required feilds
-	Name              string          `bson:"name" json:"name" binding:"required"`
+	Name              string          `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	Kind              string          `bson:"kind" json:"kind" binding:"required,credentialkind"`
 
 	//optional feilds
@@ -67,7 +67,7 @@ type Credential struct {
 }
 
 type PatchCredential struct {
-	Name              string          `bson:"name,omitempty" json:"name,omitempty"`
+	Name              string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
 	Kind              string          `bson:"kind,omitempty" json:"kind,omitempty" binding:"omitempty,credentialkind"`
 	Cloud             bool            `bson:"cloud,omitempty" json:"cloud,omitempty"`
 	Description       string          `bson:"description,omitempty" json:"description,omitempty"`

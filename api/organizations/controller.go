@@ -300,14 +300,15 @@ func UpdateOrganization(c *gin.Context) {
 		return
 	}
 
-	// check wheather the Organization exist in the collection, if not fail.
-	// if the Organization unique then it is not in the collection, abort any updates
-	if helpers.IsUniqueOrganization(req.Name) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Organization with this Name does not exists."},
-		})
-		return
+	if req.Name != organization.Name {
+		// if the Organization exist in the collection it is not unique
+		if helpers.IsNotUniqueOrganization(req.Name) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Organization with this Name already exists."},
+			})
+			return
+		}
 	}
 
 	// trim strings white space
@@ -363,13 +364,12 @@ func PatchOrganization(c *gin.Context) {
 
 	// since this is a patch request if the name specified check the
 	// Organization name is unique
-	if len(req.Name) > 0 {
-		// check wheather the Organization exist in the collection, if not fail.
-		// if the Organization unique then it is not in the collection, abort any updates
-		if helpers.IsUniqueOrganization(req.Name) {
+	if len(req.Name) > 0 && req.Name != organization.Name {
+		// if the Organization exist in the collection it is not unique
+		if helpers.IsNotUniqueOrganization(req.Name) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
-				Messages: []string{"Organization with this Name does not exists."},
+				Messages: []string{"Organization with this Name already exists."},
 			})
 			return
 		}

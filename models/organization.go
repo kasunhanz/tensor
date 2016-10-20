@@ -15,7 +15,7 @@ type Organization struct {
 	Related       gin.H              `bson:"-" json:"related"`
 	SummaryFields gin.H              `bson:"-" json:"summary_fields"`
 
-	Name          string             `bson:"name" json:"name" binding:"required"`
+	Name          string             `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	Description   string             `bson:"description" json:"description"`
 
 	CreatedBy     bson.ObjectId      `bson:"created_by" json:"-"`
@@ -28,9 +28,9 @@ type Organization struct {
 }
 
 type PatchOrganization struct {
-	Name          string             `bson:"name,omitempty" json:"name,omitempty"`
-	Description   string             `bson:"description,omitempty" json:"description,omitempty"`
+	Name        string             `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
+	Description string             `bson:"description,omitempty" json:"description,omitempty"`
 
-	ModifiedBy    bson.ObjectId      `bson:"modified_by" json:"-"`
-	Modified      time.Time          `bson:"modified" json:"-"`
+	ModifiedBy  bson.ObjectId      `bson:"modified_by" json:"-"`
+	Modified    time.Time          `bson:"modified" json:"-"`
 }

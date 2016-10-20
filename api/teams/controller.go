@@ -216,13 +216,15 @@ func UpdateTeam(c *gin.Context) {
 		return
 	}
 
-	// if the group exist in the collection it is not unique
-	if helpers.IsUniqueTeam(req.Name, req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Team with this Name and Organization does not exists."},
-		})
-		return
+	if req.Name != team.Name {
+		// if the team exist in the collection it is not unique
+		if helpers.IsNotUniqueTeam(req.Name, req.OrganizationID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Team with this Name and Organization already exists."},
+			})
+			return
+		}
 	}
 
 	req.Created = team.Created
@@ -280,6 +282,21 @@ func PatchTeam(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
+			})
+			return
+		}
+	}
+
+	if len(req.Name) > 0 && req.Name != team.Name {
+		ogID := team.OrganizationID
+		if len(req.OrganizationID) == 12 {
+			ogID = req.OrganizationID
+		}
+		// if the team exist in the collection it is not unique
+		if helpers.IsNotUniqueTeam(req.Name, ogID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Team with this Name and Organization already exists."},
 			})
 			return
 		}

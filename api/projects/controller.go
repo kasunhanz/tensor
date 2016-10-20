@@ -244,13 +244,15 @@ func UpdateProject(c *gin.Context) {
 		return
 	}
 
-	// if the project not exists within the Organization, reject the request
-	if helpers.IsUniqueProject(req.Name, req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Project with this Name and Organization does not exists."},
-		})
-		return
+	if req.Name != project.Name {
+		// if a project exists within the Organization, reject the request
+		if helpers.IsNotUniqueProject(req.Name, req.OrganizationID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Project with this Name and Organization already exists."},
+			})
+			return
+		}
 	}
 
 	// check whether the ScmCredential exist or not
@@ -329,16 +331,16 @@ func PatchProject(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 {
+	if req.Name != project.Name {
 		ogID := project.OrganizationID
 		if len(req.OrganizationID) == 12 {
 			ogID = req.OrganizationID
 		}
-		// if a project not exists within the Organization, reject the request
-		if helpers.IsUniqueProject(req.Name, ogID) {
+		// if a project exists within the Organization, reject the request
+		if helpers.IsNotUniqueProject(req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
-				Messages: []string{"Project with this Name and Organization does not exists."},
+				Messages: []string{"Project with this Name and Organization already exists."},
 			})
 			return
 		}

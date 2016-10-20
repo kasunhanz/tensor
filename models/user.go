@@ -14,7 +14,7 @@ type User struct {
 	Url             string        `bson:"-" json:"url"`
 	Related         gin.H         `bson:"-" json:"related"`
 
-	Username        string        `bson:"username" json:"username" binding:"required"`
+	Username        string        `bson:"username" json:"username" binding:"required,min=1,max=500"`
 	FirstName       string        `bson:"first_name" json:"first_name"`
 	LastName        string        `bson:"last_name" json:"last_name"`
 	Email           string        `bson:"email" json:"email" binding:"required"`

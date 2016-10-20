@@ -232,15 +232,6 @@ func UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	// if the group exist in the collection it is not unique
-	if helpers.IsUniqueGroup(req.Name, req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
-			Messages: []string{"Group with this Name and Inventory does not exists."},
-		})
-		return
-	}
-
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
 		c.JSON(http.StatusBadRequest, models.Error{
@@ -248,6 +239,17 @@ func UpdateGroup(c *gin.Context) {
 			Messages: []string{"Inventory does not exists."},
 		})
 		return
+	}
+
+	if req.Name != group.Name {
+		// if the group exist in the collection it is not unique
+		if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group with this Name and Inventory already exists."},
+			})
+			return
+		}
 	}
 
 	// check whether the group exist or not
@@ -314,32 +316,31 @@ func PatchGroup(c *gin.Context) {
 		return
 	}
 
-	// since this is a patch request if the name specified check the
-	// inventory name is unique
-	if len(req.Name) > 0 {
-		objId := group.InventoryID
-		// if inventory id specified use it otherwise use
-		// old inventory id
-		if len(req.InventoryID) == 12 {
-			objId = req.InventoryID
-		}
-		// check wheather the group exist in the collection, if not fail.
-		// if the group unique then it is not in the collection, abort any updates
-		if helpers.IsUniqueGroup(req.Name, objId) {
-			c.JSON(http.StatusBadRequest, models.Error{
-				Code:http.StatusBadRequest,
-				Messages: []string{"Group with this Name and Inventory does not exists."},
-			})
-			return
-		}
-	}
-
 	// check whether the inventory exist or not
 	if len(req.InventoryID) == 12 {
 		if !helpers.InventoryExist(req.InventoryID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
+			})
+			return
+		}
+	}
+
+	// since this is a patch request if the name specified check the
+	// inventory name is unique
+	if len(req.Name) > 0 && req.Name != group.Name {
+		objId := group.InventoryID
+		// if inventory id specified use it otherwise use
+		// old inventory id
+		if len(req.InventoryID) == 12 {
+			objId = req.InventoryID
+		}
+		// if the group exist in the collection it is not unique
+		if helpers.IsNotUniqueGroup(req.Name, objId) {
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: []string{"Group with this Name and Inventory already exists."},
 			})
 			return
 		}

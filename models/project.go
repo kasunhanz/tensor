@@ -17,7 +17,7 @@ type Project struct {
 	Summary               gin.H           `bson:"-" json:"summary_fields"`
 
 	// required feilds
-	Name                  string          `bson:"name" json:"name" binding:"required"`
+	Name                  string          `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	ScmType               string          `bson:"scm_type" json:"scm_type" binding:"required,scmtype"`
 	OrganizationID        bson.ObjectId   `bson:"organization_id" json:"organization" binding:"required"`
 
@@ -53,7 +53,7 @@ type Project struct {
 
 // All optional
 type PatchProject struct {
-	Name                  string          `bson:"name,omitempty" json:"name,omitempty"`
+	Name                  string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
 	ScmType               string          `bson:"scm_type,omitempty" json:"scm_type,omitempty" binding:"omitempty,scmtype"`
 	OrganizationID        bson.ObjectId   `bson:"organization_id,omitempty" json:"organization,omitempty"`
 	Description           string          `bson:"description,omitempty" json:"description,omitempty"`
