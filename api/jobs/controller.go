@@ -78,10 +78,9 @@ func GetJobs(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"status", "type", "failed", })
-	if con := parser.IContains([]string{"id", "name", "labels"}); con != nil {
-		match = con
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"status", "type", "failed"}, match)
+	match = parser.Lookups([]string{"id", "name", "labels"}, match)
 
 	query := db.Jobs().Find(match) // prepare the query
 
@@ -162,4 +161,11 @@ func Cancel(c *gin.Context) {
 	}
 
 	c.AbortWithStatus(http.StatusMethodNotAllowed)
+}
+
+func StdOut(c *gin.Context)  {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	c.JSON(http.StatusOK, job.ResultStdout)
 }

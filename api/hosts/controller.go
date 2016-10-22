@@ -66,18 +66,9 @@ func GetHosts(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 
-	match := parser.Match([]string{"enabled", "has_active_failures", })
-	//TODO: has_active_failures `gt` true
-
-	if con := parser.IContains([]string{"name"}); con != nil {
-		if match != nil {
-			for i, v := range con {
-				match[i] = v
-			}
-		} else {
-			match = con
-		}
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"enabled", "has_active_failures", }, match)
+	match = parser.Lookups([]string{"name", "description"}, match)
 
 	//prepare the query
 	query := db.Hosts().Find(match)

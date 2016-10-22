@@ -68,10 +68,9 @@ func GetTeams(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
+
 	match := bson.M{}
-	if con := parser.IContains([]string{"name", "description", "organization"}); con != nil {
-		match = con
-	}
+	match = parser.Lookups([]string{"name", "description", "organization"}, match)
 
 	query := db.Teams().Find(match)
 	if order := parser.OrderBy(); order != "" {

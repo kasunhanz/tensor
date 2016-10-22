@@ -75,18 +75,9 @@ func GetInventory(c *gin.Context) {
 func GetInventories(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"has_inventory_sources", "has_active_failures", })
-	con := parser.IContains([]string{"name", "organization"});
-
-	if con != nil {
-		if match != nil {
-			for i, v := range con {
-				match[i] = v
-			}
-		} else {
-			match = con
-		}
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"has_inventory_sources", "has_active_failures"}, match)
+	match = parser.Lookups([]string{"name", "organization"}, match)
 
 	query := db.Inventories().Find(match)
 	if order := parser.OrderBy(); order != "" {

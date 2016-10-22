@@ -74,18 +74,9 @@ func GetGroup(c *gin.Context) {
 func GetGroups(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"source", "has_active_failures", })
-	con := parser.IContains([]string{"name"});
-
-	if con != nil {
-		if match != nil {
-			for i, v := range con {
-				match[i] = v
-			}
-		} else {
-			match = con
-		}
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"source", "has_active_failures", }, match)
+	match = parser.Lookups([]string{"name", "description"}, match)
 
 	query := db.Groups().Find(match) // prepare the query
 	// set sort value to the query based on request parameters

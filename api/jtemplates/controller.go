@@ -102,10 +102,7 @@ func GetJTemplates(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
-	con := parser.IContains([]string{"name", "description", "labels"});
-	if con != nil {
-		match = con
-	}
+	match = parser.Lookups([]string{"name", "description", "labels"}, match)
 
 	query := db.JobTemplates().Find(match) // prepare the query
 	// set sort value to the query based on request parameters
@@ -681,7 +678,6 @@ func Launch(c *gin.Context) {
 
 	// create a new Launch model
 	var req models.Launch
-
 	// if the body present deserialize it
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// accept nil request body for POST request, since all the feilds are optional

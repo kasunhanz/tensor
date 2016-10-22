@@ -67,10 +67,7 @@ func GetUsers(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
-	con := parser.IContains([]string{"username", "first_name", "last_name"});
-	if con != nil {
-		match = con
-	}
+	match = parser.Lookups([]string{"username", "first_name", "last_name"}, match)
 
 	query := db.Users().Find(match)
 	if order := parser.OrderBy(); order != "" {

@@ -36,6 +36,7 @@ func Route(r *gin.Engine) {
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
+
 	// handle not found
 	r.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, models.Error{
@@ -272,9 +273,8 @@ func Route(r *gin.Engine) {
 			gJobs.DELETE("/:job_id", jobs.Middleware, jobs.GetJob)
 			gJobs.GET("/:job_id/cancel", jobs.Middleware, jobs.CancelInfo)
 			gJobs.POST("/:job_id/cancel", jobs.Middleware, jobs.Cancel)
+			gJobs.GET("/:job_id/stdout", jobs.Middleware, jobs.StdOut)
 
-			//related
-			gJobs.GET("/:job_id/stdout", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_tasks", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_plays", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_events", jobs.Middleware, notImplemented) //TODO: implement

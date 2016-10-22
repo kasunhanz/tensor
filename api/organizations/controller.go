@@ -89,11 +89,7 @@ func GetOrganizations(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
-	con := parser.IContains([]string{"name", "description"});
-
-	if con != nil {
-		match = con
-	}
+	match = parser.Lookups([]string{"name", "description"}, match);
 
 	query := db.Organizations().Find(match)
 	if order := parser.OrderBy(); order != "" {

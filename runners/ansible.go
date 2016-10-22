@@ -14,6 +14,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"strings"
 	"gopkg.in/mgo.v2/bson"
+	"encoding/json"
 )
 
 // JobPaths
@@ -412,20 +413,21 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
 	}
 
-	// Parameters required by the system
-	/*rp, err := yaml.Marshal(map[interface{}]interface{}{
+	extras := map[string]interface{}{
 		"tensor_job_template_name": j.Template.Name,
 		"tensor_job_id": j.Job.ID.Hex(),
 		"tensor_user_id": j.Job.CreatedByID.Hex(),
 		"tensor_job_template_id": j.Template.ID.Hex(),
 		"tensor_user_name": "admin",
 		"tensor_job_launch_type": j.Job.LaunchType,
-	});
+	}
+	// Parameters required by the system
+	rp, err := json.Marshal(extras);
 
 	if err != nil {
 		log.Println("Error while marshalling parameters")
 	}
-	params = append(params, "-e '{" + string(rp) + "}'")*/
+	params = append(params, "-e", string(rp))
 
 	return params
 }

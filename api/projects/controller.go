@@ -71,17 +71,9 @@ func GetProjects(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"type", "status"})
-	con := parser.IContains([]string{"name"});
-	if con != nil {
-		if match != nil {
-			for i, v := range con {
-				match[i] = v
-			}
-		} else {
-			match = con
-		}
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"type", "status"}, match)
+	match = parser.Lookups([]string{"name"}, match)
 
 	query := db.Projects().Find(match)
 	if order := parser.OrderBy(); order != "" {
@@ -184,6 +176,7 @@ func AddProject(c *gin.Context) {
 	req.Description = strings.Trim(req.Description, " ")
 
 	req.ID = bson.NewObjectId()
+	req.LocalPath = "/opt/tensor/projects/" + req.ID.Hex()
 	req.CreatedBy = user.ID
 	req.ModifiedBy = user.ID
 	req.Created = time.Now()
@@ -291,6 +284,11 @@ func UpdateProject(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Project " + req.Name + " updated")
 
+	// before set metadata update the project
+	if err, sysJobID := runners.UpdateProject(req); err != nil {
+		log.Println("Error while scm update " + sysJobID.Hex(), err)
+	}
+
 	// set `related` and `summary` feilds
 	if err := metadata.ProjectMetadata(&req); err != nil {
 		log.Println("Error while setting metatdata:", err)
@@ -390,6 +388,11 @@ func PatchProject(c *gin.Context) {
 		return
 	}
 
+	// before set metadata update the project
+	if err, sysJobID := runners.UpdateProject(resp); err != nil {
+		log.Println("Error while scm update " + sysJobID.Hex(), err)
+	}
+
 	// set `related` and `summary` feilds
 	if err := metadata.ProjectMetadata(&resp); err != nil {
 		log.Println("Error while setting metatdata:", err)
@@ -446,6 +449,14 @@ func RemoveProject(c *gin.Context) {
 		return
 	}
 
+
+	// cleanup directories from a concurrent thread
+	go func() {
+		if err := os.RemoveAll(project.LocalPath); err != nil {
+			log.Println("An error occured while removing project directory", err.Error())
+		}
+	}()
+
 	// add new activity to activity stream
 	addActivity(project.ID, user.ID, "Project " + project.Name + " deleted")
 
@@ -456,10 +467,9 @@ func RemoveProject(c *gin.Context) {
 func Playbooks(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(_CTX_PROJECT).(models.Project)
-	searchDir := util.Config.HomePath + project.ID.Hex()
 
 	files := []string{}
-	err := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk(project.LocalPath, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml", f.Name())
 			if err == nil && r {
@@ -470,10 +480,10 @@ func Playbooks(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Println("Error while removing Project:", err)
+		log.Println("Error while getting Playbooks:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while removing Project"},
+			Messages: []string{"Error while getting Playbooks"},
 		})
 		return
 	}
@@ -565,13 +575,14 @@ func ProjectUpdates(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"status", "type", "failed", })
-	if con := parser.IContains([]string{"id", "name", "labels"}); con != nil {
-		match = con
-	}
+
+	match := bson.M{}
+	match = parser.Match([]string{"status", "type", "failed"}, match)
+	match = parser.Lookups([]string{"id", "name", "labels"}, match)
+	log.Println(match)
 
 	// get only project update jobs
-	match["job_type"] = "project_update"
+	match["job_type"] = "update_job"
 
 	query := db.Jobs().Find(match) // prepare the query
 

@@ -3,7 +3,6 @@ package helpers
 import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
-	"log"
 )
 
 func IsUniqueJTemplate(name string, pID bson.ObjectId) bool {
@@ -17,7 +16,6 @@ func IsUniqueJTemplate(name string, pID bson.ObjectId) bool {
 
 func IsNotUniqueJTemplate(name string, pID bson.ObjectId) bool {
 	count, err := db.Credentials().Find(bson.M{"name": name, "project_id": pID}).Count();
-	log.Println(count)
 	if err == nil && count > 0 {
 		return true
 	}

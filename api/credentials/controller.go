@@ -86,17 +86,10 @@ func GetCredentials(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"kind"})
 
-	if con := parser.IContains([]string{"name", "username"}); con != nil {
-		if match != nil {
-			for i, v := range con {
-				match[i] = v
-			}
-		} else {
-			match = con
-		}
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"kind"}, match)
+	match = parser.Lookups([]string{"name", "username"}, match)
 
 	query := db.Credentials().Find(match)
 

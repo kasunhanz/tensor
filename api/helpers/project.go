@@ -32,7 +32,7 @@ func _projectExist(ID bson.ObjectId) bool {
 }
 
 func ProjectExist(ID bson.ObjectId) bool {
-	if _credentialExist(ID) {
+	if _projectExist(ID) {
 		return true
 	}
 	return false
