@@ -1,31 +1,26 @@
 #!/bin/bash
 set -m
 
-/opt/mongo/mongo_setup_users.sh
+mongod &
 
-mongodb_cmd="/usr/bin/mongod --storageEngine $STORAGE_ENGINE"
-cmd="$mongodb_cmd --httpinterface --rest"
+mongo admin --eval "help" > /dev/null 2>&1
+RET=$?
 
-if [ "$AUTH" == "yes" ]; then
-  cmd="$cmd --auth"
-fi
+while [[ RET -ne 0 ]]; do
+  echo "Waiting for MongoDB to start..."
+  mongo admin --eval "help" > /dev/null 2>&1
+  RET=$?
+  sleep 1
+done
 
-if [ "$JOURNALING" == "no" ]; then
-  cmd="$cmd --nojournal"
-fi
+echo "Setting up users..."
+# create root user
+mongo admin --eval "db.createUser({user: '$MONGO_ROOT_USER', pwd: '$MONGO_ROOT_PASSWORD', roles:[{ role: 'root', db: 'admin' }]});"
+# create app user/database
+mongo $MONGO_APP_DATABASE --eval "db.createUser({ user: '$MONGO_APP_USER', pwd: '$MONGO_APP_PASSWORD', roles: [{ role: 'readWrite', db: '$MONGO_APP_DATABASE' }, { role: 'read', db: 'local' }]});"
+echo "Shutting down"
+mongo admin --eval "db.shutdownServer();"
 
-if [ "$OPLOG_SIZE" != "" ]; then
-  cmd="$cmd --oplogSize $OPLOG_SIZE"
-fi
+sleep 3
 
-if [ "$MONGO_DB_PATH" != "" ]; then
-  if [ ! -d "$MONGO_DB_PATH" ]; then
-    echo "Creating custom directory for MongoDB data at $MONGO_DB_PATH"
-    mkdir -p $MONGO_DB_PATH
-  fi
-  cmd="$cmd --dbpath $MONGO_DB_PATH"
-fi
-
-$cmd &
-
-fg
+mongod --auth

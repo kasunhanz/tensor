@@ -11,9 +11,9 @@ import (
 	"io/ioutil"
 	"os"
 	"log"
+	"strings"
 )
 
-var Cookie *securecookie.SecureCookie
 var InteractiveSetup bool
 var Secrets bool
 
@@ -29,7 +29,6 @@ type configType struct {
 	MongoDB          MongoDBConfig `yaml:"mongodb"`
 	// Format `:port_num` eg, :3000
 	Port             string `yaml:"port"`
-	UiPort           string `yaml:"uiport"`
 
 	// Tensor stores projects here
 	TmpPath          string `yaml:"tmp_path"`
@@ -64,46 +63,61 @@ func init() {
 		os.Exit(0)
 	}
 
-	conf, err := ioutil.ReadFile("/etc/tensor.conf")
+	if _, err := os.Stat("/etc/tensor.conf"); os.IsNotExist(err) {
+		log.Println("Configuration file does not exist")
+		Config = &configType{} // initialize empty
 
-	if err != nil {
-		log.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
-		os.Exit(5)
+	} else {
+		conf, err := ioutil.ReadFile("/etc/tensor.conf")
+
+		if err != nil {
+			log.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
+			os.Exit(5)
+		}
+
+		if err := yaml.Unmarshal(conf, &Config); err != nil {
+			log.Fatal("Invalid Configuration!\n\n" + err.Error())
+			os.Exit(6)
+		}
 	}
 
-	if err := yaml.Unmarshal(conf, &Config); err != nil {
-		log.Fatal("Invalid Configuration!\n\n" + err.Error())
-		os.Exit(6)
-	}
-
-	if len(os.Getenv("PORT")) > 0 {
-		Config.Port = ":" + os.Getenv("PORT")
-	}
-	if len(Config.Port) == 0 {
+	if len(os.Getenv("TENSOR_PORT")) > 0 {
+		Config.Port = ":" + os.Getenv("TENSOR_PORT")
+	} else if len(Config.Port) == 0 {
 		Config.Port = ":3000"
 	}
 
-	if len(Config.UiPort) == 0 {
-		Config.UiPort = ":8080"
-	}
-
-	if len(Config.TmpPath) == 0 {
+	if len(os.Getenv("PROJECT_PATH")) > 0 {
+		Config.TmpPath = os.Getenv("PROJECT_PATH")
+	} else if len(Config.TmpPath) == 0 {
 		Config.TmpPath = "/tmp/tensor"
 	}
 
-	if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/var/lib/tensor"
+	if len(os.Getenv("HOME_PATH")) > 0 {
+		Config.HomePath = os.Getenv("HOME_PATH")
+	} else if len(Config.HomePath) == 0 {
+		Config.HomePath = "/opt/tensor"
 	}
 
-	var encryption []byte
-	encryption = nil
-
-	hash, _ := base64.StdEncoding.DecodeString(Config.CookieHash)
-	if len(Config.CookieEncryption) > 0 {
-		encryption, _ = base64.StdEncoding.DecodeString(Config.CookieEncryption)
+	if len(os.Getenv("TENSOR_DB_USER")) > 0 {
+		Config.MongoDB.Username = os.Getenv("TENSOR_DB_USER")
 	}
 
-	Cookie = securecookie.New(hash, encryption)
+	if len(os.Getenv("TENSOR_DB_PASSWORD")) > 0 {
+		Config.MongoDB.Password = os.Getenv("TENSOR_DB_PASSWORD")
+	}
+
+	if len(os.Getenv("TENSOR_DB_NAME")) > 0 {
+		Config.MongoDB.DbName = os.Getenv("TENSOR_DB_NAME")
+	}
+
+	if len(os.Getenv("TENSOR_DB_REPLICA")) > 0 {
+		Config.MongoDB.ReplicaSet = os.Getenv("TENSOR_DB_REPLICA")
+	}
+
+	if len(os.Getenv("TENSOR_DB_HOSTS")) > 0 {
+		Config.MongoDB.Hosts = strings.Split(os.Getenv("TENSOR_DB_HOSTS"), ";")
+	}
 
 	if _, err := os.Stat(Config.TmpPath); os.IsNotExist(err) {
 		fmt.Printf(" Running: mkdir -p %v..\n", Config.TmpPath)
