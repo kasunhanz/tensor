@@ -1,4 +1,5 @@
 #!/bin/bash
+set -m
 
 if [ ! -e "/firstrun" ]; then
     go get -u -v ./...

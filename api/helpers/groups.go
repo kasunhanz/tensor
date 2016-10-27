@@ -2,43 +2,45 @@ package helpers
 
 import (
 	"gopkg.in/mgo.v2/bson"
-	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"net/http"
 )
 
+func IsUniqueGroup(name string, IID bson.ObjectId) bool {
+	count, err := db.Hosts().Find(bson.M{"name": name, "inventory_id": IID}).Count();
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func IsNotUniqueGroup(name string, IID bson.ObjectId) bool {
+	count, err := db.Hosts().Find(bson.M{"name": name, "inventory_id": IID}).Count();
+	if err == nil && count > 0 {
+		return true
+	}
+
+	return false
+}
 
 func _groupExist(ID bson.ObjectId) bool {
 	count, err := db.Groups().FindId(ID).Count();
 	if err == nil && count == 1 {
 		return true
 	}
-	log.Println("Bad payload:", err)
 	return false
 }
 
-func GroupExist(ID bson.ObjectId, c *gin.Context) bool {
+func GroupExist(ID bson.ObjectId) bool {
 	if _groupExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "Group does not exist",
-	})
 	return false
 }
 
-func ParentGroupExist(ID bson.ObjectId, c *gin.Context) bool {
+func ParentGroupExist(ID bson.ObjectId) bool {
 	if _groupExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "Parent Group does not exist",
-	})
 	return false
 }

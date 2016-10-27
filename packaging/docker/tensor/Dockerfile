@@ -1,46 +1,41 @@
-# Latest version of centos
-FROM centos:centos7
+# Latest version of debian
+FROM ubuntu:latest
 
-# ansible
-RUN yum clean all && \
-    yum -y install epel-release && yum -y update && \
-    yum -y install PyYAML python-jinja2 python-httplib2 python-keyczar python-paramiko python-setuptools git python-pip python-requests wget
-
-RUN yum -y install ansible
-# Adding hosts
-RUN mkdir -p /etc/ansible && echo 'localhost' > /etc/ansible/hosts
-
-# install proot
-RUN wget http://download.opensuse.org/repositories/home:cedric-vincent/CentOS_CentOS-5/home:cedric-vincent.repo  -O /etc/yum.repos.d/cedric-vincent.repo
-RUN yum -y update && yum -y install proot
+# gcc for cgo and ansible dependencies
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -q update && \
+    apt-get -q -y install software-properties-common && \
+    add-apt-repository -y ppa:ansible/ansible && \
+    apt-get -q update && \
+    apt-get -y -q install ansible && \
+    apt-get -y -q install --no-install-recommends \
+    curl g++ gcc libc6-dev make git subversion mercurial ca-certificates openssl \
+	build-essential python-pip python-dev python-yaml libffi-dev libssl-dev \
+    libxml2-dev libxslt1-dev zlib1g-dev iputils-ping proot sshpass openssh-client && \
+    pip install -U pip && \
+    pip install --upgrade wheel setuptools && \
+    pip install --upgrade pyyaml jinja2 pycrypto requests && \
+    apt-get remove -y -q --auto-remove build-essential python-pip python-dev libffi-dev libssl-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # GO lang
-ENV GOLANG_VERSION 1.7.1
-ENV GOLANG_DOWNLOAD_URL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 43ad621c9b014cde8db17393dc108378d37bc853aa351a6c74bf6432c1bbd182
-
-RUN curl -fsSL "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
-	&& echo "$GOLANG_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
-	&& tar -C /usr/local -xzf golang.tar.gz \
-	&& rm golang.tar.gz
-
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN curl -fsSL "https://golang.org/dl/go1.7.3.linux-amd64.tar.gz" -o golang.tar.gz && \
+	echo "508028aac0654e993564b6e2014bf2d4a9751e3b286661b0b0040046cf18028e  golang.tar.gz" | sha256sum -c - && \
+	tar -C /usr/local -xzf golang.tar.gz && \
+	rm golang.tar.gz
 
 # tensor
-RUN mkdir -p /opt/tensor/bin/
-ENV PATH    /opt/tensor/bin:$PATH
+ENV GOPATH=/go PATH=$GOPATH/bin:/usr/local/go/bin:/opt/tensor/bin:$PATH
 
-ADD tensor.conf /etc/tensor.conf
-RUN mkdir -p /root/.ssh
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" \
+    "/etc/ansible" "/root/.ssh" \
+    "/opt/tensor/bin/" "/opt/tensor/projects/" \
+    "/opt/tensor/plugins/inventory/" && \
+    chmod -R 777 "$GOPATH" && \
+    echo 'localhost' > /etc/ansible/hosts
+
 ADD bitbucket /root/.ssh/bitbucket
 RUN chmod 600 /root/.ssh/bitbucket
-
-RUN mkdir -p /opt/tensor/plugins/inventory/
-# create projects path
-RUN mkdir -p /opt/tensor/projects/
 
 # Add plugins and playbooks
 ADD plugins/inventory/tensorrest.py /opt/tensor/plugins/inventory/tensorrest.py
@@ -55,6 +50,9 @@ RUN echo "StrictHostKeyChecking no " > /root/.ssh/config
 ADD /run.sh /run.sh
 RUN chmod +x /run.sh
 
-COPY go-wrapper /usr/local/bin/
+
+ENV TENSOR_PORT=8010 PROJECT_PATH="/opt/tensor/projects" HOME_PATH="/opt/tensor/" \
+    TENSOR_DB_USER=tensor TENSOR_DB_PASSWORD=tensor TENSOR_DB_NAME=tensordb \
+    TENSOR_DB_REPLICA="" TENSOR_DB_HOSTS="mongo:27017"
 
 CMD ["/run.sh"]

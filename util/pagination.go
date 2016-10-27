@@ -37,8 +37,7 @@ func (p *Pagination) Offset() int {
 		return 0
 	}
 
-	//-1 because mongodb offset starts with 0
-	return int((p.limit * p.page) - 1)
+	return int(p.limit * (p.page - 1))
 }
 
 func (p *Pagination) Limit() int {
@@ -66,11 +65,11 @@ func pageParser(page string) int {
 }
 
 func (p *Pagination) totalPages() int {
-	return int(math.Floor(float64(p.itemCount) / float64(p.limit)))
+	return int(math.Ceil(float64(p.itemCount) / float64(p.limit)))
 }
 
 func (p *Pagination) NextPage() interface{} {
-	if (p.totalPages() <= p.page) {
+	if (p.page >= p.totalPages()) {
 		return nil
 	} else if (p.page < 1) {
 		return DefaultPage

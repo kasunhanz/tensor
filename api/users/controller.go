@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"gopkg.in/mgo.v2/bson"
-	"golang.org/x/crypto/bcrypt"
 	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
@@ -13,6 +12,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"github.com/gin-gonic/gin/binding"
 )
 
 const _CTX_USER = "_user"
@@ -26,8 +26,9 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -37,8 +38,9 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -65,10 +67,7 @@ func GetUsers(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
-	con := parser.IContains([]string{"username", "first_name", "last_name"});
-	if con != nil {
-		match = con
-	}
+	match = parser.Lookups([]string{"username", "first_name", "last_name"}, match)
 
 	query := db.Users().Find(match)
 	if order := parser.OrderBy(); order != "" {
@@ -90,7 +89,7 @@ func GetUsers(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -116,12 +115,11 @@ func AddUser(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.User
-	err := c.BindJSON(&req);
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -129,12 +127,11 @@ func AddUser(c *gin.Context) {
 	user.ID = bson.NewObjectId()
 	user.Created = time.Now()
 
-	err = db.Users().Insert(user);
-	if err != nil {
+	if err := db.Users().Insert(user); err != nil {
 		log.Println("Error while creating User:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while creating User",
+			Messages: []string{"Error while creating User"},
 		})
 		return
 	}
@@ -153,7 +150,7 @@ func UpdateUser(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
-			Message: util.GetValidationErrors(err),
+			Messages: util.GetValidationErrors(err),
 		})
 		return
 	}
@@ -197,7 +194,7 @@ func Projects(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Projects",
+				Messages: []string{"Error while getting Projects"},
 			})
 			return
 		}
@@ -209,7 +206,7 @@ func Projects(c *gin.Context) {
 		log.Println("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Projects",
+			Messages: []string{"Error while getting Projects"},
 		})
 		return
 	}
@@ -244,7 +241,7 @@ func Credentials(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Credentials",
+				Messages: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -256,7 +253,7 @@ func Credentials(c *gin.Context) {
 		log.Println("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credentials",
+			Messages: []string{"Error while getting Credentials"},
 		})
 		return
 	}
@@ -291,7 +288,7 @@ func Teams(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Credentials",
+				Messages: []string{"Error while getting Credentials"},
 			})
 			return
 		}
@@ -303,7 +300,7 @@ func Teams(c *gin.Context) {
 		log.Println("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credentials",
+			Messages: []string{"Error while getting Credentials"},
 		})
 		return
 	}
@@ -338,7 +335,7 @@ func Organizations(c *gin.Context) {
 			log.Println("Error while getting organization metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Organizations",
+				Messages: []string{"Error while getting Organizations"},
 			})
 			return
 		}
@@ -350,7 +347,7 @@ func Organizations(c *gin.Context) {
 		log.Println("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Organizations",
+			Messages: []string{"Error while getting Organizations"},
 		})
 		return
 	}
@@ -385,7 +382,7 @@ func AdminsOfOrganizations(c *gin.Context) {
 			log.Println("Error while getting organization metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Organizations",
+				Messages: []string{"Error while getting Organizations"},
 			})
 			return
 		}
@@ -397,7 +394,7 @@ func AdminsOfOrganizations(c *gin.Context) {
 		log.Println("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Organizations",
+			Messages: []string{"Error while getting Organizations"},
 		})
 		return
 	}
@@ -429,7 +426,7 @@ func ActivityStream(c *gin.Context) {
 		log.Println("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Activities",
+			Messages: []string{"Error while getting Activities"},
 		})
 		return
 	}

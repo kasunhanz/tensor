@@ -17,7 +17,7 @@ type AdHocCommand struct {
 	BecomeEnabled bool           `bson:"become_enabled" json:"become_enabled"`
 	CredentialID  bson.ObjectId  `bson:"credential_id" json:"credential"`
 	InventoryID   bson.ObjectId  `bson:"inventory_id" json:"inventory"`
-	ExtraVars     string         `bson:"extra_vars" json:"extra_vars"`
+	ExtraVars     gin.H          `bson:"extra_vars" json:"extra_vars"`
 	CreatedByID   bson.ObjectId  `bson:"created_by_id" json:"created_by"`
 	ModifiedByID  bson.ObjectId  `bson:"modified_by_id" json:"modified_by"`
 	Created       time.Time      `bson:"created" json:"created"`

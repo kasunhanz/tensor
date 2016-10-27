@@ -11,12 +11,12 @@ import (
 	"os/exec"
 	"io"
 	"bytes"
-	"golang.org/x/crypto/ssh/agent"
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"strings"
+	"gopkg.in/mgo.v2/bson"
+	"encoding/json"
 )
 
-var SSHAgent (agent.Agent)
 // JobPaths
 type JobPaths struct {
 	EtcTower        string
@@ -34,13 +34,32 @@ type JobPaths struct {
 type AnsibleJobPool struct {
 	queue    []*AnsibleJob
 	Register chan *AnsibleJob
-	running  *AnsibleJob
+	running  []*AnsibleJob
 }
 
 var AnsiblePool = AnsibleJobPool{
 	queue:    make([]*AnsibleJob, 0),
 	Register: make(chan *AnsibleJob),
-	running:  nil,
+	running:  make([]*AnsibleJob, 0),
+}
+
+func (p *AnsibleJobPool) hasRunningJob(job *AnsibleJob) bool {
+	for _, v := range p.running {
+		if v.Template.ID == job.Template.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *AnsibleJobPool) RemoveFromRunning(job *AnsibleJob) bool {
+	for k, v := range p.running {
+		if v.Job.ID == job.Job.ID {
+			p.running = append(p.running[:k], p.running[k + 1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 func (p *AnsibleJobPool) run() {
@@ -53,14 +72,21 @@ func (p *AnsibleJobPool) run() {
 	for {
 		select {
 		case job := <-p.Register:
-			if p.running == nil {
+			if job.Job.AllowSimultaneous {
 				go job.run()
 				continue
 			}
 
 			p.queue = append(p.queue, job)
 		case <-ticker.C:
-			if len(p.queue) == 0 || p.running != nil {
+
+			if len(p.queue) == 0 {
+				continue
+			}
+
+			job := AnsiblePool.queue[0]
+			// if has running jobs and allow simultaneous
+			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
 
@@ -69,6 +95,34 @@ func (p *AnsibleJobPool) run() {
 			AnsiblePool.queue = AnsiblePool.queue[1:]
 		}
 	}
+}
+
+func (p *AnsibleJobPool) RemoveFromPool(id bson.ObjectId) bool {
+	for k, v := range p.queue {
+		if v.Job.ID == id {
+			p.queue = append(p.queue[:k], p.queue[k + 1:]...)
+			v.jobCancel() // update job in database
+			return true
+		}
+	}
+	return false
+}
+
+func (p *AnsibleJobPool) CanCancel(id bson.ObjectId) bool {
+	for _, v := range p.queue {
+		if v.Job.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func CancelJob(id bson.ObjectId) bool {
+	return AnsiblePool.RemoveFromPool(id)
+}
+
+func CanCancel(id bson.ObjectId) bool {
+	return AnsiblePool.CanCancel(id)
 }
 
 func StartAnsibleRunner() {
@@ -90,17 +144,44 @@ type AnsibleJob struct {
 
 func (j *AnsibleJob) run() {
 
-	// TODO: update job template if requested
+	j.status("pending")
+	// update if requested
 	if j.Project.ScmUpdateOnLaunch {
-		// TODO: update code
-		// since this is already ag
+		// wait for scm update
+		j.status("waiting")
+		err, updateID := UpdateProject(j.Project)
+
+		if err != nil {
+			j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+			j.Job.ResultStdout = "stdout capture is missing"
+			j.jobError()
+			return
+		}
+
+		ticker := time.NewTicker(time.Second * 2)
+
+		for range ticker.C {
+			status, err := getJobStatus(updateID)
+			if status == "failed" || status == "error" || err != nil {
+				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+				j.Job.ResultStdout = "stdout capture is missing"
+				j.jobError()
+				return
+			}
+			if status == "successful" {
+				// stop the ticker and break the loop
+				ticker.Stop()
+				break
+			}
+
+		}
 	}
 
-	AnsiblePool.running = j
+	AnsiblePool.running = append(AnsiblePool.running, j)
 
 	defer func() {
 		fmt.Println("Stopped running tasks")
-		AnsiblePool.running = nil
+		AnsiblePool.RemoveFromRunning(j)
 		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
 	}()
 
@@ -132,11 +213,11 @@ func (j *AnsibleJob) run() {
 	if err != nil {
 		log.Println("Running playbook failed", err)
 		j.Job.JobExplanation = err.Error()
-		j.fail()
+		j.jobFail()
 		return
 	}
 	//success
-	j.success()
+	j.jobSuccess()
 }
 
 // runPlaybook runs a Job using ansible-playbook command
@@ -335,8 +416,12 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	}
 
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
-	if j.Job.ExtraVars != "" {
-		params = append(params, "-e", "'" + j.Job.ExtraVars + "'")
+	if len(j.Job.ExtraVars) > 0 {
+		vars, err := json.Marshal(j.Job.ExtraVars)
+		if err != nil {
+			log.Println("Could not marshal extra vars", err)
+		}
+		params = append(params, "-e", "'" + string(vars) + "'")
 	}
 
 	// -t, TAGS, --tags=TAGS
@@ -358,20 +443,21 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
 	}
 
-	// Parameters required by the system
-	/*rp, err := yaml.Marshal(map[interface{}]interface{}{
+	extras := map[string]interface{}{
 		"tensor_job_template_name": j.Template.Name,
 		"tensor_job_id": j.Job.ID.Hex(),
 		"tensor_user_id": j.Job.CreatedByID.Hex(),
 		"tensor_job_template_id": j.Template.ID.Hex(),
 		"tensor_user_name": "admin",
 		"tensor_job_launch_type": j.Job.LaunchType,
-	});
+	}
+	// Parameters required by the system
+	rp, err := json.Marshal(extras);
 
 	if err != nil {
 		log.Println("Error while marshalling parameters")
 	}
-	params = append(params, "-e '{" + string(rp) + "}'")*/
+	params = append(params, "-e", string(rp))
 
 	return params
 }

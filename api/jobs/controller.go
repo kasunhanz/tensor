@@ -11,6 +11,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/api/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/runners"
 )
 
 // _CTX_JOB is the key name of the Job Template in gin.Context
@@ -30,8 +31,9 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -41,8 +43,9 @@ func Middleware(c *gin.Context) {
 		log.Print("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
-			Message: "Not Found",
+			Messages: []string{"Not Found"},
 		})
+		c.Abort()
 		return
 	}
 
@@ -61,7 +64,7 @@ func GetJob(c *gin.Context) {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Jobs",
+			Messages: []string{"Error while getting Jobs"},
 		})
 		return
 	}
@@ -75,10 +78,9 @@ func GetJobs(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
-	match := parser.Match([]string{"status", "type", "failed", })
-	if con := parser.IContains([]string{"id", "name", "labels"}); con != nil {
-		match = con
-	}
+	match := bson.M{}
+	match = parser.Match([]string{"status", "type", "failed"}, match)
+	match = parser.Lookups([]string{"id", "name", "labels"}, match)
 
 	query := db.Jobs().Find(match) // prepare the query
 
@@ -104,7 +106,7 @@ func GetJobs(c *gin.Context) {
 			log.Println("Error while setting metatdata:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
-				Message: "Error while getting Jobs",
+				Messages: []string{"Error while getting Jobs"},
 			})
 			return
 		}
@@ -115,7 +117,7 @@ func GetJobs(c *gin.Context) {
 		log.Println("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Error while getting Credential",
+			Messages: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -134,4 +136,36 @@ func GetJobs(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results: jobs[pgi.Skip():pgi.End()],
 	})
+}
+
+// CancelInfo to determine if the job can be cancelled.
+// The response will include the following field:
+// can_cancel: [boolean] Indicates whether this job can be canceled
+func CancelInfo(c *gin.Context) {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, gin.H{"can_cancel": runners.CanCancel(job.ID)})
+}
+
+// Cancel cancels the pending job.
+// The response status code will be 202 if successful, or 405 if the job cannot be
+// canceled.
+func Cancel(c *gin.Context) {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	if runners.CancelJob(job.ID) {
+		c.AbortWithStatus(http.StatusAccepted)
+	}
+
+	c.AbortWithStatus(http.StatusMethodNotAllowed)
+}
+
+func StdOut(c *gin.Context)  {
+	//get Job set by the middleware
+	job := c.MustGet(_CTX_JOB).(models.Job)
+
+	c.JSON(http.StatusOK, job.ResultStdout)
 }

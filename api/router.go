@@ -25,18 +25,25 @@ import (
 
 // Route declare all routes
 func Route(r *gin.Engine) {
+
 	// Apply the middleware to the router (works with groups too)
 	r.Use(cors.Middleware(cors.Config{
 		Origins:         "*",
-		Methods:         "GET, PUT, POST, DELETE",
+		Methods:         "GET, PUT, POST, DELETE, PATCH",
 		RequestHeaders:  "Origin, Authorization, Content-Type",
 		ExposedHeaders:  "",
 		MaxAge:          50 * time.Second,
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
-	// causing some issues
-	//r.Use(gzip.Gzip(gzip.DefaultCompression))
+
+	// handle not found
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, models.Error{
+			Code: http.StatusNotFound,
+			Messages: []string{"Not found"},
+		})
+	})
 
 	r.GET("", util.GetAPIVersion)
 	// set up the namespace
@@ -62,6 +69,7 @@ func Route(r *gin.Engine) {
 			gOrganizations.POST("/", organizations.AddOrganization)
 			gOrganizations.GET("/:organization_id", organizations.Middleware, organizations.GetOrganization)
 			gOrganizations.PUT("/:organization_id", organizations.Middleware, organizations.UpdateOrganization)
+			gOrganizations.PATCH("/:organization_id", organizations.Middleware, organizations.PatchOrganization)
 			gOrganizations.DELETE("/:organization_id", organizations.Middleware, organizations.RemoveOrganization)
 
 			//related
@@ -88,7 +96,6 @@ func Route(r *gin.Engine) {
 			gUsers.POST("/", users.AddUser)
 			gUsers.GET("/:user_id", users.Middleware, users.GetUser)
 			gUsers.PUT("/:user_id", users.Middleware, users.UpdateUser)
-			gUsers.POST("/:user_id/password", users.Middleware, users.UpdateUserPassword)
 			gUsers.DELETE("/:user_id", users.Middleware, users.DeleteUser)
 
 			//related
@@ -112,6 +119,7 @@ func Route(r *gin.Engine) {
 			gProjects.POST("/", projects.AddProject)
 			gProjects.GET("/:project_id", projects.Middleware, projects.GetProject)
 			gProjects.PUT("/:project_id", projects.Middleware, projects.UpdateProject)
+			gProjects.PATCH("/:project_id", projects.Middleware, projects.PatchProject)
 			gProjects.DELETE("/:project_id", projects.Middleware, projects.RemoveProject)
 
 			//related
@@ -119,7 +127,8 @@ func Route(r *gin.Engine) {
 			gProjects.GET("/:project_id/teams", projects.Middleware, projects.Teams)
 			gProjects.GET("/:project_id/playbooks", projects.Middleware, projects.Playbooks)
 			gProjects.GET("/:project_id/access_list", projects.Middleware, projects.AccessList)
-			gProjects.GET("/:project_id/update", projects.Middleware, projects.SCMUpdate)
+			gProjects.GET("/:project_id/update", projects.Middleware, projects.SCMUpdateInfo)
+			gProjects.POST("/:project_id/update", projects.Middleware, projects.SCMUpdate)
 			gProjects.GET("/:project_id/project_updates", projects.Middleware, projects.ProjectUpdates)
 
 			gProjects.GET("/:project_id/schedules", projects.Middleware, notImplemented) //TODO: implement
@@ -133,6 +142,7 @@ func Route(r *gin.Engine) {
 			gCredentials.POST("/", credentials.AddCredential)
 			gCredentials.GET("/:credential_id", credentials.Middleware, credentials.GetCredential)
 			gCredentials.PUT("/:credential_id", credentials.Middleware, credentials.UpdateCredential)
+			gCredentials.PATCH("/:credential_id", credentials.Middleware, credentials.PatchCredential)
 			gCredentials.DELETE("/:credential_id", credentials.Middleware, credentials.RemoveCredential)
 
 			//relatedd
@@ -150,6 +160,7 @@ func Route(r *gin.Engine) {
 			gTeams.POST("/", teams.AddTeam)
 			gTeams.GET("/:team_id", teams.Middleware, teams.GetTeam)
 			gTeams.PUT("/:team_id", teams.Middleware, teams.UpdateTeam)
+			gTeams.PATCH("/:team_id", teams.Middleware, teams.PatchTeam)
 			gTeams.DELETE("/:team_id", teams.Middleware, teams.RemoveTeam)
 
 			//related
@@ -167,6 +178,7 @@ func Route(r *gin.Engine) {
 			gInventories.POST("/", inventories.AddInventory)
 			gInventories.GET("/:inventory_id", inventories.Middleware, inventories.GetInventory)
 			gInventories.PUT("/:inventory_id", inventories.Middleware, inventories.UpdateInventory)
+			gInventories.PATCH("/:inventory_id", inventories.Middleware, inventories.PatchInventory)
 			gInventories.DELETE("/:inventory_id", inventories.Middleware, inventories.RemoveInventory)
 			gInventories.GET("/:inventory_id/script", inventories.Middleware, inventories.Script)
 
@@ -191,6 +203,7 @@ func Route(r *gin.Engine) {
 			gHosts.POST("/", hosts.AddHost)
 			gHosts.GET("/:host_id", hosts.Middleware, hosts.GetHost)
 			gHosts.PUT("/:host_id", hosts.Middleware, hosts.UpdateHost)
+			gHosts.PATCH("/:host_id", hosts.Middleware, hosts.PatchHost)
 			gHosts.DELETE("/:host_id", hosts.Middleware, hosts.RemoveHost)
 
 			//related
@@ -213,6 +226,7 @@ func Route(r *gin.Engine) {
 			gGroups.POST("/", groups.AddGroup)
 			gGroups.GET("/:group_id", groups.Middleware, groups.GetGroup)
 			gGroups.PUT("/:group_id", groups.Middleware, groups.UpdateGroup)
+			gGroups.PATCH("/:group_id", groups.Middleware, groups.PatchGroup)
 			gGroups.DELETE("/:group_id", groups.Middleware, groups.RemoveGroup)
 
 			//related
@@ -235,6 +249,7 @@ func Route(r *gin.Engine) {
 			gJobTemplates.POST("/", jtemplate.AddJTemplate)
 			gJobTemplates.GET("/:job_template_id", jtemplate.Middleware, jtemplate.GetJTemplate)
 			gJobTemplates.PUT("/:job_template_id", jtemplate.Middleware, jtemplate.UpdateJTemplate)
+			gJobTemplates.PATCH("/:job_template_id", jtemplate.Middleware, jtemplate.PatchJTemplate)
 			gJobTemplates.DELETE("/:job_template_id", jtemplate.Middleware, jtemplate.RemoveJTemplate)
 
 			//related
@@ -257,16 +272,16 @@ func Route(r *gin.Engine) {
 			gJobs.GET("/", jobs.GetJobs)
 			gJobs.GET("/:job_id", jobs.Middleware, jobs.GetJob)
 			gJobs.DELETE("/:job_id", jobs.Middleware, jobs.GetJob)
+			gJobs.GET("/:job_id/cancel", jobs.Middleware, jobs.CancelInfo)
+			gJobs.POST("/:job_id/cancel", jobs.Middleware, jobs.Cancel)
+			gJobs.GET("/:job_id/stdout", jobs.Middleware, jobs.StdOut)
 
-			//related
-			gJobs.GET("/:job_id/stdout", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_tasks", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_plays", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/job_events", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/notifications", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/activity_stream", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/start", jobs.Middleware, notImplemented) //TODO: implement
-			gJobs.GET("/:job_id/cancel", jobs.Middleware, notImplemented) //TODO: implement
 			gJobs.GET("/:job_id/relaunch", jobs.Middleware, notImplemented) //TODO: implement
 		}
 
@@ -291,6 +306,6 @@ func getSystemInfo(c *gin.Context) {
 func notImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, models.Error{
 		Code:http.StatusNotImplemented,
-		Message: "Method not implemented",
+		Messages: []string{"Method not implemented"},
 	})
 }

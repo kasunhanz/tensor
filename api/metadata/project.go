@@ -60,11 +60,6 @@ func projectSummary(p *models.Project) error {
 	if err := db.Users().FindId(p.ModifiedBy).One(&modified); err != nil {
 		return err
 	}
-
-	if err := db.Credentials().FindId(*p.ScmCredentialID).One(&cred); err != nil {
-		return err
-	}
-
 	if err := db.Organizations().FindId(p.OrganizationID).One(&org); err != nil {
 		return err
 	}
@@ -72,7 +67,7 @@ func projectSummary(p *models.Project) error {
 
 	//TODO: get project job information
 
-	p.Summary = gin.H{
+	summary := gin.H{
 		"object_roles": []gin.H{
 			{
 				"description": "Can manage all aspects of the project",
@@ -106,13 +101,6 @@ func projectSummary(p *models.Project) error {
 			"status": "successful",
 			"failed": false,
 		},
-		"credential":  gin.H{
-			"id": cred.ID,
-			"name": cred.Name,
-			"description": cred.Description,
-			"kind": cred.Kind,
-			"cloud": cred.Cloud,
-		},
 		"organization": gin.H{
 			"id": org.ID,
 			"name": org.Name,
@@ -131,6 +119,22 @@ func projectSummary(p *models.Project) error {
 			"last_name":  modified.LastName,
 		},
 	}
+
+	if p.ScmCredentialID != nil {
+		if err := db.Credentials().FindId(*p.ScmCredentialID).One(&cred); err != nil {
+			return err
+		}
+
+		summary["credential"] = gin.H{
+			"id": cred.ID,
+			"name": cred.Name,
+			"description": cred.Description,
+			"kind": cred.Kind,
+			"cloud": cred.Cloud,
+		}
+	}
+
+	p.Summary = summary
 
 	return nil
 }

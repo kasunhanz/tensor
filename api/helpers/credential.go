@@ -2,66 +2,60 @@ package helpers
 
 import (
 	"gopkg.in/mgo.v2/bson"
-	"log"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"net/http"
-	"github.com/gin-gonic/gin"
+	"log"
 )
+
+func IsUniqueCredential(name string) bool {
+	count, err := db.Credentials().Find(bson.M{"name": name}).Count();
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func IsNotUniqueCredential(name string) bool {
+	count, err := db.Credentials().Find(bson.M{"name": name}).Count();
+	log.Println(count)
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
 
 func _credentialExist(ID bson.ObjectId) bool {
 	count, err := db.Credentials().FindId(ID).Count();
-	if err == nil && count == 1 {
+	if err == nil && count > 0 {
 		return true
 	}
-	log.Println("Bad payload:", err)
 	return false
 }
 
-func MachineCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
+func MachineCredentialExist(ID bson.ObjectId) bool {
 	if _credentialExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "Machine Credential does not exist",
-	})
 	return false
 }
 
-func NetworkCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
+func NetworkCredentialExist(ID bson.ObjectId) bool {
 	if _credentialExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "Network Credential does not exist",
-	})
 	return false
 }
 
-func CloudCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
+func CloudCredentialExist(ID bson.ObjectId) bool {
 	if _credentialExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "Network Credential does not exist",
-	})
 	return false
 }
 
-func SCMCredentialExist(ID bson.ObjectId, c *gin.Context) bool {
+func SCMCredentialExist(ID bson.ObjectId) bool {
 	if _credentialExist(ID) {
 		return true
 	}
-	// Return 400 if request has bad JSON format
-	c.JSON(http.StatusBadRequest, models.Error{
-		Code:http.StatusBadRequest,
-		Message: "SCM Credential does not exist",
-	})
 	return false
 }

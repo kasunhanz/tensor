@@ -14,6 +14,7 @@ import (
 	"github.com/go-playground/universal-translator"
 	"fmt"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"io"
 )
 
 const (
@@ -76,7 +77,7 @@ func (v *SpaceValidator) lazyinit() {
 		// Register custom validator functions
 		v.validate.RegisterValidation("become_method", isBecome)
 		v.validate.RegisterValidation("dnsname", IsDNSName)
-		v.validate.RegisterValidation("host", IsHost)
+		v.validate.RegisterValidation("iphost", IsHost)
 		v.validate.RegisterValidation("credentialkind", IsCredentialKind)
 		v.validate.RegisterValidation("naproperty", NaProperty)
 		v.validate.RegisterValidation("scmtype", IsScmType)
@@ -120,10 +121,17 @@ func (v *SpaceValidator) lazyinit() {
 
 			return t
 		})
+		v.validate.RegisterTranslation("iphost", trans, func(ut ut.Translator) error {
+			return ut.Add("iphost", "{0} must have valid hostname or ip address", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("iphost", fe.Field())
+
+			return t
+		})
 
 		//struct level validations
 		v.validate.RegisterStructValidation(CredentialStructLevelValidation, models.Credential{})
-		v.validate.RegisterStructValidation(ProjectStructLevelValidation, models.Credential{})
+		v.validate.RegisterStructValidation(ProjectStructLevelValidation, models.Project{})
 	})
 }
 
@@ -183,22 +191,32 @@ func NaProperty(fl validator.FieldLevel) bool {
 	return false
 }
 
-func GetValidationErrors(err error) string {
-	// translate all error at once
-	errs := err.(validator.ValidationErrors)
-	for _, e := range errs {
-		// can translate each error one at a time.
-		fmt.Println(e.Translate(trans))
-
-		allerrs := []string{}
-
-		for _, v := range errs.Translate(trans) {
-			allerrs = append(allerrs, v)
-		}
-
-		return strings.Join(allerrs, ",")
+func GetValidationErrors(err error) []string {
+	if err == io.EOF {
+		return []string{"Request body cannot be empty"}
 	}
-	return ""
+
+	if reflect.Ptr == reflect.TypeOf(err).Kind() {
+		return []string{"Invalid request body, " + err.Error()}
+	}
+
+	// translate all error at once
+	if errs, ok := err.(validator.ValidationErrors); ok {
+		for _, e := range errs {
+			// can translate each error one at a time.
+			fmt.Println(e.Translate(trans))
+
+			allerrs := []string{}
+
+			for _, v := range errs.Translate(trans) {
+				allerrs = append(allerrs, v)
+			}
+
+			return allerrs
+		}
+	}
+
+	return []string{}
 }
 // TODO: openstack,azure,gce,
 func CredentialStructLevelValidation(sl validator.StructLevel) {

@@ -57,7 +57,7 @@ func (t *SystemJob) fail() {
 }
 
 func (t *SystemJob) success() {
-	t.Job.Status = "success"
+	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
 
@@ -90,13 +90,13 @@ func (t *SystemJob) updateProject() {
 
 	d := bson.M{
 		"$set": bson.M{
-			"last_job_run": t.Job.Started,
-			"last_job_failed": t.Job.Failed,
+			"last_updated": t.Job.Finished,
+			"last_update_failed": t.Job.Failed,
 			"status": t.Job.Status,
 		},
 	}
 
-	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
+	if err := db.Projects().UpdateId(t.Job.ProjectID, d); err != nil {
 		log.Println("Failed to update project", err)
 	}
 }

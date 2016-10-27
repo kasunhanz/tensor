@@ -13,7 +13,7 @@ type Group struct {
 	ID                       bson.ObjectId  `bson:"_id" json:"id"`
 
 	// required feilds
-	Name                     string         `bson:"name" json:"name" binding:"required"`
+	Name                     string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
 
 	Description              string         `bson:"description" json:"description"`
 	Variables                string         `bson:"variables" json:"variables"`
@@ -25,7 +25,7 @@ type Group struct {
 	HasInventorySources      bool           `bson:"has_inventory_sources" json:"has_inventory_sources"`
 	InventoryID              bson.ObjectId  `bson:"inventory_id" json:"inventory"`
 	//parent child relation
-	ParentGroupID            *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"-"`
+	ParentGroupID            *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
 
 	CreatedByID              bson.ObjectId  `bson:"created_by_id" json:"-"`
 	ModifiedByID             bson.ObjectId  `bson:"modified_by_id" json:"-"`
@@ -39,4 +39,15 @@ type Group struct {
 	Summary                  gin.H          `bson:"-" json:"summary_fields"`
 	LastJob                  gin.H          `bson:"-" json:"last_job"`
 	LastJobHostSummary       gin.H          `bson:"-" json:"last_job_host_summary"`
+}
+
+type PatchGroup struct {
+	Name          string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
+	Description   string          `bson:"description,omitempty" json:"description,omitempty"`
+	Variables     string          `bson:"variables,omitempty" json:"variables,omitempty"`
+	InventoryID   bson.ObjectId   `bson:"inventory_id,omitempty" json:"inventory,omitempty"`
+	ParentGroupID *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
+
+	ModifiedByID  bson.ObjectId   `bson:"modified_by_id" json:"-"`
+	Modified      time.Time       `bson:"modified" json:"-"`
 }

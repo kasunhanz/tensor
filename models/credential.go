@@ -26,7 +26,7 @@ const (
 type Credential struct {
 	ID                bson.ObjectId   `bson:"_id" json:"id"`
 	// required feilds
-	Name              string          `bson:"name" json:"name" binding:"required"`
+	Name              string          `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	Kind              string          `bson:"kind" json:"kind" binding:"required,credentialkind"`
 
 	//optional feilds
@@ -40,7 +40,7 @@ type Credential struct {
 	Domain            string         `bson:"domain,omitempty" json:"domain"`
 	SshKeyData        string         `bson:"ssh_key_data,omitempty" json:"ssh_key_data"`
 	SshKeyUnlock      string         `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock"`
-	BecomeMethod      string         `bson:"become_method,omitempty" json:"become_method" binding:"become_method"`
+	BecomeMethod      string         `bson:"become_method,omitempty" json:"become_method" binding:"omitempty,become_method"`
 	BecomeUsername    string         `bson:"become_username,omitempty" json:"become_username"`
 	BecomePassword    string         `bson:"become_password,omitempty" json:"become_password"`
 	VaultPassword     string         `bson:"vault_password,omitempty" json:"vault_password"`
@@ -64,4 +64,32 @@ type Credential struct {
 	Summary           gin.H           `bson:"-" json:"summary_fields"`
 
 	Roles             []AccessControl `bson:"roles" json:"-"`
+}
+
+type PatchCredential struct {
+	Name              string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
+	Kind              string          `bson:"kind,omitempty" json:"kind,omitempty" binding:"omitempty,credentialkind"`
+	Cloud             bool            `bson:"cloud,omitempty" json:"cloud,omitempty"`
+	Description       string          `bson:"description,omitempty" json:"description,omitempty"`
+	Host              string          `bson:"host,omitempty" json:"host,omitempty"`
+	Username          string          `bson:"username,omitempty" json:"username,omitempty"`
+	Password          string          `bson:"password,omitempty" json:"password,omitempty"`
+	SecurityToken     string          `bson:"security_token,omitempty" json:"security_token"`
+	Project           string          `bson:"project,omitempty" json:"project,omitempty"`
+	Domain            string          `bson:"domain,omitempty" json:"domain,omitempty"`
+	SshKeyData        string          `bson:"ssh_key_data,omitempty" json:"ssh_key_data,omitempty"`
+	SshKeyUnlock      string          `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock,omitempty"`
+	BecomeMethod      string          `bson:"become_method,omitempty" json:"become_method,omitempty" binding:"omitempty,become_method"`
+	BecomeUsername    string          `bson:"become_username,omitempty" json:"become_username,omitempty"`
+	BecomePassword    string          `bson:"become_password,omitempty" json:"become_password,omitempty"`
+	VaultPassword     string          `bson:"vault_password,omitempty" json:"vault_password,omitempty"`
+	Subscription      string          `bson:"subscription,omitempty" json:"subscription,omitempty"`
+	Tenant            string          `bson:"tenant,omitempty" json:"tenant,omitempty"`
+	Secret            string          `bson:"secret,omitempty" json:"secret,omitempty"`
+	Client            string          `bson:"client,omitempty" json:"client,omitempty"`
+	Authorize         bool            `bson:"authorize,omitempty" json:"authorize,omitempty"`
+	AuthorizePassword string          `bson:"authorize_password,omitempty" json:"authorize_password,omitempty"`
+	OrganizationID    *bson.ObjectId  `bson:"organization_id,omitempty" json:"organization,omitempty"`
+	Modified          time.Time       `bson:"modified" json:"-"`
+	ModifiedByID      bson.ObjectId   `bson:"modified_by_id" json:"-"`
 }
