@@ -197,22 +197,25 @@ func GetValidationErrors(err error) []string {
 	}
 
 	if reflect.Ptr == reflect.TypeOf(err).Kind() {
-		return []string{"Invalid request body"}
+		return []string{"Invalid request body, " + err.Error()}
 	}
+
 	// translate all error at once
-	errs := err.(validator.ValidationErrors)
-	for _, e := range errs {
-		// can translate each error one at a time.
-		fmt.Println(e.Translate(trans))
+	if errs, ok := err.(validator.ValidationErrors); ok {
+		for _, e := range errs {
+			// can translate each error one at a time.
+			fmt.Println(e.Translate(trans))
 
-		allerrs := []string{}
+			allerrs := []string{}
 
-		for _, v := range errs.Translate(trans) {
-			allerrs = append(allerrs, v)
+			for _, v := range errs.Translate(trans) {
+				allerrs = append(allerrs, v)
+			}
+
+			return allerrs
 		}
-
-		return allerrs
 	}
+
 	return []string{}
 }
 // TODO: openstack,azure,gce,

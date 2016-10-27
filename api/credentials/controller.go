@@ -153,7 +153,6 @@ func AddCredential(c *gin.Context) {
 	var req models.Credential
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		log.Println("Bad payload:", err)
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
