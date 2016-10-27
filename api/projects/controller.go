@@ -19,6 +19,7 @@ import (
 	"strings"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"github.com/gin-gonic/gin/binding"
+	"io"
 )
 
 const _CTX_PROJECT = "project"
@@ -640,7 +641,36 @@ func ProjectUpdates(c *gin.Context) {
 	})
 }
 
-func SCMUpdate(c *gin.Context) {
-	//project := c.MustGet(_CTX_PROJECT).(models.Project)
+func SCMUpdateInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"can_update":true})
+}
 
+func SCMUpdate(c *gin.Context) {
+	// get Project from the gin.Context
+	project := c.MustGet(_CTX_PROJECT).(models.Project)
+
+	var req models.SCMUpdate
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		// accept nil request body for POST request, since all the feilds are optional
+		if err != io.EOF {
+			// Return 400 if request has bad JSON format
+			c.JSON(http.StatusBadRequest, models.Error{
+				Code:http.StatusBadRequest,
+				Messages: util.GetValidationErrors(err),
+			})
+		}
+		return
+	}
+
+	err, updateId := runners.UpdateProject(project)
+
+	if err != nil {
+		c.JSON(http.StatusMethodNotAllowed, models.Error{
+			Code:http.StatusMethodNotAllowed,
+			Messages: err,
+		})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{"project_update": updateId.Hex() })
 }

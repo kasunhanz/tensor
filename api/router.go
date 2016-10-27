@@ -127,7 +127,8 @@ func Route(r *gin.Engine) {
 			gProjects.GET("/:project_id/teams", projects.Middleware, projects.Teams)
 			gProjects.GET("/:project_id/playbooks", projects.Middleware, projects.Playbooks)
 			gProjects.GET("/:project_id/access_list", projects.Middleware, projects.AccessList)
-			gProjects.GET("/:project_id/update", projects.Middleware, projects.SCMUpdate)
+			gProjects.GET("/:project_id/update", projects.Middleware, projects.SCMUpdateInfo)
+			gProjects.POST("/:project_id/update", projects.Middleware, projects.SCMUpdate)
 			gProjects.GET("/:project_id/project_updates", projects.Middleware, projects.ProjectUpdates)
 
 			gProjects.GET("/:project_id/schedules", projects.Middleware, notImplemented) //TODO: implement

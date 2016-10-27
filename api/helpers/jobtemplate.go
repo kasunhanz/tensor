@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueJTemplate(name string, pID bson.ObjectId) bool {
-	count, err := db.Credentials().Find(bson.M{"name": name, "project_id": pID}).Count();
+	count, err := db.JobTemplates().Find(bson.M{"name": name, "project_id": pID}).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -15,7 +15,7 @@ func IsUniqueJTemplate(name string, pID bson.ObjectId) bool {
 }
 
 func IsNotUniqueJTemplate(name string, pID bson.ObjectId) bool {
-	count, err := db.Credentials().Find(bson.M{"name": name, "project_id": pID}).Count();
+	count, err := db.JobTemplates().Find(bson.M{"name": name, "project_id": pID}).Count();
 	if err == nil && count > 0 {
 		return true
 	}

@@ -36,11 +36,12 @@ type Job struct {
 	Forks               uint8           `bson:"forks" json:"forks"`
 	Limit               string         `bson:"limit,omitempty" json:"limit"`
 	Verbosity           uint8           `bson:"verbosity" json:"verbosity"`
-	ExtraVars           string         `bson:"extra_vars,omitempty" json:"extra_vars"`
+	ExtraVars           gin.H         `bson:"extra_vars,omitempty" json:"extra_vars"`
 	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags"`
 	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags"`
 	ForceHandlers       bool            `bson:"force_handlers" json:"force_handlers"`
 	StartAtTask         string         `bson:"start_at_task,omitempty" json:"start_at_task"`
+	AllowSimultaneous   bool           `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous"`
 
 	MachineCredentialID bson.ObjectId   `bson:"credential_id" json:"credential"`
 	InventoryID         bson.ObjectId   `bson:"inventory_id" json:"inventory"`
@@ -98,7 +99,7 @@ type SystemJob struct {
 	Forks           uint8           `bson:"forks" json:"forks"`
 	Limit           string         `bson:"limit,omitempty" json:"limit"`
 	Verbosity       uint8           `bson:"verbosity" json:"verbosity"`
-	ExtraVars       string         `bson:"extra_vars,omitempty" json:"extra_vars"`
+	ExtraVars       gin.H         `bson:"extra_vars,omitempty" json:"extra_vars"`
 	JobTags         string         `bson:"job_tags,omitempty" json:"job_tags"`
 	SkipTags        string         `bson:"skip_tags,omitempty" json:"skip_tags"`
 	ForceHandlers   bool            `bson:"force_handlers" json:"force_handlers"`

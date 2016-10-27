@@ -99,8 +99,12 @@ func (j *SystemJob) run() {
 
 func (j *SystemJob) runJob() ([]byte, error) {
 
+	vars, err := json.Marshal(j.Job.ExtraVars)
+	if err != nil {
+		log.Println("Could not marshal extra vars", err)
+	}
 	// ansible-playbook parameters
-	arguments := []string{"-i", "localhost,", "-v", "-e", j.Job.ExtraVars, j.Job.Playbook}
+	arguments := []string{"-i", "localhost,", "-v", "-e", string(vars), j.Job.Playbook}
 
 	// set job arguments, exclude unencrypted passwords etc.
 	j.Job.JobARGS = []string{"ansible-playbook", strings.Join(arguments, " ")}
@@ -210,7 +214,7 @@ func UpdateProject(p models.Project) (error, bson.ObjectId) {
 		log.Println("Error while marshalling parameters", err)
 	}
 
-	job.ExtraVars = string(rp)
+	job.ExtraVars = extras
 
 	log.Print(string(rp))
 	// Insert new job into jobs collection

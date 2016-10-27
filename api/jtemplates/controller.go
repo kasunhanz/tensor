@@ -692,8 +692,6 @@ func Launch(c *gin.Context) {
 		}
 	}
 
-
-
 	// create new Job
 	job := models.Job{
 		ID: bson.NewObjectId(),
@@ -811,18 +809,6 @@ func Launch(c *gin.Context) {
 			return
 		}
 		job.InventoryID = req.InventoryID
-
-		// get inventory information
-		var inventory models.Inventory
-		if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
-			log.Println("Error while getting Inventory:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Inventory"},
-			})
-			return
-		}
-		runnerJob.Inventory = inventory
 	}
 
 	if template.PromptCredential {
@@ -834,17 +820,6 @@ func Launch(c *gin.Context) {
 			return
 		}
 		job.MachineCredentialID = req.MachineCredentialID
-
-		var credential models.Credential
-		if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-			log.Println("Error while getting Machine Credential:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Machine Credential"},
-			})
-			return
-		}
-		runnerJob.MachineCred = credential
 	}
 
 	if job.NetworkCredentialID != nil {
@@ -875,7 +850,28 @@ func Launch(c *gin.Context) {
 		runnerJob.CloudCred = credential
 	}
 
+	// get inventory information
+	var inventory models.Inventory
+	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
+		log.Println("Error while getting Inventory:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Inventory"},
+		})
+		return
+	}
+	runnerJob.Inventory = inventory
 
+	var credential models.Credential
+	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
+		log.Println("Error while getting Machine Credential:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:http.StatusInternalServerError,
+			Messages: []string{"Error while getting Machine Credential"},
+		})
+		return
+	}
+	runnerJob.MachineCred = credential
 
 	// get project information
 	var project models.Project

@@ -34,13 +34,32 @@ type JobPaths struct {
 type AnsibleJobPool struct {
 	queue    []*AnsibleJob
 	Register chan *AnsibleJob
-	running  *AnsibleJob
+	running  []*AnsibleJob
 }
 
 var AnsiblePool = AnsibleJobPool{
 	queue:    make([]*AnsibleJob, 0),
 	Register: make(chan *AnsibleJob),
-	running:  nil,
+	running:  make([]*AnsibleJob, 0),
+}
+
+func (p *AnsibleJobPool) hasRunningJob(job *AnsibleJob) bool {
+	for _, v := range p.running {
+		if v.Template.ID == job.Template.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *AnsibleJobPool) RemoveFromRunning(job *AnsibleJob) bool {
+	for k, v := range p.running {
+		if v.Job.ID == job.Job.ID {
+			p.running = append(p.running[:k], p.running[k + 1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 func (p *AnsibleJobPool) run() {
@@ -53,14 +72,21 @@ func (p *AnsibleJobPool) run() {
 	for {
 		select {
 		case job := <-p.Register:
-			if p.running == nil {
+			if job.Job.AllowSimultaneous {
 				go job.run()
 				continue
 			}
 
 			p.queue = append(p.queue, job)
 		case <-ticker.C:
-			if len(p.queue) == 0 || p.running != nil {
+
+			if len(p.queue) == 0 {
+				continue
+			}
+
+			job := AnsiblePool.queue[0]
+			// if has running jobs and allow simultaneous
+			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
 
@@ -151,11 +177,11 @@ func (j *AnsibleJob) run() {
 		}
 	}
 
-	AnsiblePool.running = j
+	AnsiblePool.running = append(AnsiblePool.running, j)
 
 	defer func() {
 		fmt.Println("Stopped running tasks")
-		AnsiblePool.running = nil
+		AnsiblePool.RemoveFromRunning(j)
 		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
 	}()
 
@@ -390,8 +416,12 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	}
 
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
-	if j.Job.ExtraVars != "" {
-		params = append(params, "-e", "'" + j.Job.ExtraVars + "'")
+	if len(j.Job.ExtraVars) > 0 {
+		vars, err := json.Marshal(j.Job.ExtraVars)
+		if err != nil {
+			log.Println("Could not marshal extra vars", err)
+		}
+		params = append(params, "-e", "'" + string(vars) + "'")
 	}
 
 	// -t, TAGS, --tags=TAGS

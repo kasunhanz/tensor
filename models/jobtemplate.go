@@ -22,7 +22,7 @@ type JobTemplate struct {
 	Description         string         `bson:"description,omitempty" json:"description"`
 	Forks               uint8          `bson:"forks,omitempty" json:"forks"`
 	Limit               string         `bson:"limit,omitempty" json:"limit" binding:"max=1024"`
-	ExtraVars           string         `bson:"extra_vars,omitempty" json:"extra_vars"`
+	ExtraVars           gin.H          `bson:"extra_vars,omitempty" json:"extra_vars"`
 	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags" binding:"max=1024"`
 	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags" binding:"max=1024"`
 	StartAtTask         string         `bson:"start_at_task,omitempty" json:"start_at_task"`
@@ -78,7 +78,7 @@ type PatchJobTemplate struct {
 	Description         string         `bson:"description,omitempty" json:"description,omitempty"`
 	Forks               uint8          `bson:"forks,omitempty" json:"forks,omitempty"`
 	Limit               string         `bson:"limit,omitempty" json:"limit,omitempty" binding:"max=1024"`
-	ExtraVars           string         `bson:"extra_vars,omitempty" json:"extra_vars,omitempty"`
+	ExtraVars           gin.H          `bson:"extra_vars,omitempty" json:"extra_vars,omitempty"`
 	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags,omitempty" binding:"max=1024"`
 	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags,omitempty" binding:"max=1024"`
 	StartAtTask         string         `bson:"start_at_task,omitempty" json:"start_at_task,omitempty"`
