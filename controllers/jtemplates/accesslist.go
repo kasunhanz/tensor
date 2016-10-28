@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 )
 
 func AccessList(c *gin.Context) {

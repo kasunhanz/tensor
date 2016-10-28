@@ -10,13 +10,13 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"bitbucket.pearson.com/apseng/tensor/runners"
-	"bitbucket.pearson.com/apseng/tensor/api/jwt"
 	"github.com/gin-gonic/gin/binding"
 	"io"
+	"bitbucket.pearson.com/apseng/tensor/jwt"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context

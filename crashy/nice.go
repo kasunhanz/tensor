@@ -24,7 +24,7 @@ func RecoveryWithWriter(f func(c *gin.Context, err interface{}), out io.Writer) 
 					httprequest, _ := httputil.DumpRequest(c.Request, false)
 					goErr := Wrap(err, 3)
 					reset := string([]byte{27, 91, 48, 109})
-					logger.Printf("[Nice Recovery] panic recovered:\n\n%s%s\n\n%s%s", httprequest, goErr.Error(), goErr.Stack(), reset)
+					logger.Printf("[Tensor Recovery] panic recovered:\n\n%s%s\n\n%s%s", httprequest, goErr.Error(), goErr.Stack(), reset)
 				}
 
 				f(c, err)

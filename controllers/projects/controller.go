@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"os"
 	"regexp"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"strings"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"github.com/gin-gonic/gin/binding"
@@ -651,7 +651,7 @@ func SCMUpdate(c *gin.Context) {
 
 	var req models.SCMUpdate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// accept nil request body for POST request, since all the feilds are optional
+		// accept nil request body for POST request, since all the fields are optional
 		if err != io.EOF {
 			// Return 400 if request has bad JSON format
 			c.JSON(http.StatusBadRequest, models.Error{

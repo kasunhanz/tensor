@@ -11,9 +11,9 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
 )
 

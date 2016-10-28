@@ -1,4 +1,4 @@
-package crypt
+package util
 
 import (
 	"crypto/aes"
@@ -9,25 +9,24 @@ import (
 	"io"
 )
 
-/*
-Example usage:
 
-originalText := "encrypt this golang"
-fmt.Println(originalText)
-
+//Example usage:
+//
+//originalText := "encrypt this golang"
+//fmt.Println(originalText)
+//
 // encrypt value to base64
-cryptoText := Encrypt(originalText)
-fmt.Println(cryptoText)
-
+//cryptoText := Encrypt(originalText)
+//fmt.Println(cryptoText)
+//
 // encrypt base64 crypto to original value
-text := Decrypt(cryptoText)
-fmt.Printf(text)
-*/
+//text := Decrypt(cryptoText)
+//fmt.Printf(text)
 
 var key []byte = []byte("8m86pie1ef8bghbq41ru!de4")
 
 // Encrypt string to base64 crypto using AES
-func Encrypt(text string) string {
+func CipherEncrypt(text string) string {
 	// key := []byte(keyText)
 	plaintext := []byte(text)
 
@@ -38,7 +37,7 @@ func Encrypt(text string) string {
 
 	// The IV needs to be unique, but not secure. Therefore it's common to
 	// include it at the beginning of the ciphertext.
-	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+	ciphertext := make([]byte, aes.BlockSize + len(plaintext))
 	iv := ciphertext[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		panic(err)
@@ -52,7 +51,7 @@ func Encrypt(text string) string {
 }
 
 // Decrypt from base64 to decrypted string
-func Decrypt(cryptoText string) string {
+func CipherDecrypt(cryptoText string) string {
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
 	block, err := aes.NewCipher(key)

@@ -10,7 +10,7 @@
 //
 // Example usage:
 //
-//	s := unique.New() // s is now "apHCJBl7L1OmC57n"
+//	s := util.UniUriNew() // s is now "apHCJBl7L1OmC57n"
 //
 // A standard string created by New() is 16 bytes in length and consists of
 // Latin upper and lowercase letters, and numbers (from the set of 62 allowed
@@ -20,7 +20,7 @@
 //
 // Functions read from crypto/rand random source, and panic if they fail to
 // read from it.
-package uniuri
+package util
 
 import "crypto/rand"
 
@@ -37,19 +37,19 @@ var StdChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 
 // New returns a new random string of the standard length, consisting of
 // standard characters.
-func New() string {
-	return NewLenChars(StdLen, StdChars)
+func UniqueNew() string {
+	return UniqueNewLenChars(StdLen, StdChars)
 }
 
 // NewLen returns a new random string of the provided length, consisting of
 // standard characters.
-func NewLen(length int) string {
-	return NewLenChars(length, StdChars)
+func UniqueNewLen(length int) string {
+	return UniqueNewLenChars(length, StdChars)
 }
 
 // NewLenChars returns a new random string of the provided length, consisting
 // of the provided byte slice of allowed characters (maximum 256).
-func NewLenChars(length int, chars []byte) string {
+func UniqueNewLenChars(length int, chars []byte) string {
 	if length == 0 {
 		return ""
 	}

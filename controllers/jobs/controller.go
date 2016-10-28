@@ -9,7 +9,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 )

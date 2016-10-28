@@ -5,8 +5,6 @@ import (
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"log"
-	"bitbucket.pearson.com/apseng/tensor/crypt"
-	"bitbucket.pearson.com/apseng/tensor/util/unique"
 	"os"
 	"os/exec"
 	"io"
@@ -15,6 +13,7 @@ import (
 	"strings"
 	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
+	"bitbucket.pearson.com/apseng/tensor/util"
 )
 
 // JobPaths
@@ -85,7 +84,7 @@ func (p *AnsibleJobPool) run() {
 			}
 
 			job := AnsiblePool.queue[0]
-			// if has running jobs and allow simultaneous
+		// if has running jobs and allow simultaneous
 			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
@@ -191,18 +190,18 @@ func (j *AnsibleJob) run() {
 	log.Println("Started: " + j.Job.ID.Hex() + "\n")
 
 	//Generate directory paths and create directories
-	tmp := "/tmp/tensor_proot_" + uniuri.New() + "/"
+	tmp := "/tmp/tensor_proot_" + util.UniqueNew() + "/"
 	j.JobPaths = JobPaths{
-		EtcTower: tmp + uniuri.New(),
-		Tmp: tmp + uniuri.New(),
-		VarLib: tmp + uniuri.New(),
-		VarLibJobStatus: tmp + uniuri.New(),
-		VarLibProjects: tmp + uniuri.New(),
-		VarLog: tmp + uniuri.New(),
-		TmpRand: "/tmp/tensor__" + uniuri.New(),
+		EtcTower: tmp + util.UniqueNew(),
+		Tmp: tmp + util.UniqueNew(),
+		VarLib: tmp + util.UniqueNew(),
+		VarLibJobStatus: tmp + util.UniqueNew(),
+		VarLibProjects: tmp + util.UniqueNew(),
+		VarLog: tmp + util.UniqueNew(),
+		TmpRand: "/tmp/tensor__" + util.UniqueNew(),
 		ProjectRoot: "/opt/tensor/projects/" + j.Project.ID.Hex(),
 		AnsiblePath: "/opt/ansible/bin",
-		CredentialPath: "/tmp/tensor_" + uniuri.New(),
+		CredentialPath: "/tmp/tensor_" + util.UniqueNew(),
 	}
 
 	// create job directories
@@ -236,7 +235,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 		pPlaybook = append(pPlaybook, "-u", j.MachineCred.Username)
 
 		if j.MachineCred.Password != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
-			pSecure = append(pSecure, "-e", "'ansible_ssh_pass=" + crypt.Decrypt(j.MachineCred.Password) + "'")
+			pSecure = append(pSecure, "-e", "'ansible_ssh_pass=" + util.CipherDecrypt(j.MachineCred.Password) + "'")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
@@ -260,7 +259,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 
 		// for now this is more convenient than --ask-become-pass with sshpass
 		if j.MachineCred.BecomePassword != "" {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + crypt.Decrypt(j.MachineCred.BecomePassword) + "'")
+			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.MachineCred.BecomePassword) + "'")
 		}
 	}
 
@@ -277,7 +276,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 	if j.MachineCred.SshKeyData != "" {
 
 		if j.MachineCred.SshKeyUnlock != "" {
-			key, err := ssh.GetEncryptedKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)), crypt.Decrypt(j.MachineCred.SshKeyUnlock))
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
 				return []byte("stdout capture is missing"), err
 			}
@@ -286,7 +285,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
 			return []byte("stdout capture is missing"), err
 		}
@@ -299,7 +298,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 
 	if j.NetworkCred.SshKeyData != "" {
 		if j.NetworkCred.SshKeyUnlock != "" {
-			key, err := ssh.GetEncryptedKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)), crypt.Decrypt(j.NetworkCred.SshKeyUnlock))
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
 			if err != nil {
 				return []byte("stdout capture is missing"), err
 			}
@@ -308,7 +307,7 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(crypt.Decrypt(j.MachineCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
 			return []byte("stdout capture is missing"), err
 		}
@@ -465,7 +464,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 func (j *AnsibleJob) kinit() error {
 
 	// Create two command structs for echo and kinit
-	echo := exec.Command("echo", "-n", crypt.Decrypt(j.MachineCred.Password))
+	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))
 	kinit := exec.Command("kinit", j.MachineCred.Username)
 	kinit.Env = os.Environ()
 

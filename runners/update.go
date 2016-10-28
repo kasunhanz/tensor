@@ -9,13 +9,12 @@ import (
 	"strings"
 	"os"
 	"io/ioutil"
-	"bitbucket.pearson.com/apseng/tensor/crypt"
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"errors"
-	"bitbucket.pearson.com/apseng/tensor/util/unique"
+	"bitbucket.pearson.com/apseng/tensor/util"
 )
 
 type SystemJobPool struct {
@@ -79,7 +78,7 @@ func (j *SystemJob) run() {
 
 	j.start()
 
-	j.CredentialPath = "/tmp/tensor_" + uniuri.New()
+	j.CredentialPath = "/tmp/tensor_" + util.UniqueNew()
 	// create job directories
 	j.createJobDirs()
 
@@ -115,7 +114,7 @@ func (j *SystemJob) runJob() ([]byte, error) {
 	if j.Credential.SshKeyData != "" {
 
 		if j.Credential.SshKeyUnlock != "" {
-			key, err := ssh.GetEncryptedKey([]byte(crypt.Decrypt(j.Credential.SshKeyData)), crypt.Decrypt(j.Credential.SshKeyUnlock))
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)), util.CipherDecrypt(j.Credential.SshKeyUnlock))
 			if err != nil {
 				return []byte("stdout capture is missing"), err
 			}
@@ -124,7 +123,7 @@ func (j *SystemJob) runJob() ([]byte, error) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(crypt.Decrypt(j.Credential.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)))
 		if err != nil {
 			return []byte("stdout capture is missing"), err
 		}
@@ -170,7 +169,7 @@ func (j *SystemJob) createJobDirs() {
 
 func (j *SystemJob) installScmCred() error {
 	fmt.Println("SCM Credentials " + j.Credential.Name + " installed")
-	err := ioutil.WriteFile(j.CredentialPath + "/scm_crendetial", []byte(crypt.Decrypt(j.Credential.Secret)), 0600)
+	err := ioutil.WriteFile(j.CredentialPath + "/scm_crendetial", []byte(util.CipherDecrypt(j.Credential.Secret)), 0600)
 	return err
 }
 
@@ -179,7 +178,7 @@ func UpdateProject(p models.Project) (error, bson.ObjectId) {
 		ID: bson.NewObjectId(),
 		Name: p.Name + " update Job",
 		Description: "Updates " + p.Name + " Project",
-		LaunchType: "manual",
+		LaunchType: models.JOB_LAUNCH_TYPE_MANUAL,
 		CancelFlag: false,
 		Status: "pending",
 		JobType: models.JOBTYPE_UPDATE_JOB,

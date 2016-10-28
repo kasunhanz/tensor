@@ -9,11 +9,10 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"time"
 	"strconv"
-	"bitbucket.pearson.com/apseng/tensor/crypt"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
-	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"strings"
 	"github.com/gin-gonic/gin/binding"
 )
@@ -191,26 +190,26 @@ func AddCredential(c *gin.Context) {
 	req.Modified = time.Now()
 
 	if req.Password != "" {
-		password := crypt.Encrypt(req.Password)
+		password := util.CipherEncrypt(req.Password)
 		req.Password = password
 	}
 
 	if req.SshKeyData != "" {
-		data := crypt.Encrypt(req.SshKeyData)
+		data := util.CipherEncrypt(req.SshKeyData)
 		req.SshKeyData = data
 
 		if req.SshKeyUnlock != "" {
-			unlock := crypt.Encrypt(req.SshKeyUnlock)
+			unlock := util.CipherEncrypt(req.SshKeyUnlock)
 			req.SshKeyUnlock = unlock
 		}
 	}
 
 	if req.BecomePassword != "" {
-		password := crypt.Encrypt(req.BecomePassword)
+		password := util.CipherEncrypt(req.BecomePassword)
 		req.BecomePassword = password
 	}
 	if req.VaultPassword != "" {
-		password := crypt.Encrypt(req.VaultPassword)
+		password := util.CipherEncrypt(req.VaultPassword)
 		req.VaultPassword = password
 	}
 
@@ -287,26 +286,26 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	if req.Password != "" {
-		password := crypt.Encrypt(req.Password)
+		password := util.CipherEncrypt(req.Password)
 		credential.Password = password
 	}
 
 	if req.Password != "" {
-		data := crypt.Encrypt(req.SshKeyData)
+		data := util.CipherEncrypt(req.SshKeyData)
 		credential.SshKeyData = data
 
 		if req.SshKeyUnlock != "" {
-			unlock := crypt.Encrypt(credential.SshKeyUnlock)
+			unlock := util.CipherEncrypt(credential.SshKeyUnlock)
 			credential.SshKeyUnlock = unlock
 		}
 	}
 
 	if req.Password != "" {
-		password := crypt.Encrypt(req.BecomePassword)
+		password := util.CipherEncrypt(req.BecomePassword)
 		credential.BecomeUsername = password
 	}
 	if req.Password != "" {
-		password := crypt.Encrypt(req.VaultPassword)
+		password := util.CipherEncrypt(req.VaultPassword)
 		credential.VaultPassword = password
 	}
 
@@ -383,26 +382,26 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	if req.Password != "" {
-		password := crypt.Encrypt(req.Password)
+		password := util.CipherEncrypt(req.Password)
 		credential.Password = password
 	}
 
 	if req.Password != "" {
-		data := crypt.Encrypt(req.SshKeyData)
+		data := util.CipherEncrypt(req.SshKeyData)
 		credential.SshKeyData = data
 
 		if req.SshKeyUnlock != "" {
-			unlock := crypt.Encrypt(credential.SshKeyUnlock)
+			unlock := util.CipherEncrypt(credential.SshKeyUnlock)
 			credential.SshKeyUnlock = unlock
 		}
 	}
 
 	if req.Password != "" {
-		password := crypt.Encrypt(req.BecomePassword)
+		password := util.CipherEncrypt(req.BecomePassword)
 		credential.BecomeUsername = password
 	}
 	if req.Password != "" {
-		password := crypt.Encrypt(req.VaultPassword)
+		password := util.CipherEncrypt(req.VaultPassword)
 		credential.VaultPassword = password
 	}
 

@@ -1,4 +1,4 @@
-package teams
+package inventories
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/roles"
@@ -10,14 +10,14 @@ import (
 	"net/http"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 )
 
 func AccessList(c *gin.Context) {
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
 
 	var organization models.Organization
-	err := db.Organizations().FindId(team.OrganizationID).One(&organization)
+	err := db.Organizations().FindId(inventory.OrganizationID).One(&organization)
 	if err != nil {
 		log.Println("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -37,9 +37,11 @@ func AccessList(c *gin.Context) {
 			case roles.ORGANIZATION_ADMIN :{
 				access := gin.H{
 					"descendant_roles": []string{
-						"admin",
-						"execute",
+						"adhoc",
+						"use",
 						"read",
+						"admin",
+						"update",
 					},
 					"role": gin.H{
 						"resource_name": organization.Name,
@@ -58,12 +60,11 @@ func AccessList(c *gin.Context) {
 			case roles.ORGANIZATION_MEMBER: {
 				access := gin.H{
 					"descendant_roles": []string{
-						"execute",
 						"read",
 					},
 					"role": gin.H{
 						"resource_name": organization.Name,
-						"description": "Can manage all aspects of the organization",
+						"description": "Can view all aspects of the organization",
 						"related": gin.H{
 							"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 						},
@@ -82,7 +83,7 @@ func AccessList(c *gin.Context) {
 					},
 					"role": gin.H{
 						"resource_name": organization.Name,
-						"description": "Can manage all aspects of the organization",
+						"description": "Can view all aspects of the organization",
 						"related": gin.H{
 							"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 						},
@@ -98,45 +99,86 @@ func AccessList(c *gin.Context) {
 
 	// direct access
 
-	for _, v := range team.Roles {
+	for _, v := range inventory.Roles {
 		if v.Type == "user" {
-			// if an job template admin
+			// if an inventory admin
 			switch v.Role {
-			case roles.TEAM_ADMIN :{
+			case roles.INVENTORY_ADMIN :{
 				access := gin.H{
 					"descendant_roles": []string{
-						roles.TEAM_ADMIN,
-						roles.TEAM_MEMBER,
-						roles.TEAM_READ,
+						"adhoc",
+						"use",
+						"read",
+						"admin",
+						"update",
 					},
 					"role": gin.H{
-						"resource_name": team.Name,
-						"description": "Can manage all aspects of the team",
+						"resource_name": inventory.Name,
+						"description": "Can manage all aspects of the Inventory",
 						"related":gin.H{
-							"team": "/v1/teams/" + team.ID.Hex() + "/",
+							"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
 						},
-						"resource_type": "team",
-						"name": roles.TEAM_ADMIN,
+						"resource_type": "inventory",
+						"name": roles.INVENTORY_ADMIN,
 					},
 				}
 
 				allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
 			}
-			// if an job template execute
-			case roles.TEAM_MEMBER: {
+			// if an inventory execute
+			case roles.INVENTORY_UPDATE: {
 				access := gin.H{
 					"descendant_roles": []string{
-						"member",
+						"read",
+						"update",
+					},
+					"role": gin.H{
+						"resource_name":  inventory.Name,
+						"description": "Can update the Inventory",
+						"related": gin.H{
+							"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
+						},
+						"resource_type": "inventory",
+						"name": roles.INVENTORY_UPDATE,
+					},
+				}
+				allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+			}
+			// if an inventory execute
+			case roles.INVENTORY_ADD_HOC: {
+				access := gin.H{
+					"descendant_roles": []string{
+						"adhoc",
+						"use",
 						"read",
 					},
 					"role": gin.H{
-						"resource_name":  team.Name,
-						"description": "User is a member of the team",
+						"resource_name":  inventory.Name,
+						"description": "May run ad hoc commands on an inventory",
 						"related": gin.H{
-							"team": "/api/v1/teams/" + team.ID.Hex() + "/",
+							"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
 						},
-						"resource_type": "team",
-						"name": roles.TEAM_MEMBER,
+						"resource_type": "inventory",
+						"name": roles.INVENTORY_ADD_HOC,
+					},
+				}
+				allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+			}
+			// if an inventory
+			case roles.INVENTORY_USE: {
+				access := gin.H{
+					"descendant_roles": []string{
+						"use",
+						"read",
+					},
+					"role": gin.H{
+						"resource_name":  inventory.Name,
+						"description": "Can use the inventory in a job template",
+						"related": gin.H{
+							"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
+						},
+						"resource_type": "inventory",
+						"name": roles.INVENTORY_USE,
 					},
 				}
 				allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
@@ -145,6 +187,7 @@ func AccessList(c *gin.Context) {
 		}
 
 	}
+
 
 	var usrs []models.AccessUser
 

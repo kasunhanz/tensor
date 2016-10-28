@@ -10,9 +10,9 @@ import (
 	"log"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/api/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
 )
 

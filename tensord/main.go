@@ -5,8 +5,8 @@ import (
 	"log"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin"
-	"bitbucket.pearson.com/apseng/tensor/api"
-	"bitbucket.pearson.com/apseng/tensor/api/sockets"
+	"bitbucket.pearson.com/apseng/tensor/controllers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/sockets"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/db"
@@ -35,21 +35,15 @@ func main() {
 	binding.Validator = &util.SpaceValidator{}
 
 	r := gin.New()
-	r.Use(gin.Recovery(), recovery, gin.Logger(), crashy.Recovery(recoveryHandler))
+	r.Use(crashy.Recovery(recoveryHandler))
 
-	api.Route(r)
+	controllers.Route(r)
 
 	go runners.StartAnsibleRunner()
 	go runners.StartSystemRunner()
 
 	r.Run(util.Config.Port)
 
-}
-
-func recovery(c *gin.Context) {
-
-	//report to bug nofiy system
-	c.Next()
 }
 
 func recoveryHandler(c *gin.Context, err interface{}) {

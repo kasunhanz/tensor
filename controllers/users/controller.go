@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
-	"bitbucket.pearson.com/apseng/tensor/api/metadata"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"github.com/gin-gonic/gin/binding"
 )
 

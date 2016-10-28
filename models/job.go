@@ -19,7 +19,7 @@ type Job struct {
 
 	Name                string          `bson:"name" json:"name" binding:"required"`
 
-	Description         string         `bson:"description,omitempty" json:"description"`
+	Description         string          `bson:"description,omitempty" json:"description"`
 	LaunchType          string          `bson:"launch_type" json:"launch_type"`
 	CancelFlag          bool            `bson:"cancel_flag" json:"cancel_flag"`
 	Status              string          `bson:"status" json:"status"`
@@ -34,14 +34,14 @@ type Job struct {
 
 	Playbook            string          `bson:"playbook" json:"playbook"`
 	Forks               uint8           `bson:"forks" json:"forks"`
-	Limit               string         `bson:"limit,omitempty" json:"limit"`
+	Limit               string          `bson:"limit,omitempty" json:"limit"`
 	Verbosity           uint8           `bson:"verbosity" json:"verbosity"`
-	ExtraVars           gin.H         `bson:"extra_vars,omitempty" json:"extra_vars"`
-	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags"`
-	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags"`
+	ExtraVars           gin.H           `bson:"extra_vars,omitempty" json:"extra_vars"`
+	JobTags             string          `bson:"job_tags,omitempty" json:"job_tags"`
+	SkipTags            string          `bson:"skip_tags,omitempty" json:"skip_tags"`
 	ForceHandlers       bool            `bson:"force_handlers" json:"force_handlers"`
-	StartAtTask         string         `bson:"start_at_task,omitempty" json:"start_at_task"`
-	AllowSimultaneous   bool           `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous"`
+	StartAtTask         string          `bson:"start_at_task,omitempty" json:"start_at_task"`
+	AllowSimultaneous   bool            `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous"`
 
 	MachineCredentialID bson.ObjectId   `bson:"credential_id" json:"credential"`
 	InventoryID         bson.ObjectId   `bson:"inventory_id" json:"inventory"`
@@ -60,8 +60,8 @@ type Job struct {
 
 	// system generated items
 	JobCWD              string          `bson:"job_cwd" json:"job_cwd"`
-	JobARGS             []string          `bson:"job_args" json:"job_args"`
-	JobENV              []string          `bson:"job_env" json:"job_env"`
+	JobARGS             []string        `bson:"job_args" json:"job_args"`
+	JobENV              []string        `bson:"job_env" json:"job_env"`
 
 	CreatedByID         bson.ObjectId   `bson:"created_by_id" json:"-"`
 	ModifiedByID        bson.ObjectId   `bson:"modified_by_id" json:"-"`
@@ -82,7 +82,7 @@ type SystemJob struct {
 
 	Name            string          `bson:"name" json:"name" binding:"required"`
 
-	Description     string         `bson:"description,omitempty" json:"description"`
+	Description     string          `bson:"description,omitempty" json:"description"`
 	LaunchType      string          `bson:"launch_type" json:"launch_type"`
 	CancelFlag      bool            `bson:"cancel_flag" json:"cancel_flag"`
 	Status          string          `bson:"status" json:"status"`
@@ -97,13 +97,13 @@ type SystemJob struct {
 
 	Playbook        string          `bson:"playbook" json:"playbook"`
 	Forks           uint8           `bson:"forks" json:"forks"`
-	Limit           string         `bson:"limit,omitempty" json:"limit"`
+	Limit           string          `bson:"limit,omitempty" json:"limit"`
 	Verbosity       uint8           `bson:"verbosity" json:"verbosity"`
-	ExtraVars       gin.H         `bson:"extra_vars,omitempty" json:"extra_vars"`
-	JobTags         string         `bson:"job_tags,omitempty" json:"job_tags"`
-	SkipTags        string         `bson:"skip_tags,omitempty" json:"skip_tags"`
+	ExtraVars       gin.H           `bson:"extra_vars,omitempty" json:"extra_vars"`
+	JobTags         string          `bson:"job_tags,omitempty" json:"job_tags"`
+	SkipTags        string          `bson:"skip_tags,omitempty" json:"skip_tags"`
 	ForceHandlers   bool            `bson:"force_handlers" json:"force_handlers"`
-	StartAtTask     string         `bson:"start_at_task,omitempty" json:"start_at_task"`
+	StartAtTask     string          `bson:"start_at_task,omitempty" json:"start_at_task"`
 
 	CredentialID    bson.ObjectId   `bson:"credential_id,omitempty" json:"credential"`
 	ProjectID       bson.ObjectId   `bson:"project_id" json:"project"`
@@ -111,8 +111,8 @@ type SystemJob struct {
 
 	// system generated items
 	JobCWD          string          `bson:"job_cwd" json:"job_cwd"`
-	JobARGS         []string          `bson:"job_args" json:"job_args"`
-	JobENV          []string          `bson:"job_env" json:"job_env"`
+	JobARGS         []string        `bson:"job_args" json:"job_args"`
+	JobENV          []string        `bson:"job_env" json:"job_env"`
 
 	Created         time.Time       `bson:"created" json:"created"`
 	Modified        time.Time       `bson:"modified" json:"modified"`
