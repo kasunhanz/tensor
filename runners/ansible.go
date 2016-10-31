@@ -231,15 +231,23 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 	// parameters that are hidden from output
 	pSecure := []string{}
 
-	if j.MachineCred.Username != "" {
-		pPlaybook = append(pPlaybook, "-u", j.MachineCred.Username)
+	// check whether the username not empty
+	if len(j.MachineCred.Username) > 0 {
+		uname := j.MachineCred.Username
 
-		if j.MachineCred.Password != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
+		// append domain if exist
+		if len(j.MachineCred.Domain) > 0 {
+			uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
+		}
+
+		pPlaybook = append(pPlaybook, "-u", uname)
+
+		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
 			pSecure = append(pSecure, "-e", "'ansible_ssh_pass=" + util.CipherDecrypt(j.MachineCred.Password) + "'")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
-		if j.MachineCred.Password != "" && j.MachineCred.Kind == models.CREDENTIAL_KIND_WIN {
+		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_WIN {
 			j.kinit()
 		}
 	}
@@ -386,6 +394,11 @@ func (j *AnsibleJob) createJobDirs() {
 }
 
 func (j *AnsibleJob) buildParams(params []string) []string {
+
+	if j.Job.JobType == "check" {
+		params = append(params, "--check")
+	}
+
 	// forks -f NUM, --forks=NUM
 	if j.Job.Forks != 0 {
 		params = append(params, "-f", string(j.Job.Forks))
@@ -424,21 +437,21 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	}
 
 	// -t, TAGS, --tags=TAGS
-	if j.Job.JobTags != "" {
+	if len(j.Job.JobTags) > 0 {
 		params = append(params, "-t", j.Job.JobTags)
 	}
 
 	// --skip-tags=SKIP_TAGS
-	if j.Job.SkipTags != "" {
+	if len(j.Job.SkipTags) > 0 {
 		params = append(params, "--skip-tags=" + j.Job.SkipTags)
 	}
 
 	// --force-handlers
-	if j.Job.ForceHandlers {
+	if len(j.Job.ForceHandlers) > 0 {
 		params = append(params, "--force-handlers")
 	}
 
-	if j.Job.StartAtTask != "" {
+	if len(j.Job.StartAtTask) > 0 {
 		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
 	}
 
