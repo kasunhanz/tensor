@@ -465,7 +465,15 @@ func (j *AnsibleJob) kinit() error {
 
 	// Create two command structs for echo and kinit
 	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))
-	kinit := exec.Command("kinit", j.MachineCred.Username)
+
+	uname := j.MachineCred.Username
+
+	// if credential domain specified
+	if len(j.MachineCred.Domain) > 0 {
+		uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
+	}
+
+	kinit := exec.Command("kinit", uname)
 	kinit.Env = os.Environ()
 
 	// Create asynchronous in memory pipe
