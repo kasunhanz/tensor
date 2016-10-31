@@ -59,11 +59,11 @@ type PatchProject struct {
 	Description           string          `bson:"description,omitempty" json:"description,omitempty"`
 	ScmUrl                string          `bson:"scm_url,omitempty" json:"scm_url,omitempty" binding:"omitempty,url"`
 	ScmBranch             string          `bson:"scm_branch,omitempty" json:"scm_branch,omitempty"`
-	ScmClean              bool            `bson:"scm_clean,omitempty" json:"scm_clean,omitempty"`
-	ScmDeleteOnUpdate     bool            `bson:"scm_delete_on_update,omitempty" json:"scm_delete_on_update,omitempty"`
+	ScmClean              *bool            `bson:"scm_clean,omitempty" json:"scm_clean,omitempty"`
+	ScmDeleteOnUpdate     *bool            `bson:"scm_delete_on_update,omitempty" json:"scm_delete_on_update,omitempty"`
 	ScmCredentialID       *bson.ObjectId  `bson:"credentail_id,omitempty" json:"credential,omitempty"`
-	ScmDeleteOnNextUpdate bool            `bson:"scm_delete_on_next_update,omitempty" json:"scm_delete_on_next_update,omitempty"`
-	ScmUpdateOnLaunch     bool            `bson:"scm_update_on_launch,omitempty" json:"scm_update_on_launch,omitempty"`
+	ScmDeleteOnNextUpdate *bool            `bson:"scm_delete_on_next_update,omitempty" json:"scm_delete_on_next_update,omitempty"`
+	ScmUpdateOnLaunch     *bool            `bson:"scm_update_on_launch,omitempty" json:"scm_update_on_launch,omitempty"`
 	ScmUpdateCacheTimeout int             `bson:"scm_update_cache_timeout,omitempty" json:"scm_update_cache_timeout,omitempty"`
 	ModifiedBy            bson.ObjectId   `bson:"modified_by" json:"-"`
 	Modified              time.Time       `bson:"modified" json:"-"`

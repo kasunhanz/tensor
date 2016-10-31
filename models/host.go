@@ -43,7 +43,7 @@ type PatchHost struct {
 	GroupID      *bson.ObjectId  `bson:"group_id,omitempty" json:"group,omitempty"`
 	InstanceID   string          `bson:"instance_id,omitempty" json:"instance_id,omitempty"`
 	Variables    string          `bson:"variables,omitempty" json:"variables,omitempty"`
-	Enabled      bool            `bson:"enabled,omitempty" json:"enabled,omitempty"`
+	Enabled      *bool            `bson:"enabled,omitempty" json:"enabled,omitempty"`
 
 	ModifiedByID bson.ObjectId   `bson:"modified_by_id" json:"-"`
 	Modified     time.Time       `bson:"modified,omitempty" json:"-"`

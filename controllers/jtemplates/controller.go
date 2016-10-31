@@ -431,7 +431,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// check the project exist or not
-	if !helpers.ProjectExist(req.ProjectID) {
+	if len(req.ProjectID) == 12 && !helpers.ProjectExist(req.ProjectID) {
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
@@ -441,7 +441,12 @@ func PatchJTemplate(c *gin.Context) {
 
 	if len(req.Name) > 0 && req.Name != jobTemplate.Name {
 		// if the JobTemplate exist in the collection it is not unique
-		if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+		projectID := jobTemplate.ProjectID
+		if len(req.ProjectID) == 12 {
+			projectID = req.ProjectID
+		}
+
+		if helpers.IsNotUniqueJTemplate(req.Name, projectID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Job Template with this Name already exists."},
@@ -487,8 +492,7 @@ func PatchJTemplate(c *gin.Context) {
 	req.ModifiedByID = user.ID
 
 	// update object
-	changeinf, err := db.JobTemplates().UpsertId(bson.M{"_id" :jobTemplate.ID}, req);
-	if err != nil {
+	if err := db.JobTemplates().UpdateId(jobTemplate.ID, bson.M{"$set": req}); err != nil {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -496,14 +500,12 @@ func PatchJTemplate(c *gin.Context) {
 		})
 		return
 	}
-
-	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
 	// add new activity to activity stream
 	addActivity(jobTemplate.ID, user.ID, "Job Template " + req.Name + " updated")
 
 	// get newly updated JobTempate
 	var resp models.JobTemplate
-	if err = db.Hosts().FindId(jobTemplate.ID).One(&resp); err != nil {
+	if err := db.JobTemplates().FindId(jobTemplate.ID).One(&resp); err != nil {
 		log.Print("Error while getting the updated Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
@@ -513,8 +515,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// set `related` and `summary` feilds
-	err = metadata.JTemplateMetadata(&resp);
-	if err != nil {
+	if err := metadata.JTemplateMetadata(&resp); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,

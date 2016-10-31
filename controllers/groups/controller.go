@@ -354,8 +354,7 @@ func PatchGroup(c *gin.Context) {
 	req.ModifiedByID = user.ID
 
 	// update object
-	changeinf, err := db.Hosts().UpsertId(bson.M{"_id" :group.ID}, req);
-	if err != nil {
+	if err := db.Hosts().UpdateId(group.ID, bson.M{"$set": req}); err != nil {
 		log.Println("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -363,9 +362,6 @@ func PatchGroup(c *gin.Context) {
 		})
 		return
 	}
-
-	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
-
 	// add new activity to activity stream
 	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 

@@ -69,31 +69,31 @@ type JobTemplate struct {
 
 type PatchJobTemplate struct {
 	Name                string         `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
-	JobType             string         `bson:"job_type,omitempty" json:"job_type,omitempty" binding:"jobtype"`
+	JobType             string         `bson:"job_type,omitempty" json:"job_type,omitempty" binding:"omitempty,jobtype"`
 	InventoryID         bson.ObjectId  `bson:"inventory_id,omitempty" json:"inventory,omitempty"`
 	ProjectID           bson.ObjectId  `bson:"project_id,omitempty" json:"project,omitempty"`
 	Playbook            string         `bson:"playbook,omitempty" json:"playbook,omitempty"`
 	MachineCredentialID bson.ObjectId  `bson:"credential_id,omitempty" json:"credential,omitempty"`
-	Verbosity           uint8          `bson:"verbosity,omitempty" json:"verbosity,omitempty" binding:"min=0,max=5"`
+	Verbosity           uint8          `bson:"verbosity,omitempty" json:"verbosity,omitempty" binding:"omitempty,min=0,max=5"`
 	Description         string         `bson:"description,omitempty" json:"description,omitempty"`
 	Forks               uint8          `bson:"forks,omitempty" json:"forks,omitempty"`
-	Limit               string         `bson:"limit,omitempty" json:"limit,omitempty" binding:"max=1024"`
+	Limit               string         `bson:"limit,omitempty" json:"limit,omitempty" binding:"omitempty,max=1024"`
 	ExtraVars           gin.H          `bson:"extra_vars,omitempty" json:"extra_vars,omitempty"`
-	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags,omitempty" binding:"max=1024"`
-	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags,omitempty" binding:"max=1024"`
+	JobTags             string         `bson:"job_tags,omitempty" json:"job_tags,omitempty" binding:"omitempty,max=1024"`
+	SkipTags            string         `bson:"skip_tags,omitempty" json:"skip_tags,omitempty" binding:"omitempty,max=1024"`
 	StartAtTask         string         `bson:"start_at_task,omitempty" json:"start_at_task,omitempty"`
-	ForceHandlers       bool           `bson:"force_handlers,omitempty" json:"force_handlers,omitempty"`
-	PromptVariables     bool           `bson:"ask_variables_on_launch,omitempty" json:"ask_variables_on_launch,omitempty"`
-	BecomeEnabled       bool           `bson:"become_enabled,omitempty" json:"become_enabled,omitempty"`
+	ForceHandlers       *bool           `bson:"force_handlers,omitempty" json:"force_handlers,omitempty"`
+	PromptVariables     *bool           `bson:"ask_variables_on_launch,omitempty" json:"ask_variables_on_launch,omitempty"`
+	BecomeEnabled       *bool           `bson:"become_enabled,omitempty" json:"become_enabled,omitempty"`
 	CloudCredentialID   *bson.ObjectId  `bson:"cloud_credential_id,omitempty" json:"cloud_credential,omitempty"`
 	NetworkCredentialID *bson.ObjectId  `bson:"network_credential_id,omitempty" json:"network_credential,omitempty"`
-	PromptLimit         bool           `bson:"prompt_limit_on_launch,omitempty" json:"ask_limit_on_launch,omitempty"`
-	PromptInventory     bool           `bson:"prompt_inventory,omitempty" json:"ask_inventory_on_launch,omitempty"`
-	PromptCredential    bool           `bson:"prompt_credential,omitempty" json:"ask_credential_on_launch,omitempty"`
-	PromptJobType       bool           `bson:"prompt_job_type,omitempty" json:"ask_job_type_on_launch,omitempty"`
-	PromptTags          bool           `bson:"prompt_tags,omitempty" json:"ask_tags_on_launch,omitempty"`
-	PromptSkipTags      bool           `bson:"prompt_skip_tags,omitempty" json:"ask_skip_tags_on_launch,omitempty"`
-	AllowSimultaneous   bool           `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous,omitempty"`
+	PromptLimit         *bool           `bson:"prompt_limit_on_launch,omitempty" json:"ask_limit_on_launch,omitempty"`
+	PromptInventory     *bool           `bson:"prompt_inventory,omitempty" json:"ask_inventory_on_launch,omitempty"`
+	PromptCredential    *bool           `bson:"prompt_credential,omitempty" json:"ask_credential_on_launch,omitempty"`
+	PromptJobType       *bool           `bson:"prompt_job_type,omitempty" json:"ask_job_type_on_launch,omitempty"`
+	PromptTags          *bool           `bson:"prompt_tags,omitempty" json:"ask_tags_on_launch,omitempty"`
+	PromptSkipTags      *bool           `bson:"prompt_skip_tags,omitempty" json:"ask_skip_tags_on_launch,omitempty"`
+	AllowSimultaneous   *bool           `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous,omitempty"`
 	PolymorphicCtypeID  *bson.ObjectId  `bson:"polymorphic_ctype_id,omitempty" json:"polymorphic_ctype,omitempty"`
 
 	ModifiedByID        bson.ObjectId  `bson:"modified_by_id" json:"-"`

@@ -287,26 +287,26 @@ func UpdateCredential(c *gin.Context) {
 
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.Password)
-		credential.Password = password
+		req.Password = password
 	}
 
 	if req.Password != "" {
 		data := util.CipherEncrypt(req.SshKeyData)
-		credential.SshKeyData = data
+		req.SshKeyData = data
 
 		if req.SshKeyUnlock != "" {
-			unlock := util.CipherEncrypt(credential.SshKeyUnlock)
-			credential.SshKeyUnlock = unlock
+			unlock := util.CipherEncrypt(req.SshKeyUnlock)
+			req.SshKeyUnlock = unlock
 		}
 	}
 
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.BecomePassword)
-		credential.BecomeUsername = password
+		req.BecomePassword = password
 	}
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.VaultPassword)
-		credential.VaultPassword = password
+		req.VaultPassword = password
 	}
 
 	// trim strings white space
@@ -383,26 +383,26 @@ func PatchCredential(c *gin.Context) {
 
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.Password)
-		credential.Password = password
+		req.Password = password
 	}
 
 	if req.Password != "" {
 		data := util.CipherEncrypt(req.SshKeyData)
-		credential.SshKeyData = data
+		req.SshKeyData = data
 
 		if req.SshKeyUnlock != "" {
-			unlock := util.CipherEncrypt(credential.SshKeyUnlock)
-			credential.SshKeyUnlock = unlock
+			unlock := util.CipherEncrypt(req.SshKeyUnlock)
+			req.SshKeyUnlock = unlock
 		}
 	}
 
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.BecomePassword)
-		credential.BecomeUsername = password
+		req.BecomePassword = password
 	}
 	if req.Password != "" {
 		password := util.CipherEncrypt(req.VaultPassword)
-		credential.VaultPassword = password
+		req.VaultPassword = password
 	}
 
 	// trim strings white space

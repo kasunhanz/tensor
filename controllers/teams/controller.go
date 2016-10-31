@@ -323,8 +323,7 @@ func PatchTeam(c *gin.Context) {
 	req.ModifiedBy = user.ID
 
 	// update object
-	changeinf, err := db.JobTemplates().UpsertId(team.ID, req);
-	if err != nil {
+	if err := db.JobTemplates().UpdateId(team.ID, bson.M{"$set": req}); err != nil {
 		log.Println("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -333,14 +332,12 @@ func PatchTeam(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
-
 	// add new activity to activity stream
 	addActivity(team.ID, user.ID, "Team " + req.Name + " updated")
 
 	// get newly updated host
 	var resp models.Team
-	if err = db.Hosts().FindId(team.ID).One(&resp); err != nil {
+	if err := db.Hosts().FindId(team.ID).One(&resp); err != nil {
 		log.Print("Error while getting the updated Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,

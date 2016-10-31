@@ -87,7 +87,7 @@ type PatchCredential struct {
 	Tenant            string          `bson:"tenant,omitempty" json:"tenant,omitempty"`
 	Secret            string          `bson:"secret,omitempty" json:"secret,omitempty"`
 	Client            string          `bson:"client,omitempty" json:"client,omitempty"`
-	Authorize         bool            `bson:"authorize,omitempty" json:"authorize,omitempty"`
+	Authorize         *bool            `bson:"authorize,omitempty" json:"authorize,omitempty"`
 	AuthorizePassword string          `bson:"authorize_password,omitempty" json:"authorize_password,omitempty"`
 	OrganizationID    *bson.ObjectId  `bson:"organization_id,omitempty" json:"organization,omitempty"`
 	Modified          time.Time       `bson:"modified" json:"-"`

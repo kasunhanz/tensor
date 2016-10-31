@@ -327,8 +327,7 @@ func PatchHost(c *gin.Context) {
 	req.ModifiedByID = user.ID
 
 	//update object
-	changeinf, err := db.Hosts().UpsertId(host.ID, req);
-	if err != nil {
+	if err := db.Hosts().UpdateId(host.ID, bson.M{"$set": req}); err != nil {
 		log.Println("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -337,14 +336,12 @@ func PatchHost(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Matched: %d, Removed: %d, Updated: %d, UpsertId: %s", changeinf.Matched, changeinf.Removed, changeinf.Updated, changeinf.UpsertedId)
-
 	// add new activity to activity stream
 	addActivity(host.ID, user.ID, "Host " + req.Name + " updated")
 
 	// get newly updated host
 	var resp models.Host
-	if err = db.Hosts().FindId(host.ID).One(&resp); err != nil {
+	if err := db.Hosts().FindId(host.ID).One(&resp); err != nil {
 		log.Print("Error while getting the updated Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
