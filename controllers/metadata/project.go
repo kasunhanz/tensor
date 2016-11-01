@@ -4,6 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	"gopkg.in/mgo.v2/bson"
+	"log"
 )
 
 
@@ -64,9 +66,6 @@ func projectSummary(p *models.Project) error {
 		return err
 	}
 
-
-	//TODO: get project job information
-
 	summary := gin.H{
 		"object_roles": []gin.H{
 			{
@@ -85,21 +84,6 @@ func projectSummary(p *models.Project) error {
 				"description": "May view settings for the project",
 				"name": "read",
 			},
-		},
-		"last_job": gin.H{
-			"id": "",
-			"name": "Demo Project",
-			"description": "",
-			"finished": "2016-08-16T19:27:43.416Z",
-			"status": "successful",
-			"failed": false,
-		},
-		"last_update": gin.H{
-			"id": "",
-			"name": "Demo Project",
-			"description": "",
-			"status": "successful",
-			"failed": false,
 		},
 		"organization": gin.H{
 			"id": org.ID,
@@ -131,6 +115,36 @@ func projectSummary(p *models.Project) error {
 			"description": cred.Description,
 			"kind": cred.Kind,
 			"cloud": cred.Cloud,
+		}
+	}
+
+	var lastupdate models.Job
+	if err := db.Jobs().Find(bson.M{"job_type":"update_job", "project_id": p.ID}).Sort("-modified").One(&lastupdate); err != nil {
+		log.Println("Error wile getting last update")
+		summary["last_update"] = nil
+	} else {
+		summary["last_update"] = gin.H{
+			"id": lastupdate.ID,
+			"name": lastupdate.Name,
+			"description": lastupdate.Description,
+			"finished": lastupdate.Finished,
+			"status": lastupdate.Status,
+			"failed": lastupdate.Failed,
+		}
+	}
+
+	var lastjob models.Job
+	if err := db.Jobs().Find(bson.M{"job_type":"job", "project_id": p.ID}).Sort("-modified").One(&lastjob); err != nil {
+		log.Println("Error wile getting last job")
+		summary["last_job"] = nil
+	} else {
+		summary["last_job"] = gin.H{
+			"id": lastjob.ID,
+			"name": lastjob.Name,
+			"description": lastjob.Description,
+			"finished": lastjob.Finished,
+			"status": lastjob.Status,
+			"failed": lastjob.Failed,
 		}
 	}
 

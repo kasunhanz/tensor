@@ -474,7 +474,7 @@ func Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml", f.Name())
 			if err == nil && r {
-				files = append(files, f.Name())
+				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
 			}
 		}
 		return nil

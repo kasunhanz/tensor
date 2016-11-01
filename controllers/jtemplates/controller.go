@@ -734,7 +734,7 @@ func Launch(c *gin.Context) {
 	// if prompt is true override Job template
 	// if not provided return an error message
 	if template.PromptVariables {
-		if !len(req.ExtraVars) > 0 {
+		if !(len(req.ExtraVars) > 0) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Additional variables required"},
@@ -746,7 +746,7 @@ func Launch(c *gin.Context) {
 	}
 
 	if template.PromptLimit {
-		if !len(req.Limit) > 0 {
+		if !(len(req.Limit) > 0) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Limit required"},
@@ -758,7 +758,7 @@ func Launch(c *gin.Context) {
 	}
 
 	if template.PromptTags {
-		if !len(req.JobTags) > 0 {
+		if !(len(req.JobTags) > 0) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Job Tags required"},
@@ -770,7 +770,7 @@ func Launch(c *gin.Context) {
 	}
 
 	if template.PromptSkipTags {
-		if !len(req.SkipTags) > 0 {
+		if !(len(req.SkipTags) > 0) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Skip Tags required"},
@@ -782,7 +782,7 @@ func Launch(c *gin.Context) {
 	}
 
 	if template.PromptJobType {
-		if !len(req.JobType) > 0 {
+		if !(len(req.JobType) > 0) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Job Type required"},

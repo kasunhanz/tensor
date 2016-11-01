@@ -447,7 +447,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	}
 
 	// --force-handlers
-	if len(j.Job.ForceHandlers) > 0 {
+	if j.Job.ForceHandlers {
 		params = append(params, "--force-handlers")
 	}
 

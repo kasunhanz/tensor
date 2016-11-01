@@ -1,4 +1,4 @@
 package util
 
 // Version is for hold the system version globally
-var Version = "0.0.7"
+var Version = "0.0.8"

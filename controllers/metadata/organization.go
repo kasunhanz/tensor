@@ -4,9 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	"gopkg.in/mgo.v2/bson"
+	"log"
 )
-
-
 
 // Create a new organization
 func OrganizationMetadata(o *models.Organization) error {
@@ -53,9 +53,34 @@ func organizationSummary(o *models.Organization) error {
 		return err
 	}
 
+	jcount, err := db.JobTemplates().Find(bson.M{"organization_id": o.ID}).Count();
+	if err != nil {
+		log.Println("Erro wile getting JobTemplates count")
+	}
+
+	ucount, err := db.Users().Find(bson.M{"organization_id": o.ID}).Count();
+	if err != nil {
+		log.Println("Erro wile getting Users count")
+	}
+
+	tcount, err := db.Teams().Find(bson.M{"organization_id": o.ID}).Count();
+	if err != nil {
+		log.Println("Erro wile getting Team count")
+	}
+
+	icount, err := db.Inventories().Find(bson.M{"organization_id": o.ID}).Count();
+	if err != nil {
+		log.Println("Erro wile getting Inventories count")
+	}
+
+	pcount, err := db.Projects().Find(bson.M{"organization_id": o.ID}).Count();
+	if err != nil {
+		log.Println("Erro wile getting Project count")
+	}
+
 	//TODO: include teams to owners list
 
-	o.SummaryFields = gin.H{
+	summary := gin.H{
 		"object_roles": []gin.H{
 			{
 				"Description": "Can view all settings for the organization",
@@ -76,12 +101,12 @@ func organizationSummary(o *models.Organization) error {
 		},
 
 		"related_field_counts": map[string]int{
-			"job_templates":1,
-			"users":2,
-			"teams":2,
-			"admins":2,
-			"inventories":1,
-			"projects":1,
+			"job_templates":jcount,
+			"users":ucount,
+			"teams":tcount,
+			"admins":0,
+			"inventories":icount,
+			"projects":pcount,
 		},
 		"created_by": gin.H{
 			"id":         created.ID,
@@ -97,6 +122,8 @@ func organizationSummary(o *models.Organization) error {
 		},
 		"owners": owners,
 	}
+
+	o.SummaryFields = summary
 
 	return nil
 }
