@@ -6,7 +6,7 @@ import (
 )
 
 func IsUniqueProject(name string, OID bson.ObjectId) bool {
-	count, err := db.Projects().Find(bson.M{"name": name, "project_id": OID}).Count();
+	count, err := db.Projects().Find(bson.M{"name": name, "organization_id": OID}).Count();
 	if err == nil && count > 0 {
 		return false
 	}
@@ -15,7 +15,7 @@ func IsUniqueProject(name string, OID bson.ObjectId) bool {
 }
 
 func IsNotUniqueProject(name string, OID bson.ObjectId) bool {
-	count, err := db.Projects().Find(bson.M{"name": name, "project_id": OID}).Count();
+	count, err := db.Projects().Find(bson.M{"name": name, "organization_id": OID}).Count();
 	if err == nil && count > 0 {
 		return true
 	}

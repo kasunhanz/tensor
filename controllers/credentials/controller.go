@@ -189,32 +189,31 @@ func AddCredential(c *gin.Context) {
 	req.Created = time.Now()
 	req.Modified = time.Now()
 
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.Password)
 		req.Password = password
 	}
 
-	if req.SshKeyData != "" {
+	if len(req.SshKeyData) > 0 {
 		data := util.CipherEncrypt(req.SshKeyData)
 		req.SshKeyData = data
 
-		if req.SshKeyUnlock != "" {
+		if len(req.SshKeyUnlock) > 0 {
 			unlock := util.CipherEncrypt(req.SshKeyUnlock)
 			req.SshKeyUnlock = unlock
 		}
 	}
 
-	if req.BecomePassword != "" {
+	if len(req.BecomePassword) > 0 {
 		password := util.CipherEncrypt(req.BecomePassword)
 		req.BecomePassword = password
 	}
-	if req.VaultPassword != "" {
+	if len(req.VaultPassword) > 0 {
 		password := util.CipherEncrypt(req.VaultPassword)
 		req.VaultPassword = password
 	}
 
-	err := db.Credentials().Insert(req)
-	if err != nil {
+	if err := db.Credentials().Insert(req); err != nil {
 		log.Println("Error while creating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -223,8 +222,7 @@ func AddCredential(c *gin.Context) {
 		return
 	}
 
-	err = roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN)
-	if err != nil {
+	if err := roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN); err != nil {
 		log.Println("Error while adding the user to roles:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -285,12 +283,12 @@ func UpdateCredential(c *gin.Context) {
 		}
 	}
 
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.Password)
 		req.Password = password
 	}
 
-	if req.Password != "" {
+	if len(req.SshKeyData) > 0 {
 		data := util.CipherEncrypt(req.SshKeyData)
 		req.SshKeyData = data
 
@@ -300,11 +298,11 @@ func UpdateCredential(c *gin.Context) {
 		}
 	}
 
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.BecomePassword)
 		req.BecomePassword = password
 	}
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.VaultPassword)
 		req.VaultPassword = password
 	}
@@ -381,26 +379,26 @@ func PatchCredential(c *gin.Context) {
 		}
 	}
 
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.Password)
 		req.Password = password
 	}
 
-	if req.Password != "" {
+	if len(req.SshKeyData) > 0 {
 		data := util.CipherEncrypt(req.SshKeyData)
 		req.SshKeyData = data
 
-		if req.SshKeyUnlock != "" {
+		if len(req.SshKeyUnlock) > 0 {
 			unlock := util.CipherEncrypt(req.SshKeyUnlock)
 			req.SshKeyUnlock = unlock
 		}
 	}
 
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.BecomePassword)
 		req.BecomePassword = password
 	}
-	if req.Password != "" {
+	if len(req.Password) > 0 {
 		password := util.CipherEncrypt(req.VaultPassword)
 		req.VaultPassword = password
 	}

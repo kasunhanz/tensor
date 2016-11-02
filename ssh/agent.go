@@ -18,7 +18,7 @@ import (
 )
 
 // startAgent executes ssh-agent, and returns a Agent interface to it.
-func StartAgent() (client agent.Agent, socket string, cleanup func()) {
+func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 	bin, err := exec.LookPath("ssh-agent")
 	if err != nil {
 		log.Println("could not find ssh-agent")
@@ -49,7 +49,7 @@ func StartAgent() (client agent.Agent, socket string, cleanup func()) {
 		log.Printf("could not find key SSH_AGENT_PID in %q", fields[2])
 	}
 	pidStr := line[1]
-	pid, err := strconv.Atoi(string(pidStr))
+	pid, err = strconv.Atoi(string(pidStr))
 	if err != nil {
 		log.Printf("Atoi(%q): %v", pidStr, err)
 	}
@@ -60,7 +60,7 @@ func StartAgent() (client agent.Agent, socket string, cleanup func()) {
 	}
 
 	ac := agent.NewClient(conn)
-	return ac, socket, func() {
+	return ac, socket, pid, func() {
 		proc, _ := os.FindProcess(pid)
 		if proc != nil {
 			proc.Kill()
@@ -96,7 +96,6 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 	} else {
 		log.Println(err)
 	}
-
 
 	return nil, errors.New("ssh/agent: failed to parse private key")
 }

@@ -81,6 +81,7 @@ func (t *AnsibleJob) jobCancel() {
 	d := bson.M{
 		"$set": bson.M{
 			"status": t.Job.Status,
+			"cancel_flag": true,
 			"failed": t.Job.Failed,
 			"finished": t.Job.Finished,
 			"elapsed": diff.Minutes(),

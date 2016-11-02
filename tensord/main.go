@@ -39,8 +39,8 @@ func main() {
 
 	controllers.Route(r)
 
-	go runners.StartAnsibleRunner()
-	go runners.StartSystemRunner()
+	go runners.AnsiblePool.Run()
+	go runners.SystemPool.Run()
 
 	r.Run(util.Config.Port)
 

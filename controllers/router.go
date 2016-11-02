@@ -237,7 +237,6 @@ func Route(r *gin.Engine) {
 	// job
 	r.GET("/v1/jobs/", jobs.GetJobs)
 	r.GET("/v1/jobs/:job_id/", jobs.Middleware, jobs.GetJob)
-	r.DELETE("/v1/jobs/:job_id/", jobs.Middleware, jobs.GetJob)
 	r.GET("/v1/jobs/:job_id/cancel/", jobs.Middleware, jobs.CancelInfo)
 	r.POST("/v1/jobs/:job_id/cancel/", jobs.Middleware, jobs.Cancel)
 	r.GET("/v1/jobs/:job_id/stdout/", jobs.Middleware, jobs.StdOut)

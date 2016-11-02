@@ -14,19 +14,19 @@ func GroupMetadata(grp *models.Group) error {
 	grp.Type = "inventory"
 	grp.Url = "/v1/inventories/" + ID + "/"
 	grp.Related = gin.H{
-		"created_by": "/api/v1/users/1/",
-		"job_host_summaries": "/api/v1/groups/2/job_host_summaries/",
-		"variable_data": "/api/v1/groups/2/variable_data/",
-		"job_events": "/api/v1/groups/2/job_events/",
-		"potential_children": "/api/v1/groups/2/potential_children/",
-		"ad_hoc_commands": "/api/v1/groups/2/ad_hoc_commands/",
-		"all_hosts": "/api/v1/groups/2/all_hosts/",
-		"activity_stream": "/api/v1/groups/2/activity_stream/",
-		"hosts": "/api/v1/groups/2/hosts/",
-		"children": "/api/v1/groups/2/children/",
-		"inventory_sources": "/api/v1/groups/2/inventory_sources/",
-		"inventory": "/api/v1/inventories/1/",
-		"inventory_source": "/api/v1/inventory_sources/7/",
+		"created_by": "/v1/users/1/",
+		"job_host_summaries": "/v1/groups/2/job_host_summaries/",
+		"variable_data": "/v1/groups/2/variable_data/",
+		"job_events": "/v1/groups/2/job_events/",
+		"potential_children": "/v1/groups/2/potential_children/",
+		"ad_hoc_commands": "/v1/groups/2/ad_hoc_commands/",
+		"all_hosts": "/v1/groups/2/all_hosts/",
+		"activity_stream": "/v1/groups/2/activity_stream/",
+		"hosts": "/v1/groups/2/hosts/",
+		"children": "/v1/groups/2/children/",
+		"inventory_sources": "/v1/groups/2/inventory_sources/",
+		"inventory": "/v1/inventories/1/",
+		"inventory_source": "/v1/inventory_sources/7/",
 	}
 
 	if err := groupSummary(grp); err != nil {

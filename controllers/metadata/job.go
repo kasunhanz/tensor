@@ -11,38 +11,38 @@ func JobMetadata(job *models.Job) error {
 	job.Type = job.JobType
 	job.Url = "/v1/jobs/" + ID + "/"
 	related := gin.H{
-		"labels": "/api/v1/jobs/" + ID + "/labels/",
-		"project": "/api/v1/projects/" + job.ProjectID.Hex() + "/",
-		"stdout": "/api/v1/jobs/" + ID + "/stdout/",
-		"job_host_summaries": "/api/v1/jobs/" + ID + "/job_host_summaries/",
-		"job_tasks": "/api/v1/jobs/" + ID + "/job_tasks/",
-		"job_plays": "/api/v1/jobs/" + ID + "/job_plays/",
-		"job_events": "/api/v1/jobs/" + ID + "/job_events/",
-		"notifications": "/api/v1/jobs/" + ID + "/notifications/",
-		"activity_stream": "/api/v1/jobs/" + ID + "/activity_stream/",
-		"start": "/api/v1/jobs/" + ID + "/start/",
-		"cancel": "/api/v1/jobs/" + ID + "/cancel/",
-		"relaunch": "/api/v1/jobs/" + ID + "/relaunch/",
+		"labels": "/v1/jobs/" + ID + "/labels/",
+		"project": "/v1/projects/" + job.ProjectID.Hex() + "/",
+		"stdout": "/v1/jobs/" + ID + "/stdout/",
+		"job_host_summaries": "/v1/jobs/" + ID + "/job_host_summaries/",
+		"job_tasks": "/v1/jobs/" + ID + "/job_tasks/",
+		"job_plays": "/v1/jobs/" + ID + "/job_plays/",
+		"job_events": "/v1/jobs/" + ID + "/job_events/",
+		"notifications": "/v1/jobs/" + ID + "/notifications/",
+		"activity_stream": "/v1/jobs/" + ID + "/activity_stream/",
+		"start": "/v1/jobs/" + ID + "/start/",
+		"cancel": "/v1/jobs/" + ID + "/cancel/",
+		"relaunch": "/v1/jobs/" + ID + "/relaunch/",
 	}
 
 	if len(job.CreatedByID) == 12 {
-		related["created_by"] = "/api/v1/users/" + job.CreatedByID.Hex() + "/"
+		related["created_by"] = "/v1/users/" + job.CreatedByID.Hex() + "/"
 	}
 
 	if len(job.ModifiedByID) == 12 {
-		related["modified_by"] = "/api/v1/users/" + job.ModifiedByID.Hex() + "/"
+		related["modified_by"] = "/v1/users/" + job.ModifiedByID.Hex() + "/"
 	}
 
 	if len(job.MachineCredentialID) == 12 {
-		related["credential"] = "/api/v1/credentials/" + job.MachineCredentialID.Hex() + "/"
+		related["credential"] = "/v1/credentials/" + job.MachineCredentialID.Hex() + "/"
 	}
 
 	if len(job.InventoryID) == 12 {
-		related["inventory"] = "/api/v1/inventories/" + job.InventoryID.Hex() + "/"
+		related["inventory"] = "/v1/inventories/" + job.InventoryID.Hex() + "/"
 	}
 
 	if len(job.JobTemplateID) == 12 {
-		related["job_template"] = "/api/v1/job_templates/" + job.JobTemplateID.Hex() + "/"
+		related["job_template"] = "/v1/job_templates/" + job.JobTemplateID.Hex() + "/"
 	}
 
 	job.Related = related

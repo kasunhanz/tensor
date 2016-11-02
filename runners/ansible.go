@@ -14,6 +14,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/util"
+	"strconv"
 )
 
 // JobPaths
@@ -51,17 +52,7 @@ func (p *AnsibleJobPool) hasRunningJob(job *AnsibleJob) bool {
 	return false
 }
 
-func (p *AnsibleJobPool) RemoveFromRunning(job *AnsibleJob) bool {
-	for k, v := range p.running {
-		if v.Job.ID == job.Job.ID {
-			p.running = append(p.running[:k], p.running[k + 1:]...)
-			return true
-		}
-	}
-	return false
-}
-
-func (p *AnsibleJobPool) run() {
+func (p *AnsibleJobPool) Run() {
 	ticker := time.NewTicker(2 * time.Second)
 
 	defer func() {
@@ -78,32 +69,65 @@ func (p *AnsibleJobPool) run() {
 
 			p.queue = append(p.queue, job)
 		case <-ticker.C:
-
 			if len(p.queue) == 0 {
 				continue
 			}
 
-			job := AnsiblePool.queue[0]
+			job := p.queue[0]
 		// if has running jobs and allow simultaneous
+		// because if the job is running and AllowSimultaneous false
+		// we need to make sure another instance of the same job will not run
 			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
 
 			fmt.Println("Running a task.")
-			go AnsiblePool.queue[0].run()
-			AnsiblePool.queue = AnsiblePool.queue[1:]
+			go p.queue[0].run()
+			p.queue = p.queue[1:]
 		}
 	}
 }
 
-func (p *AnsibleJobPool) RemoveFromPool(id bson.ObjectId) bool {
+func (p *AnsibleJobPool) DetachFromRunning(id bson.ObjectId) bool {
+	for k, v := range p.running {
+		if v.Job.ID == id {
+			p.running = append(p.running[:k], p.running[k + 1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// KillJob will loop through Ansible job queue and Running job queue and
+// kills the job
+func (p *AnsibleJobPool) KillJob(id bson.ObjectId) bool {
+	// check the queue if the job is the queue then remove it
+	// and update the database with cancel status
 	for k, v := range p.queue {
 		if v.Job.ID == id {
+			// remove from job queue
 			p.queue = append(p.queue[:k], p.queue[k + 1:]...)
 			v.jobCancel() // update job in database
 			return true
 		}
 	}
+
+	for k, v := range p.running {
+		if v.Job.ID == id {
+			// if scm update is configured on launch
+			if v.Project.ScmUpdateOnLaunch && v.Job.Status == "waiting" {
+				log.Println("Sending update kill signal to job:", id.Hex())
+				v.UpdateSigKill <- true
+			} else {
+				log.Println("Sending kill signal to job:", id.Hex())
+				v.SigKill <- true //send kill signal
+			}
+			p.running = append(p.running[:k], p.running[k + 1:]...)
+			v.jobCancel() // update job in database
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -113,45 +137,74 @@ func (p *AnsibleJobPool) CanCancel(id bson.ObjectId) bool {
 			return true
 		}
 	}
+
+	for _, v := range p.running {
+		if v.Job.ID == id {
+			return true
+		}
+	}
+
 	return false
 }
 
 func CancelJob(id bson.ObjectId) bool {
-	return AnsiblePool.RemoveFromPool(id)
+	return AnsiblePool.KillJob(id)
 }
 
 func CanCancel(id bson.ObjectId) bool {
 	return AnsiblePool.CanCancel(id)
 }
 
-func StartAnsibleRunner() {
-	AnsiblePool.run()
-}
-
 type AnsibleJob struct {
-	Job         models.Job
-	Template    models.JobTemplate
-	MachineCred models.Credential
-	NetworkCred models.Credential
-	CloudCred   models.Credential
-	Inventory   models.Inventory
-	Project     models.Project
-	User        models.User
-	Token       string
-	JobPaths    JobPaths
+	Job           models.Job
+	Template      models.JobTemplate
+	MachineCred   models.Credential
+	NetworkCred   models.Credential
+	CloudCred     models.Credential
+	Inventory     models.Inventory
+	Project       models.Project
+	User          models.User
+	Token         string
+	JobPaths      JobPaths
+	SigKill       chan bool
+	UpdateSigKill chan bool
 }
 
 func (j *AnsibleJob) run() {
+	//create a boolean channel to send the kill signal
+	j.SigKill = make(chan bool)
+	j.UpdateSigKill = make(chan bool)
+
+	AnsiblePool.running = append(AnsiblePool.running, j)
 
 	j.status("pending")
+	log.Println("Job [" + j.Job.ID.Hex() + "] is pending:")
 	// update if requested
 	if j.Project.ScmUpdateOnLaunch {
 		// wait for scm update
 		j.status("waiting")
-		err, updateID := UpdateProject(j.Project)
+		log.Println("Job [" + j.Job.ID.Hex() + "] is waiting:")
+		updateJob, err := UpdateProject(j.Project)
+
+		// listen to channel
+		// if true kill the channel and exit
+		log.Println("Waiting for kill signal of update job:", updateJob.Job.ID.Hex())
+		go func() {
+			for {
+				select {
+				case kill := <-j.UpdateSigKill:
+					log.Println("Received update kill signal:", kill)
+				// kill true then kill the update job
+					if kill {
+						log.Println("Sending received update kill signal to updatejob:", kill)
+						updateJob.SigKill <- true
+					}
+				}
+			}
+		}()
 
 		if err != nil {
-			j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+			j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
 			j.Job.ResultStdout = "stdout capture is missing"
 			j.jobError()
 			return
@@ -160,14 +213,13 @@ func (j *AnsibleJob) run() {
 		ticker := time.NewTicker(time.Second * 2)
 
 		for range ticker.C {
-			status, err := getJobStatus(updateID)
-			if status == "failed" || status == "error" || err != nil {
-				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateID.Hex() + "\"}"
+			if updateJob.Job.Status == "failed" || updateJob.Job.Status == "error" {
+				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
 				j.Job.ResultStdout = "stdout capture is missing"
 				j.jobError()
 				return
 			}
-			if status == "successful" {
+			if updateJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
 				ticker.Stop()
 				break
@@ -175,14 +227,6 @@ func (j *AnsibleJob) run() {
 
 		}
 	}
-
-	AnsiblePool.running = append(AnsiblePool.running, j)
-
-	defer func() {
-		fmt.Println("Stopped running tasks")
-		AnsiblePool.RemoveFromRunning(j)
-		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
-	}()
 
 	j.start()
 
@@ -207,20 +251,142 @@ func (j *AnsibleJob) run() {
 	// create job directories
 	j.createJobDirs()
 
-	output, err := j.runPlaybook();
-	j.Job.ResultStdout = string(output)
+	// Start SSH agent
+	client, socket, pid, cleanup := ssh.StartAgent()
+
+	defer func() {
+		fmt.Println("Stopped running tasks")
+		AnsiblePool.DetachFromRunning(j.Job.ID)
+		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
+		cleanup()
+	}()
+
+	if len(j.MachineCred.SshKeyData) > 0 {
+
+		if j.MachineCred.SshKeyUnlock != "" {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
+			if err != nil {
+				log.Println("Error while decyrpting Machine Credential", err)
+				j.Job.JobExplanation = err.Error()
+				j.jobFail()
+				return
+			}
+			if client.Add(key); err != nil {
+				log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				j.Job.JobExplanation = err.Error()
+				j.jobFail()
+				return
+			}
+		}
+
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
+		if err != nil {
+			log.Println("Error while decyrpting Machine Credential", err)
+			j.Job.JobExplanation = err.Error()
+			j.jobFail()
+			return
+		}
+
+		if client.Add(key); err != nil {
+			log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			j.Job.JobExplanation = err.Error()
+			j.jobFail()
+			return
+		}
+
+	}
+
+	if len(j.NetworkCred.SshKeyData) > 0 {
+		if len(j.NetworkCred.SshKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
+			if err != nil {
+				log.Println("Error while decyrpting Machine Credential", err)
+				j.Job.JobExplanation = err.Error()
+				j.jobFail()
+				return
+			}
+			if client.Add(key); err != nil {
+				log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				j.Job.JobExplanation = err.Error()
+				j.jobFail()
+				return
+			}
+		}
+
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
+		if err != nil {
+			log.Println("Error while decyrpting Machine Credential", err)
+			j.Job.JobExplanation = err.Error()
+			j.jobFail()
+			return
+		}
+
+		if client.Add(key); err != nil {
+			log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			j.Job.JobExplanation = err.Error()
+			j.jobFail()
+			return
+		}
+
+	}
+
+	cmd, err := j.getCmd(socket, pid);
 	if err != nil {
 		log.Println("Running playbook failed", err)
+		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
 		j.jobFail()
 		return
 	}
+
+	// To make sure the SigKill not execute before job starts
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+
+	if err := cmd.Start(); err != nil {
+		if err != nil {
+			log.Println("Running playbook failed", err)
+			j.Job.JobExplanation = err.Error()
+			j.jobFail()
+			return
+		}
+	}
+
+	// listen to channel
+	// if true kill the channel and exit
+	go func() {
+		for {
+			select {
+			case kill := <-j.SigKill:
+			// kill true then kill the job
+				if kill {
+					if err := cmd.Process.Kill(); err != nil {
+						log.Println("Could not cancel the job")
+						return // exit from goroutine
+					}
+					j.jobCancel() // update cancelled status
+				}
+			}
+		}
+	}()
+
+	waitErr := cmd.Wait();
+	// set stdout if
+	j.Job.ResultStdout = string(b.Bytes())
+	if waitErr != nil {
+		log.Println("Running playbook failed", waitErr)
+		j.Job.JobExplanation = waitErr.Error()
+		j.jobFail()
+		return
+	}
+
 	//success
 	j.jobSuccess()
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func (j *AnsibleJob) runPlaybook() ([]byte, error) {
+func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
@@ -278,60 +444,6 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 	// should not included in any output
 	pargs = append(pargs, pSecure...)
 
-	// Start SSH agent
-	client, socket, cleanup := ssh.StartAgent()
-
-	if j.MachineCred.SshKeyData != "" {
-
-		if j.MachineCred.SshKeyUnlock != "" {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
-			if err != nil {
-				return []byte("stdout capture is missing"), err
-			}
-			if client.Add(key); err != nil {
-				return []byte("stdout capture is missing"), err
-			}
-		}
-
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
-		if err != nil {
-			return []byte("stdout capture is missing"), err
-		}
-
-		if client.Add(key); err != nil {
-			return []byte("stdout capture is missing"), err
-		}
-
-	}
-
-	if j.NetworkCred.SshKeyData != "" {
-		if j.NetworkCred.SshKeyUnlock != "" {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
-			if err != nil {
-				return []byte("stdout capture is missing"), err
-			}
-			if client.Add(key); err != nil {
-				return []byte("stdout capture is missing"), err
-			}
-		}
-
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
-		if err != nil {
-			return []byte("stdout capture is missing"), err
-		}
-
-		if client.Add(key); err != nil {
-			return []byte("stdout capture is missing"), err
-		}
-
-	}
-
-	defer func() {
-		// cleanup the mess
-		cleanup()
-	}()
-
-
 	// set job arguments, exclude unencrypted passwords etc.
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
 
@@ -345,10 +457,10 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 	cmd := exec.Command("ansible-playbook", pargs...)
 	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
 
-	cmd.Env = append(os.Environ(), []string{
+	cmd.Env = []string{
+		"PATH=/bin:/usr/local/go/bin:/opt/tensor/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
-		"PS1=(tensor)",
 		"ANSIBLE_CALLBACK_PLUGINS=/opt/tensor/plugins/callback",
 		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
@@ -357,11 +469,12 @@ func (j *AnsibleJob) runPlaybook() ([]byte, error) {
 		"INVENTORY_HOSTVARS=True",
 		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
 		"SSH_AUTH_SOCK=" + socket,
-	}...)
+		"SSH_AGENT_PID=" + strconv.Itoa(pid),
+	}
 
 	j.Job.JobENV = cmd.Env
 
-	return cmd.CombinedOutput()
+	return cmd, nil
 }
 
 // createJobDirs

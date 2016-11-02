@@ -886,7 +886,7 @@ func Launch(c *gin.Context) {
 	}
 	runnerJob.Project = project
 
-	// Get jwt token for authorize ansible inventory plugin
+	// Get jwt token for authorize Ansible inventory plugin
 	var token jwt.LocalToken
 	if err := jwt.NewAuthToken(&token); err != nil {
 		log.Println("Error while getting Token:", err)

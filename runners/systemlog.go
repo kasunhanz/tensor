@@ -56,6 +56,36 @@ func (t *SystemJob) fail() {
 	t.updateProject()
 }
 
+func (t *SystemJob) jobCancel() {
+	t.Job.Status = "canceled"
+	t.Job.Finished = time.Now()
+	t.Job.Failed = false
+
+	//get elapsed time in minutes
+	diff := t.Job.Finished.Sub(t.Job.Started)
+
+	d := bson.M{
+		"$set": bson.M{
+			"status": t.Job.Status,
+			"failed": t.Job.Failed,
+			"cancel_flag": true,
+			"finished": t.Job.Finished,
+			"elapsed": diff.Minutes(),
+			"result_stdout": "stdout capture is missing",
+			"job_explanation": "Job Cancelled",
+			"job_args": t.Job.JobARGS,
+			"job_env": t.Job.JobENV,
+			"job_cwd": t.Job.JobCWD,
+		},
+	}
+
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+		log.Println("Failed to update job status, status was", t.Job.Status, err)
+	}
+
+	t.updateProject()
+}
+
 func (t *SystemJob) success() {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()

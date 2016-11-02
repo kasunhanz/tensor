@@ -13,19 +13,19 @@ func HostMetadata(host *models.Host) error {
 	host.Type = "host"
 	host.Url = "/v1/hosts/" + ID + "/"
 	host.Related = gin.H{
-		"created_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",
-		"modified_by": "/api/v1/users/" + host.CreatedByID.Hex() + "/",
-		"job_host_summaries": "/api/v1/hosts/" + ID + "/job_host_summaries/",
-		"variable_data": "/api/v1/hosts/" + ID + "/variable_data/",
-		"job_events": "/api/v1/hosts/" + ID + "/job_events/",
-		"ad_hoc_commands": "/api/v1/hosts/" + ID + "/ad_hoc_commands/",
-		"fact_versions": "/api/v1/hosts/" + ID + "/fact_versions/",
-		"inventory_sources": "/api/v1/hosts/" + ID + "/inventory_sources/",
-		"groups": "/api/v1/hosts/" + ID + "/groups/",
-		"activity_stream": "/api/v1/hosts/" + ID + "/activity_stream/",
-		"all_groups": "/api/v1/hosts/" + ID + "/all_groups/",
-		"ad_hoc_command_events": "/api/v1/hosts/" + ID + "/ad_hoc_command_events/",
-		"inventory": "/api/v1/inventories/" + host.InventoryID + "/",
+		"created_by": "/v1/users/" + host.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + host.CreatedByID.Hex() + "/",
+		"job_host_summaries": "/v1/hosts/" + ID + "/job_host_summaries/",
+		"variable_data": "/v1/hosts/" + ID + "/variable_data/",
+		"job_events": "/v1/hosts/" + ID + "/job_events/",
+		"ad_hoc_commands": "/v1/hosts/" + ID + "/ad_hoc_commands/",
+		"fact_versions": "/v1/hosts/" + ID + "/fact_versions/",
+		"inventory_sources": "/v1/hosts/" + ID + "/inventory_sources/",
+		"groups": "/v1/hosts/" + ID + "/groups/",
+		"activity_stream": "/v1/hosts/" + ID + "/activity_stream/",
+		"all_groups": "/v1/hosts/" + ID + "/all_groups/",
+		"ad_hoc_command_events": "/v1/hosts/" + ID + "/ad_hoc_command_events/",
+		"inventory": "/v1/inventories/" + host.InventoryID + "/",
 	}
 
 	if err := hostSummary(host); err != nil {

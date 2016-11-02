@@ -3,7 +3,6 @@ package helpers
 import (
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
 	"bitbucket.pearson.com/apseng/tensor/models"
 )
 
@@ -18,7 +17,6 @@ func IsUniqueCredential(name string) bool {
 
 func IsNotUniqueCredential(name string) bool {
 	count, err := db.Credentials().Find(bson.M{"name": name}).Count();
-	log.Println(count)
 	if err == nil && count > 0 {
 		return true
 	}

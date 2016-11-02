@@ -196,8 +196,8 @@ func AddProject(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Project " + req.Name + " created")
 
 	// before set metadata update the project
-	if err, sysJobID := runners.UpdateProject(req); err != nil {
-		log.Println("Error while scm update " + sysJobID.Hex(), err)
+	if sysJobID, err := runners.UpdateProject(req); err != nil {
+		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	if err := metadata.ProjectMetadata(&req); err != nil {
@@ -286,8 +286,8 @@ func UpdateProject(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Project " + req.Name + " updated")
 
 	// before set metadata update the project
-	if err, sysJobID := runners.UpdateProject(req); err != nil {
-		log.Println("Error while scm update " + sysJobID.Hex(), err)
+	if sysJobID, err := runners.UpdateProject(req); err != nil {
+		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
@@ -390,8 +390,8 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if err, sysJobID := runners.UpdateProject(resp); err != nil {
-		log.Println("Error while scm update " + sysJobID.Hex(), err)
+	if sysJobID, err := runners.UpdateProject(resp); err != nil {
+		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
@@ -662,7 +662,7 @@ func SCMUpdate(c *gin.Context) {
 		return
 	}
 
-	err, updateId := runners.UpdateProject(project)
+	updateId, err := runners.UpdateProject(project)
 
 	if err != nil {
 		c.JSON(http.StatusMethodNotAllowed, models.Error{
@@ -672,5 +672,5 @@ func SCMUpdate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{"project_update": updateId.Hex() })
+	c.JSON(http.StatusAccepted, gin.H{"project_update": updateId.Job.ID.Hex() })
 }

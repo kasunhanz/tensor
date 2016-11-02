@@ -158,6 +158,7 @@ func Cancel(c *gin.Context) {
 
 	if runners.CancelJob(job.ID) {
 		c.AbortWithStatus(http.StatusAccepted)
+		return
 	}
 
 	c.AbortWithStatus(http.StatusMethodNotAllowed)
