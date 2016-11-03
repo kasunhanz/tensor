@@ -263,7 +263,7 @@ func (j *AnsibleJob) run() {
 
 	if len(j.MachineCred.SshKeyData) > 0 {
 
-		if j.MachineCred.SshKeyUnlock != "" {
+		if len(j.MachineCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
 				log.Println("Error while decyrpting Machine Credential", err)
@@ -409,7 +409,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		pPlaybook = append(pPlaybook, "-u", uname)
 
 		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
-			pSecure = append(pSecure, "-e", "'ansible_ssh_pass=" + util.CipherDecrypt(j.MachineCred.Password) + "'")
+			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + util.CipherDecrypt(j.MachineCred.Password) + "")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
@@ -422,17 +422,17 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		pPlaybook = append(pPlaybook, "-b")
 
 		// default become method is sudo
-		if j.MachineCred.BecomeMethod != "" {
+		if len(j.MachineCred.BecomeMethod) > 0 {
 			pPlaybook = append(pPlaybook, "--become-method=" + j.MachineCred.BecomeMethod)
 		}
 
 		// default become user is root
-		if j.MachineCred.BecomeUsername != "" {
+		if len(j.MachineCred.BecomeUsername) > 0 {
 			pPlaybook = append(pPlaybook, "--become-user=" + j.MachineCred.BecomeUsername)
 		}
 
 		// for now this is more convenient than --ask-become-pass with sshpass
-		if j.MachineCred.BecomePassword != "" {
+		if len(j.MachineCred.BecomePassword) > 0 {
 			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.MachineCred.BecomePassword) + "'")
 		}
 	}
@@ -458,6 +458,13 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
 
 	cmd.Env = []string{
+		"TERM=xterm",
+		"PROJECT_PATH=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"HOME_PATH=/opt/tensor/",
+		"PWD=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"SHLVL=1",
+		"HOME=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"_=/opt/tensor/bin/tensord",
 		"PATH=/bin:/usr/local/go/bin:/opt/tensor/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
