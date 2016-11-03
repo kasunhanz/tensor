@@ -463,7 +463,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		"HOME_PATH=/opt/tensor/",
 		"PWD=/opt/tensor/projects/" + j.Project.ID.Hex(),
 		"SHLVL=1",
-		"HOME=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"HOME=/root",
 		"_=/opt/tensor/bin/tensord",
 		"PATH=/bin:/usr/local/go/bin:/opt/tensor/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
