@@ -1,7 +1,6 @@
 package runners
 
 import (
-	"log"
 	"os/exec"
 	"time"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	"errors"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	log "github.com/Sirupsen/logrus"
 )
 
 type SystemJobPool struct {

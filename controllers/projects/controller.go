@@ -7,7 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"path/filepath"

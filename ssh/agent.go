@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"golang.org/x/crypto/ssh/agent"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"

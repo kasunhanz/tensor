@@ -4,7 +4,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func ProjectRead(user models.User, project models.Project) bool {

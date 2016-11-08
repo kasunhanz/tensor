@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/controllers"

@@ -5,7 +5,7 @@ import (
 	"gopkg.in/dgrijalva/jwt-go.v3"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"errors"
 )

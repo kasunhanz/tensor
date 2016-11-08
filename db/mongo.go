@@ -4,7 +4,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 var MongoDb *mgo.Database

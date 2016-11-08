@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"bufio"
 	"strings"
 	"gopkg.in/mgo.v2/bson"

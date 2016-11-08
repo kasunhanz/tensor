@@ -5,7 +5,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"net/url"
 	"strings"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 var (

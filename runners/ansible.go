@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"os/exec"
 	"io"

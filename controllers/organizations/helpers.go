@@ -5,7 +5,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {

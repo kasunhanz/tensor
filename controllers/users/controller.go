@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"

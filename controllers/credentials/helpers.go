@@ -2,7 +2,7 @@ package credentials
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"time"
