@@ -53,7 +53,7 @@ func hostSummary(host *models.Host) error {
 		return err
 	}
 
-	host.SummaryFields = gin.H{
+	host.Summary = gin.H{
 		"inventory": gin.H{
 			"id": inv.ID,
 			"name": inv.Name,

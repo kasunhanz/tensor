@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"io"
 	"bitbucket.pearson.com/apseng/tensor/jwt"
+	"strings"
 )
 
 // _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
@@ -315,8 +316,7 @@ func UpdateJTemplate(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.JobTemplate
-	err := binding.JSON.Bind(c.Request, &req);
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
@@ -375,15 +375,39 @@ func UpdateJTemplate(c *gin.Context) {
 		}
 	}
 
-	req.ID = jobTemplate.ID
-	req.Created = jobTemplate.Created
-	req.Modified = time.Now()
-	req.CreatedByID = jobTemplate.CreatedByID
-	req.ModifiedByID = user.ID
+	jobTemplate.Name = strings.Trim(req.Name, " ")
+	jobTemplate.JobType = req.JobType
+	jobTemplate.InventoryID = req.InventoryID
+	jobTemplate.ProjectID = req.ProjectID
+	jobTemplate.Playbook = req.Playbook
+	jobTemplate.MachineCredentialID = req.MachineCredentialID
+	jobTemplate.Verbosity = req.Verbosity
+	jobTemplate.Description = strings.Trim(req.Description, " ")
+	jobTemplate.Forks = req.Forks
+	jobTemplate.Limit = req.Limit
+	jobTemplate.ExtraVars = req.ExtraVars
+	jobTemplate.JobTags = req.JobTags
+	jobTemplate.SkipTags = req.SkipTags
+	jobTemplate.StartAtTask = req.StartAtTask
+	jobTemplate.ForceHandlers = req.ForceHandlers
+	jobTemplate.PromptVariables = req.PromptVariables
+	jobTemplate.BecomeEnabled = req.BecomeEnabled
+	jobTemplate.CloudCredentialID = req.CloudCredentialID
+	jobTemplate.NetworkCredentialID = req.NetworkCredentialID
+	jobTemplate.PromptLimit = req.PromptLimit
+	jobTemplate.PromptInventory = req.PromptInventory
+	jobTemplate.PromptCredential = req.PromptCredential
+	jobTemplate.PromptJobType = req.PromptJobType
+	jobTemplate.PromptTags = req.PromptTags
+	jobTemplate.PromptSkipTags = req.PromptSkipTags
+	jobTemplate.AllowSimultaneous = req.AllowSimultaneous
+	jobTemplate.PolymorphicCtypeID = req.PolymorphicCtypeID
+
+	jobTemplate.Modified = time.Now()
+	jobTemplate.ModifiedByID = user.ID
 
 	// update object
-	err = db.JobTemplates().UpdateId(jobTemplate.ID, req);
-	if err != nil {
+	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -393,11 +417,10 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Job Template " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
 
 	// set `related` and `summary` feilds
-	err = metadata.JTemplateMetadata(&req);
-	if err != nil {
+	if err := metadata.JTemplateMetadata(&jobTemplate); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -407,7 +430,7 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, jobTemplate)
 }
 
 // PatchJTemplate updates the Job Template and returns updated JSON serialized Job Template
@@ -431,7 +454,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// check the project exist or not
-	if len(req.ProjectID) == 12 && !helpers.ProjectExist(req.ProjectID) {
+	if req.ProjectID != nil && !helpers.ProjectExist(*req.ProjectID) {
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
@@ -439,14 +462,14 @@ func PatchJTemplate(c *gin.Context) {
 		return
 	}
 
-	if len(req.Name) > 0 && req.Name != jobTemplate.Name {
+	if req.Name != nil && *req.Name != jobTemplate.Name {
 		// if the JobTemplate exist in the collection it is not unique
 		projectID := jobTemplate.ProjectID
-		if len(req.ProjectID) == 12 {
-			projectID = req.ProjectID
+		if req.ProjectID != nil {
+			projectID = *req.ProjectID
 		}
 
-		if helpers.IsNotUniqueJTemplate(req.Name, projectID) {
+		if helpers.IsNotUniqueJTemplate(*req.Name, projectID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Job Template with this Name already exists."},
@@ -455,9 +478,9 @@ func PatchJTemplate(c *gin.Context) {
 		}
 	}
 
-	if len(req.MachineCredentialID) == 12 {
+	if req.MachineCredentialID != nil {
 		// check whether the machine credential exist or not
-		if !helpers.MachineCredentialExist(req.MachineCredentialID) {
+		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Machine Credential does not exists."},
@@ -488,11 +511,129 @@ func PatchJTemplate(c *gin.Context) {
 		}
 	}
 
-	req.Modified = time.Now()
-	req.ModifiedByID = user.ID
+	if req.Name != nil {
+		jobTemplate.Name = strings.Trim(*req.Name, " ")
+	}
+
+	if req.JobType != nil {
+		jobTemplate.JobType = *req.JobType
+	}
+
+	if req.InventoryID != nil {
+		jobTemplate.InventoryID = *req.InventoryID
+	}
+
+	if req.ProjectID != nil {
+		jobTemplate.ProjectID = *req.ProjectID
+	}
+
+	if req.Playbook != nil {
+		jobTemplate.Playbook = *req.Playbook
+	}
+
+	if req.MachineCredentialID != nil {
+		jobTemplate.MachineCredentialID = *req.MachineCredentialID
+	}
+
+	if req.Verbosity != nil {
+		jobTemplate.Verbosity = *req.Verbosity
+	}
+
+	if req.Description != nil {
+		jobTemplate.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.Forks != nil {
+		jobTemplate.Forks = *req.Forks
+	}
+
+	if req.Limit != nil {
+		jobTemplate.Limit = *req.Limit
+	}
+
+	if req.ExtraVars != nil {
+		jobTemplate.ExtraVars = *req.ExtraVars
+	}
+
+	if req.JobTags != nil {
+		jobTemplate.JobTags = *req.JobTags
+	}
+
+	if req.SkipTags != nil {
+		jobTemplate.SkipTags = *req.SkipTags
+	}
+
+	if req.StartAtTask != nil {
+		jobTemplate.StartAtTask = *req.StartAtTask
+	}
+
+	if req.ForceHandlers != nil {
+		jobTemplate.ForceHandlers = *req.ForceHandlers
+	}
+
+	if req.PromptVariables != nil {
+		jobTemplate.PromptVariables = *req.PromptVariables
+	}
+
+	if req.BecomeEnabled != nil {
+		jobTemplate.BecomeEnabled = *req.BecomeEnabled
+	}
+
+	if req.CloudCredentialID != nil {
+		// if empty string then make the credential null
+		if len(*req.CloudCredentialID) == 12 {
+			jobTemplate.CloudCredentialID = req.CloudCredentialID
+		} else {
+			jobTemplate.CloudCredentialID = nil
+		}
+	}
+
+	if req.NetworkCredentialID != nil {
+		// if empty string then make the credential null
+		if len(*req.NetworkCredentialID) == 12 {
+			jobTemplate.NetworkCredentialID = req.NetworkCredentialID
+		} else {
+			jobTemplate.NetworkCredentialID = nil
+		}
+	}
+
+	if req.PromptLimit != nil {
+		jobTemplate.PromptLimit = *req.PromptLimit
+	}
+
+	if req.PromptInventory != nil {
+		jobTemplate.PromptInventory = *req.PromptInventory
+	}
+
+	if req.PromptCredential != nil {
+		jobTemplate.PromptCredential = *req.PromptCredential
+	}
+
+	if req.PromptJobType != nil {
+		jobTemplate.PromptJobType = *req.PromptJobType
+	}
+
+	if req.PromptTags != nil {
+		jobTemplate.PromptTags = *req.PromptTags
+	}
+
+	if req.PromptSkipTags != nil {
+		jobTemplate.PromptSkipTags = *req.PromptSkipTags
+	}
+
+	if req.AllowSimultaneous != nil {
+		jobTemplate.AllowSimultaneous = *req.AllowSimultaneous
+	}
+
+	if req.PolymorphicCtypeID != nil {
+		jobTemplate.PolymorphicCtypeID = req.PolymorphicCtypeID
+	}
+
+	jobTemplate.Modified = time.Now()
+	jobTemplate.ModifiedByID = user.ID
 
 	// update object
-	if err := db.JobTemplates().UpdateId(jobTemplate.ID, bson.M{"$set": req}); err != nil {
+	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
 		log.Println("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -501,21 +642,10 @@ func PatchJTemplate(c *gin.Context) {
 		return
 	}
 	// add new activity to activity stream
-	addActivity(jobTemplate.ID, user.ID, "Job Template " + req.Name + " updated")
-
-	// get newly updated JobTempate
-	var resp models.JobTemplate
-	if err := db.JobTemplates().FindId(jobTemplate.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Job Template:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Job Template"},
-		})
-		return
-	}
+	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.JTemplateMetadata(&resp); err != nil {
+	if err := metadata.JTemplateMetadata(&jobTemplate); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -525,7 +655,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, jobTemplate)
 }
 
 

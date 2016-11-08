@@ -190,27 +190,26 @@ func AddCredential(c *gin.Context) {
 	req.Modified = time.Now()
 
 	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.Password)
-		req.Password = password
+		req.Password = util.CipherEncrypt(req.Password)
 	}
 
 	if len(req.SshKeyData) > 0 {
-		data := util.CipherEncrypt(req.SshKeyData)
-		req.SshKeyData = data
+		req.SshKeyData = util.CipherEncrypt(req.SshKeyData)
 
 		if len(req.SshKeyUnlock) > 0 {
-			unlock := util.CipherEncrypt(req.SshKeyUnlock)
-			req.SshKeyUnlock = unlock
+			req.SshKeyUnlock = util.CipherEncrypt(req.SshKeyUnlock)
 		}
 	}
 
 	if len(req.BecomePassword) > 0 {
-		password := util.CipherEncrypt(req.BecomePassword)
-		req.BecomePassword = password
+		req.BecomePassword = util.CipherEncrypt(req.BecomePassword)
 	}
 	if len(req.VaultPassword) > 0 {
-		password := util.CipherEncrypt(req.VaultPassword)
-		req.VaultPassword = password
+		req.VaultPassword = util.CipherEncrypt(req.VaultPassword)
+	}
+
+	if len(req.AuthorizePassword) > 0 {
+		req.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
 	}
 
 	if err := db.Credentials().Insert(req); err != nil {
@@ -283,42 +282,53 @@ func UpdateCredential(c *gin.Context) {
 		}
 	}
 
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.Password)
-		req.Password = password
+	// system generated
+	credential.Name = strings.Trim(req.Name, " ")
+	credential.Kind = req.Kind
+	credential.Cloud = req.Cloud
+	credential.Description = strings.Trim(req.Description, " ")
+	credential.Host = req.Host
+	credential.Username = req.Username
+	credential.SecurityToken = req.SecurityToken
+	credential.Project = req.Project
+	credential.Domain = req.Domain
+	credential.BecomeMethod = req.BecomeMethod
+	credential.BecomeUsername = req.BecomeUsername
+	credential.Subscription = req.Subscription
+	credential.Tenant = req.Tenant
+	credential.Secret = req.Secret
+	credential.Client = req.Client
+	credential.Authorize = req.Authorize
+	credential.OrganizationID = req.OrganizationID
+
+	credential.ModifiedByID = user.ID
+	credential.Modified = time.Now()
+
+	if req.Password != "$encrypted$" && len(req.Password) > 0 {
+		credential.Password = util.CipherEncrypt(req.Password)
 	}
 
-	if len(req.SshKeyData) > 0 {
-		data := util.CipherEncrypt(req.SshKeyData)
-		req.SshKeyData = data
+	if req.SshKeyData != "$encrypted$" && len(req.SshKeyData) > 0 {
+		credential.SshKeyData = util.CipherEncrypt(req.SshKeyData)
 
-		if req.SshKeyUnlock != "" {
-			unlock := util.CipherEncrypt(req.SshKeyUnlock)
-			req.SshKeyUnlock = unlock
+		if req.SshKeyUnlock != "$encrypted$" && len(req.SshKeyUnlock) > 0 {
+			credential.SshKeyUnlock = util.CipherEncrypt(req.SshKeyUnlock)
 		}
 	}
 
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.BecomePassword)
-		req.BecomePassword = password
-	}
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.VaultPassword)
-		req.VaultPassword = password
+	if req.BecomePassword != "$encrypted$" && len(req.BecomePassword) > 0 {
+		credential.BecomePassword = util.CipherEncrypt(req.BecomePassword)
 	}
 
-	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
+	if req.VaultPassword != "$encrypted$" && len(req.VaultPassword) > 0 {
+		credential.VaultPassword = util.CipherEncrypt(req.VaultPassword)
+	}
 
-	// system generated
-	req.ID = credential.ID
-	req.CreatedByID = credential.CreatedByID
-	req.Created = credential.Created
-	req.ModifiedByID = user.ID
-	req.Modified = time.Now()
+	if req.AuthorizePassword != "$encrypted$" && len(req.AuthorizePassword) > 0 {
+		credential.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
+	}
 
-	if err := db.Credentials().UpdateId(credential.ID, req); err != nil {
+	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
 		log.Println("Error while updating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -328,7 +338,7 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Credential " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Credential " + credential.Name + " updated")
 
 	hideEncrypted(&req)
 	if err := metadata.CredentialMetadata(&req); err != nil {
@@ -368,9 +378,9 @@ func PatchCredential(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 && req.Name != credential.Name {
+	if req.Name != nil && *req.Name != credential.Name {
 		// if the Credential exist in the collection it is not unique
-		if helpers.IsNotUniqueCredential(req.Name) {
+		if helpers.IsNotUniqueCredential(*req.Name) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Credential with this Name already exists."},
@@ -379,39 +389,109 @@ func PatchCredential(c *gin.Context) {
 		}
 	}
 
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.Password)
-		req.Password = password
+	if req.Password != nil && *req.Password != "$encrypted$" {
+		credential.Password = util.CipherEncrypt(*req.Password)
 	}
 
-	if len(req.SshKeyData) > 0 {
-		data := util.CipherEncrypt(req.SshKeyData)
-		req.SshKeyData = data
+	if req.SshKeyData != nil && *req.SshKeyData != "$encrypted$" {
+		credential.SshKeyData = util.CipherEncrypt(*req.SshKeyData)
 
-		if len(req.SshKeyUnlock) > 0 {
-			unlock := util.CipherEncrypt(req.SshKeyUnlock)
-			req.SshKeyUnlock = unlock
+		if req.SshKeyUnlock != nil && *req.SshKeyUnlock != "$encrypted$" {
+			credential.SshKeyUnlock = util.CipherEncrypt(*req.SshKeyUnlock)
 		}
 	}
 
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.BecomePassword)
-		req.BecomePassword = password
-	}
-	if len(req.Password) > 0 {
-		password := util.CipherEncrypt(req.VaultPassword)
-		req.VaultPassword = password
+	if req.BecomePassword != nil && *req.BecomePassword != "$encrypted$" {
+		credential.BecomePassword = util.CipherEncrypt(*req.BecomePassword)
 	}
 
-	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
+	if req.VaultPassword != nil && *req.VaultPassword != "$encrypted$" {
+		credential.VaultPassword = util.CipherEncrypt(*req.VaultPassword)
+	}
+
+	if req.AuthorizePassword != nil && *req.AuthorizePassword != "$encrypted$" {
+		credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
+	}
+
+	// replace following feilds if precent
+	if req.Secret != nil && *req.Secret != "$encrypted$" {
+		credential.Secret = util.CipherEncrypt(*req.Secret)
+	}
+
+	if req.Name != nil {
+		credential.Name = strings.Trim(*req.Name, " ")
+	}
+
+	if req.Kind != nil {
+		credential.Kind = *req.Kind
+	}
+
+	if req.Cloud != nil {
+		credential.Cloud = *req.Cloud
+	}
+
+	if req.Description != nil {
+		credential.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.Host != nil {
+		credential.Host = *req.Host
+	}
+
+	if req.Username != nil {
+		credential.Username = *req.Username
+	}
+
+	if req.SecurityToken != nil {
+		credential.SecurityToken = *req.SecurityToken
+	}
+
+	if req.Project != nil {
+		credential.Project = *req.Project
+	}
+
+	if req.Domain != nil {
+		credential.Domain = *req.Domain
+	}
+
+	if req.BecomeMethod != nil {
+		credential.BecomeMethod = *req.BecomeMethod
+	}
+
+	if req.BecomeUsername != nil {
+		credential.BecomeUsername = *req.BecomeUsername
+	}
+
+	if req.Subscription != nil {
+		credential.Subscription = *req.Subscription
+	}
+
+	if req.Tenant != nil {
+		credential.Tenant = *req.Tenant
+	}
+
+	if req.Client != nil {
+		credential.Client = *req.Client
+	}
+
+	if req.Authorize != nil {
+		credential.Authorize = *req.Authorize
+	}
+
+	if req.OrganizationID != nil {
+		// if empty string then make the credential null
+		if len(*req.OrganizationID) == 12 {
+			credential.OrganizationID = req.OrganizationID
+		} else {
+			credential.OrganizationID = nil
+		}
+	}
 
 	// system generated
-	req.ModifiedByID = user.ID
-	req.Modified = time.Now()
+	credential.ModifiedByID = user.ID
+	credential.Modified = time.Now()
 
-	if err := db.Credentials().UpdateId(credential.ID, bson.M{"$set": req}); err != nil {
+	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
 		log.Println("Error while updating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -421,22 +501,10 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(credential.ID, user.ID, "Credential " + req.Name + " updated")
+	addActivity(credential.ID, user.ID, "Credential " + credential.Name + " updated")
 
-
-	// get newly updated group
-	var resp models.Credential
-	if err := db.Credentials().FindId(credential.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Credential:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Credential"},
-		})
-		return
-	}
-
-	hideEncrypted(&resp)
-	if err := metadata.CredentialMetadata(&resp); err != nil {
+	hideEncrypted(&credential)
+	if err := metadata.CredentialMetadata(&credential); err != nil {
 		log.Println("Error while updating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -445,7 +513,7 @@ func PatchCredential(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, credential)
 }
 
 func RemoveCredential(c *gin.Context) {

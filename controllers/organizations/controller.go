@@ -311,16 +311,12 @@ func UpdateOrganization(c *gin.Context) {
 	}
 
 	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
+	organization.Name = strings.Trim(req.Name, " ")
+	organization.Description = strings.Trim(req.Description, " ")
+	organization.Modified = time.Now()
+	organization.ModifiedBy = user.ID
 
-	req.ID = organization.ID
-	req.Created = organization.Created
-	req.CreatedBy = organization.CreatedBy
-	req.Modified = time.Now()
-	req.ModifiedBy = user.ID
-
-	if err := db.Organizations().UpdateId(organization.ID, req); err != nil {
+	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
 		log.Println("Error while updating Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -330,9 +326,9 @@ func UpdateOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Organization " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Organization " + organization.Name + " updated")
 
-	if err := metadata.OrganizationMetadata(&req); err != nil {
+	if err := metadata.OrganizationMetadata(&organization); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -342,7 +338,7 @@ func UpdateOrganization(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, organization)
 }
 
 // PatchOrganization will update selected feilds from an Organization
@@ -363,9 +359,9 @@ func PatchOrganization(c *gin.Context) {
 
 	// since this is a patch request if the name specified check the
 	// Organization name is unique
-	if len(req.Name) > 0 && req.Name != organization.Name {
+	if req.Name != nil && *req.Name != organization.Name {
 		// if the Organization exist in the collection it is not unique
-		if helpers.IsNotUniqueOrganization(req.Name) {
+		if helpers.IsNotUniqueOrganization(*req.Name) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Organization with this Name already exists."},
@@ -375,13 +371,18 @@ func PatchOrganization(c *gin.Context) {
 	}
 
 	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
+	if req.Name != nil {
+		organization.Name = strings.Trim(*req.Name, " ")
+	}
 
-	req.Modified = time.Now()
-	req.ModifiedBy = user.ID
+	if req.Description != nil {
+		organization.Description = strings.Trim(*req.Description, " ")
+	}
 
-	if err := db.Organizations().UpdateId(organization.ID, bson.M{"$set": req}); err != nil {
+	organization.Modified = time.Now()
+	organization.ModifiedBy = user.ID
+
+	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
 		log.Println("Error while updating Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -391,20 +392,9 @@ func PatchOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(organization.ID, user.ID, "Organization " + req.Name + " updated")
+	addActivity(organization.ID, user.ID, "Organization " + organization.Name + " updated")
 
-	// get newly updated group
-	var resp models.Organization
-	if err := db.Organizations().FindId(organization.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Organization:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Organization"},
-		})
-		return
-	}
-
-	if err := metadata.OrganizationMetadata(&resp); err != nil {
+	if err := metadata.OrganizationMetadata(&organization); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -414,7 +404,7 @@ func PatchOrganization(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, organization)
 }
 
 // GetUsers Returns all Organization users

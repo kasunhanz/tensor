@@ -120,7 +120,7 @@ func projectSummary(p *models.Project) error {
 
 	var lastupdate models.Job
 	if err := db.Jobs().Find(bson.M{"job_type":"update_job", "project_id": p.ID}).Sort("-modified").One(&lastupdate); err != nil {
-		log.Println("Error wile getting last update")
+		log.Println("Error while getting last update")
 		summary["last_update"] = nil
 	} else {
 		summary["last_update"] = gin.H{
@@ -135,7 +135,7 @@ func projectSummary(p *models.Project) error {
 
 	var lastjob models.Job
 	if err := db.Jobs().Find(bson.M{"job_type":"job", "project_id": p.ID}).Sort("-modified").One(&lastjob); err != nil {
-		log.Println("Error wile getting last job")
+		log.Println("Error while getting last job")
 		summary["last_job"] = nil
 	} else {
 		summary["last_job"] = gin.H{

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
+	"strings"
 )
 
 const _CTX_GROUP = "group"
@@ -215,8 +216,7 @@ func UpdateGroup(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Group
-	err := binding.JSON.Bind(c.Request, &req);
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -256,14 +256,17 @@ func UpdateGroup(c *gin.Context) {
 		}
 	}
 
-	req.Created = group.Created
-	req.CreatedByID = group.CreatedByID
-	req.Modified = time.Now()
-	req.ModifiedByID = user.ID
+	group.Name = strings.Trim(req.Name, " ")
+	group.Description = strings.Trim(req.Description, " ")
+	group.Variables = req.Variables
+	group.InventoryID = req.InventoryID
+	group.ParentGroupID = req.ParentGroupID
+	group.ParentGroupID = req.ParentGroupID
+	group.Modified = time.Now()
+	group.ModifiedByID = user.ID
 
 	// update object
-	err = db.Groups().UpdateId(group.ID, req);
-	if err != nil {
+	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		log.Println("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -273,11 +276,10 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Group " + group.Name + " updated")
+	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 
 	// set `related` and `summary` feilds
-	err = metadata.GroupMetadata(&req);
-	if err != nil {
+	if err := metadata.GroupMetadata(&group); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -287,7 +289,7 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, group)
 }
 
 
@@ -299,8 +301,7 @@ func PatchGroup(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.PatchGroup
-	err := binding.JSON.Bind(c.Request, &req);
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
@@ -310,8 +311,8 @@ func PatchGroup(c *gin.Context) {
 	}
 
 	// check whether the inventory exist or not
-	if len(req.InventoryID) == 12 {
-		if !helpers.InventoryExist(req.InventoryID) {
+	if req.InventoryID != nil {
+		if !helpers.InventoryExist(*req.InventoryID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
@@ -322,15 +323,15 @@ func PatchGroup(c *gin.Context) {
 
 	// since this is a patch request if the name specified check the
 	// inventory name is unique
-	if len(req.Name) > 0 && req.Name != group.Name {
+	if req.Name != nil && *req.Name != group.Name {
 		objId := group.InventoryID
 		// if inventory id specified use it otherwise use
 		// old inventory id
-		if len(req.InventoryID) == 12 {
-			objId = req.InventoryID
+		if req.InventoryID != nil {
+			objId = *req.InventoryID
 		}
 		// if the group exist in the collection it is not unique
-		if helpers.IsNotUniqueGroup(req.Name, objId) {
+		if helpers.IsNotUniqueGroup(*req.Name, objId) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
@@ -350,11 +351,36 @@ func PatchGroup(c *gin.Context) {
 		}
 	}
 
-	req.Modified = time.Now()
-	req.ModifiedByID = user.ID
+	if req.Name != nil {
+		group.Name = strings.Trim(*req.Name, " ")
+	}
+
+	if req.Description != nil {
+		group.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.Variables != nil {
+		group.Variables = *req.Variables
+	}
+
+	if req.InventoryID != nil {
+		group.InventoryID = *req.InventoryID
+	}
+
+	if req.ParentGroupID != nil {
+		// if empty string then make the credential null
+		if len(*req.ParentGroupID) == 12 {
+			group.ParentGroupID = req.ParentGroupID
+		} else {
+			group.ParentGroupID = nil
+		}
+	}
+
+	group.Modified = time.Now()
+	group.ModifiedByID = user.ID
 
 	// update object
-	if err := db.Hosts().UpdateId(group.ID, bson.M{"$set": req}); err != nil {
+	if err := db.Hosts().UpdateId(group.ID, group); err != nil {
 		log.Println("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -365,20 +391,8 @@ func PatchGroup(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 
-	// get newly updated group
-	var resp models.Group
-	if err = db.Groups().FindId(group.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Group:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Group"},
-		})
-		return
-	}
-
 	// set `related` and `summary` feilds
-	err = metadata.GroupMetadata(&resp);
-	if err != nil {
+	if err := metadata.GroupMetadata(&group); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -388,7 +402,7 @@ func PatchGroup(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, group)
 }
 
 // RemoveGroup will remove the Group

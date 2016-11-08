@@ -11,10 +11,7 @@ import (
 // collection
 type Group struct {
 	ID                       bson.ObjectId  `bson:"_id" json:"id"`
-
-	// required feilds
 	Name                     string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
-
 	Description              string         `bson:"description" json:"description"`
 	Variables                string         `bson:"variables" json:"variables"`
 	TotalHosts               uint32         `bson:"total_hosts" json:"total_hosts"`
@@ -24,8 +21,7 @@ type Group struct {
 	GroupsWithActiveFailures uint32         `bson:"groups_with_active_failures" json:"groups_with_active_failures"`
 	HasInventorySources      bool           `bson:"has_inventory_sources" json:"has_inventory_sources"`
 	InventoryID              bson.ObjectId  `bson:"inventory_id" json:"inventory"`
-	//parent child relation
-	ParentGroupID            *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
+	ParentGroupID            *bson.ObjectId `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
 
 	CreatedByID              bson.ObjectId  `bson:"created_by_id" json:"-"`
 	ModifiedByID             bson.ObjectId  `bson:"modified_by_id" json:"-"`
@@ -42,12 +38,9 @@ type Group struct {
 }
 
 type PatchGroup struct {
-	Name          string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
-	Description   string          `bson:"description,omitempty" json:"description,omitempty"`
-	Variables     string          `bson:"variables,omitempty" json:"variables,omitempty"`
-	InventoryID   bson.ObjectId   `bson:"inventory_id,omitempty" json:"inventory,omitempty"`
-	ParentGroupID *bson.ObjectId  `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
-
-	ModifiedByID  bson.ObjectId   `bson:"modified_by_id" json:"-"`
-	Modified      time.Time       `bson:"modified" json:"-"`
+	Name          *string        `json:"name" binding:"omitempty,min=1,max=500"`
+	Description   *string        `json:"description"`
+	Variables     *string        `json:"variables"`
+	InventoryID   *bson.ObjectId `json:"inventory"`
+	ParentGroupID *bson.ObjectId `json:"parent_group"`
 }

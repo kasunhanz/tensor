@@ -14,6 +14,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
+	"strings"
 )
 
 const _CTX_HOST = "host"
@@ -240,13 +241,18 @@ func UpdateHost(c *gin.Context) {
 		}
 	}
 
-	req.Created = host.Created
-	req.Modified = host.Modified
-	req.CreatedByID = user.ID
-	req.ModifiedByID = user.ID
+	host.Name = strings.Trim(req.Name, " ")
+	host.InventoryID = req.InventoryID
+	host.Description = strings.Trim(req.Description, " ")
+	host.GroupID = req.GroupID
+	host.InstanceID = req.InstanceID
+	host.Variables = req.Variables
+	host.Enabled = req.Enabled
+	host.Modified = host.Modified
+	host.ModifiedByID = user.ID
 
 	//update object
-	if err := db.Hosts().UpdateId(host.ID, req); err != nil {
+	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Println("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -255,9 +261,9 @@ func UpdateHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Host " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Host " + host.Name + " updated")
 
-	if err := metadata.HostMetadata(&req); err != nil {
+	if err := metadata.HostMetadata(&host); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -267,7 +273,7 @@ func UpdateHost(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, host)
 }
 
 // Patch will patch a Host
@@ -287,8 +293,8 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// check whether the inventory exist or not
-	if len(req.InventoryID) == 12 {
-		if !helpers.InventoryExist(req.InventoryID) {
+	if req.InventoryID != nil {
+		if !helpers.InventoryExist(*req.InventoryID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
@@ -297,13 +303,13 @@ func PatchHost(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 && req.Name != host.Name {
+	if req.Name != nil && *req.Name != host.Name {
 		invID := host.ID
-		if len(req.InventoryID) == 12 {
-			invID = req.InventoryID
+		if req.InventoryID != nil {
+			invID = *req.InventoryID
 		}
 		// if the host exist in the collection it is not unique
-		if helpers.IsNotUniqueHost(req.Name, invID) {
+		if helpers.IsNotUniqueHost(*req.Name, invID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Host with this Name and Inventory already exists."},
@@ -323,11 +329,44 @@ func PatchHost(c *gin.Context) {
 		}
 	}
 
-	req.Modified = host.Modified
-	req.ModifiedByID = user.ID
+	if req.Name != nil {
+		host.Name = *req.Name
+	}
+
+	if req.InventoryID != nil {
+		host.InventoryID = *req.InventoryID
+	}
+
+	if req.Description != nil {
+		host.Description = *req.Description
+	}
+
+	if req.GroupID != nil {
+		// if empty string then make the credential null
+		if len(*req.GroupID) == 12 {
+			host.GroupID = req.GroupID
+		} else {
+			host.GroupID = nil
+		}
+	}
+
+	if req.InstanceID != nil {
+		host.InstanceID = *req.InstanceID
+	}
+
+	if req.Variables != nil {
+		host.Variables = *req.Variables
+	}
+
+	if req.Enabled != nil {
+		host.Enabled = *req.Enabled
+	}
+
+	host.Modified = time.Now()
+	host.ModifiedByID = user.ID
 
 	//update object
-	if err := db.Hosts().UpdateId(host.ID, bson.M{"$set": req}); err != nil {
+	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Println("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -337,21 +376,10 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(host.ID, user.ID, "Host " + req.Name + " updated")
-
-	// get newly updated host
-	var resp models.Host
-	if err := db.Hosts().FindId(host.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Host:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Host"},
-		})
-		return
-	}
+	addActivity(host.ID, user.ID, "Host " + host.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.HostMetadata(&resp); err != nil {
+	if err := metadata.HostMetadata(&host); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -361,7 +389,7 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, host)
 }
 
 func RemoveHost(c *gin.Context) {

@@ -28,9 +28,6 @@ type Organization struct {
 }
 
 type PatchOrganization struct {
-	Name        string             `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
-	Description string             `bson:"description,omitempty" json:"description,omitempty"`
-
-	ModifiedBy  bson.ObjectId      `bson:"modified_by" json:"-"`
-	Modified    time.Time          `bson:"modified" json:"-"`
+	Name        *string `json:"name" binding:"omitempty,min=1,max=500"`
+	Description *string `json:"description"`
 }

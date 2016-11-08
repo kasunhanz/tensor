@@ -14,6 +14,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
 	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
+	"strings"
 )
 
 const _CTX_TEAM = "team"
@@ -228,13 +229,14 @@ func UpdateTeam(c *gin.Context) {
 		}
 	}
 
-	req.Created = team.Created
-	req.Modified = time.Now()
-	req.CreatedBy = team.CreatedBy
-	req.ModifiedBy = user.ID
+	team.Name = strings.Trim(req.Name, " ")
+	team.Description = strings.Trim(req.Description, " ")
+	team.OrganizationID = req.OrganizationID
+	team.Modified = time.Now()
+	team.ModifiedBy = user.ID
 
 	// update object
-	if err := db.JobTemplates().UpdateId(team.ID, req); err != nil {
+	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
 		log.Println("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -244,10 +246,10 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Team " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Team " + team.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.TeamMetadata(&req); err != nil {
+	if err := metadata.TeamMetadata(&team); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -257,7 +259,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// render JSON with 200 status code
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, team)
 }
 
 // UpdateTeam will update the Job Template
@@ -277,9 +279,9 @@ func PatchTeam(c *gin.Context) {
 		return
 	}
 
-	if len(req.OrganizationID) == 12 {
+	if req.OrganizationID != nil {
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(req.OrganizationID) {
+		if !helpers.OrganizationExist(*req.OrganizationID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -288,13 +290,13 @@ func PatchTeam(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 && req.Name != team.Name {
+	if req.Name != nil && *req.Name != team.Name {
 		ogID := team.OrganizationID
-		if len(req.OrganizationID) == 12 {
-			ogID = req.OrganizationID
+		if req.OrganizationID != nil {
+			ogID = *req.OrganizationID
 		}
 		// if the team exist in the collection it is not unique
-		if helpers.IsNotUniqueTeam(req.Name, ogID) {
+		if helpers.IsNotUniqueTeam(*req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Team with this Name and Organization already exists."},
@@ -303,14 +305,14 @@ func PatchTeam(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 {
+	if req.Name != nil {
 		objId := team.OrganizationID
-		if len(req.OrganizationID) == 12 {
-			objId = req.OrganizationID
+		if req.OrganizationID != nil {
+			objId = *req.OrganizationID
 		}
 		// check wheather the team exist in the collection, if not fail.
 		// if the team unique then it is not in the collection, abort any updates
-		if helpers.IsUniqueTeam(req.Name, objId) {
+		if helpers.IsUniqueTeam(*req.Name, objId) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Team with this Name and Organization does not exists."},
@@ -319,11 +321,27 @@ func PatchTeam(c *gin.Context) {
 		}
 	}
 
-	req.Modified = time.Now()
-	req.ModifiedBy = user.ID
+	if req.Name != nil {
+		team.Name = strings.Trim(*req.Name, " ")
+	}
+
+	if req.Description != nil {
+		team.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.OrganizationID != nil {
+		team.OrganizationID = *req.OrganizationID
+	}
+
+	if req.OrganizationID != nil {
+		team.OrganizationID = *req.OrganizationID
+	}
+
+	team.Modified = time.Now()
+	team.ModifiedBy = user.ID
 
 	// update object
-	if err := db.JobTemplates().UpdateId(team.ID, bson.M{"$set": req}); err != nil {
+	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
 		log.Println("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -333,21 +351,10 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(team.ID, user.ID, "Team " + req.Name + " updated")
-
-	// get newly updated host
-	var resp models.Team
-	if err := db.Hosts().FindId(team.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Team:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Team"},
-		})
-		return
-	}
+	addActivity(team.ID, user.ID, "Team " + team.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.TeamMetadata(&resp); err != nil {
+	if err := metadata.TeamMetadata(&team); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -357,7 +364,7 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	// render JSON with 200 status code
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, team)
 }
 
 // RemoveTeam will remove the Team

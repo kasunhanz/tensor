@@ -263,17 +263,23 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
-
-	req.ID = project.ID
-	req.CreatedBy = project.CreatedBy
-	req.ModifiedBy = user.ID
-	req.Created = project.Created
-	req.Modified = time.Now()
+	project.Name = strings.Trim(req.Name, " ")
+	project.Description = strings.Trim(req.Description, " ")
+	project.ScmType = req.ScmType
+	project.OrganizationID = req.OrganizationID
+	project.Description = req.Description
+	project.ScmUrl = req.ScmUrl
+	project.ScmBranch = req.ScmBranch
+	project.ScmClean = req.ScmClean
+	project.ScmDeleteOnUpdate = req.ScmDeleteOnUpdate
+	project.ScmCredentialID = req.ScmCredentialID
+	project.ScmDeleteOnNextUpdate = req.ScmDeleteOnNextUpdate
+	project.ScmUpdateOnLaunch = req.ScmUpdateOnLaunch
+	project.ScmUpdateCacheTimeout = req.ScmUpdateCacheTimeout
+	project.Modified = time.Now()
 
 	// update object
-	if err := db.Projects().UpdateId(project.ID, req); err != nil {
+	if err := db.Projects().UpdateId(project.ID, project); err != nil {
 		log.Println("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -283,15 +289,15 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Project " + req.Name + " updated")
+	addActivity(project.ID, user.ID, "Project " + project.Name + " updated")
 
 	// before set metadata update the project
-	if sysJobID, err := runners.UpdateProject(req); err != nil {
+	if sysJobID, err := runners.UpdateProject(project); err != nil {
 		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
-	if err := metadata.ProjectMetadata(&req); err != nil {
+	if err := metadata.ProjectMetadata(&project); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -301,7 +307,7 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, project)
 }
 
 // UpdateProject will update the Project
@@ -321,9 +327,9 @@ func PatchProject(c *gin.Context) {
 		return
 	}
 
-	if len(req.OrganizationID) == 12 {
+	if req.OrganizationID != nil {
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(req.OrganizationID) {
+		if !helpers.OrganizationExist(*req.OrganizationID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -332,13 +338,13 @@ func PatchProject(c *gin.Context) {
 		}
 	}
 
-	if req.Name != project.Name {
+	if req.Name != nil && *req.Name != project.Name {
 		ogID := project.OrganizationID
-		if len(req.OrganizationID) == 12 {
-			ogID = req.OrganizationID
+		if req.OrganizationID != nil {
+			ogID = *req.OrganizationID
 		}
 		// if a project exists within the Organization, reject the request
-		if helpers.IsNotUniqueProject(req.Name, ogID) {
+		if helpers.IsNotUniqueProject(*req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Project with this Name and Organization already exists."},
@@ -347,8 +353,9 @@ func PatchProject(c *gin.Context) {
 		}
 	}
 
-	// check whether the ScmCredential exist or not
-	if req.ScmCredentialID != nil {
+	// check whether the ScmCredential exist
+	// if the credential is empty
+	if req.ScmCredentialID != nil && len(*req.ScmCredentialID) == 12 {
 		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
@@ -359,14 +366,68 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// trim strings white space
-	req.Name = strings.Trim(req.Name, " ")
-	req.Description = strings.Trim(req.Description, " ")
+	if req.Name != nil {
+		project.Name = strings.Trim(*req.Name, " ")
+	}
 
-	req.ModifiedBy = user.ID
-	req.Modified = time.Now()
+	if req.Description != nil {
+		project.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.ScmType != nil {
+		project.ScmType = *req.ScmType
+	}
+
+	if req.OrganizationID != nil {
+		project.OrganizationID = *req.OrganizationID
+	}
+
+	if req.Description != nil {
+		project.Description = *req.Description
+	}
+
+	if req.ScmUrl != nil {
+		project.ScmUrl = *req.ScmUrl
+	}
+
+	if req.ScmBranch != nil {
+		project.ScmBranch = *req.ScmBranch
+	}
+
+	if req.ScmClean != nil {
+		project.ScmClean = *req.ScmClean
+	}
+
+	if req.ScmDeleteOnUpdate != nil {
+		project.ScmDeleteOnUpdate = *req.ScmDeleteOnUpdate
+	}
+
+	if req.ScmCredentialID != nil {
+		// if empty string then make the credential null
+		if len(*req.ScmCredentialID) == 12 {
+			project.ScmCredentialID = req.ScmCredentialID
+		} else {
+			project.ScmCredentialID = nil
+		}
+	}
+
+	if req.ScmDeleteOnNextUpdate != nil {
+		project.ScmDeleteOnNextUpdate = *req.ScmDeleteOnNextUpdate
+	}
+
+	if req.ScmUpdateOnLaunch != nil {
+		project.ScmUpdateOnLaunch = *req.ScmUpdateOnLaunch
+	}
+
+	if req.ScmUpdateCacheTimeout != nil {
+		project.ScmUpdateCacheTimeout = *req.ScmUpdateCacheTimeout
+	}
+
+	project.ModifiedBy = user.ID
+	project.Modified = time.Now()
 
 	// update object
-	if err := db.Projects().UpdateId(project.ID, bson.M{"$set": req}); err != nil {
+	if err := db.Projects().UpdateId(project.ID, project); err != nil {
 		log.Println("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -376,26 +437,15 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project " + req.Name + " updated")
-
-	// get newly updated host
-	var resp models.Project
-	if err := db.Projects().FindId(project.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Project:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Project"},
-		})
-		return
-	}
+	addActivity(project.ID, user.ID, "Project " + project.Name + " updated")
 
 	// before set metadata update the project
-	if sysJobID, err := runners.UpdateProject(resp); err != nil {
+	if sysJobID, err := runners.UpdateProject(project); err != nil {
 		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
-	if err := metadata.ProjectMetadata(&resp); err != nil {
+	if err := metadata.ProjectMetadata(&project); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -405,7 +455,7 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, project)
 }
 
 // RemoveProject will remove the Project

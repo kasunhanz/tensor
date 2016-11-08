@@ -17,6 +17,7 @@ func hideEncrypted(c *models.Credential) {
 	c.BecomePassword = encrypted
 	c.VaultPassword = encrypted
 	c.AuthorizePassword = encrypted
+	c.Secret = encrypted
 }
 
 func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {

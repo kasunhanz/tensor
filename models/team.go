@@ -19,7 +19,7 @@ type Team struct {
 	Name           string             `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	OrganizationID bson.ObjectId      `bson:"organization_id" json:"organization" binding:"required"`
 
-	Description    *string             `bson:"description,omitempty" json:"description"`
+	Description    string             `bson:"description,omitempty" json:"description"`
 
 	CreatedBy      bson.ObjectId      `bson:"created_by" json:"-"`
 	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`
@@ -31,9 +31,7 @@ type Team struct {
 }
 
 type PatchTeam struct {
-	Name           string             `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
-	OrganizationID bson.ObjectId      `bson:"organization_id,omitempty" json:"organization,omitempty"`
-	Description    string             `bson:"description,omitempty" json:"description,omitempty"`
-	ModifiedBy     bson.ObjectId      `bson:"modified_by" json:"-"`
-	Modified       time.Time          `bson:"modified" json:"-"`
+	Name           *string             `json:"name" binding:"omitempty,min=1,max=500"`
+	OrganizationID *bson.ObjectId      `json:"organization"`
+	Description    *string             `json:"description"`
 }

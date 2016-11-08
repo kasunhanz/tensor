@@ -106,7 +106,7 @@ func credentialSummary(cred *models.Credential) error {
 			}
 			owners = append(owners, gin.H{
 				"url": "/v1/teams/" + v.TeamID + "/",
-				"description": *team.Description,
+				"description": team.Description,
 				"type": "team",
 				"id": v.TeamID,
 				"name": team.Name,

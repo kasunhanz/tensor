@@ -53,18 +53,16 @@ type Project struct {
 
 // All optional
 type PatchProject struct {
-	Name                  string          `bson:"name,omitempty" json:"name,omitempty" binding:"omitempty,min=1,max=500"`
-	ScmType               string          `bson:"scm_type,omitempty" json:"scm_type,omitempty" binding:"omitempty,scmtype"`
-	OrganizationID        bson.ObjectId   `bson:"organization_id,omitempty" json:"organization,omitempty"`
-	Description           string          `bson:"description,omitempty" json:"description,omitempty"`
-	ScmUrl                string          `bson:"scm_url,omitempty" json:"scm_url,omitempty" binding:"omitempty,url"`
-	ScmBranch             string          `bson:"scm_branch,omitempty" json:"scm_branch,omitempty"`
-	ScmClean              *bool            `bson:"scm_clean,omitempty" json:"scm_clean,omitempty"`
-	ScmDeleteOnUpdate     *bool            `bson:"scm_delete_on_update,omitempty" json:"scm_delete_on_update,omitempty"`
-	ScmCredentialID       *bson.ObjectId  `bson:"credentail_id,omitempty" json:"credential,omitempty"`
-	ScmDeleteOnNextUpdate *bool            `bson:"scm_delete_on_next_update,omitempty" json:"scm_delete_on_next_update,omitempty"`
-	ScmUpdateOnLaunch     *bool            `bson:"scm_update_on_launch,omitempty" json:"scm_update_on_launch,omitempty"`
-	ScmUpdateCacheTimeout int             `bson:"scm_update_cache_timeout,omitempty" json:"scm_update_cache_timeout,omitempty"`
-	ModifiedBy            bson.ObjectId   `bson:"modified_by" json:"-"`
-	Modified              time.Time       `bson:"modified" json:"-"`
+	Name                  *string          `json:"name" binding:"omitempty,min=1,max=500"`
+	ScmType               *string          `json:"scm_type" binding:"omitempty,scmtype"`
+	OrganizationID        *bson.ObjectId   `json:"organization"`
+	Description           *string          `json:"description"`
+	ScmUrl                *string          `json:"scm_url" binding:"omitempty,url"`
+	ScmBranch             *string          `json:"scm_branch"`
+	ScmClean              *bool           `json:"scm_clean"`
+	ScmDeleteOnUpdate     *bool           `json:"scm_delete_on_update"`
+	ScmCredentialID       *bson.ObjectId  `json:"credential"`
+	ScmDeleteOnNextUpdate *bool           `json:"scm_delete_on_next_update"`
+	ScmUpdateOnLaunch     *bool           `json:"scm_update_on_launch"`
+	ScmUpdateCacheTimeout *int             `json:"scm_update_cache_timeout"`
 }

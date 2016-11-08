@@ -15,6 +15,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
 	"github.com/gin-gonic/gin/binding"
+	"strings"
 )
 
 const _CTX_INVENTORY = "inventory"
@@ -231,13 +232,15 @@ func UpdateInventory(c *gin.Context) {
 		}
 	}
 
-	req.ID = bson.NewObjectId()
-	req.Created = inventory.Created
-	req.Modified = time.Now()
-	req.CreatedBy = inventory.CreatedBy
-	req.ModifiedBy = user.ID
+	inventory.Name = strings.Trim(inventory.Name, " ")
+	inventory.Description = strings.Trim(inventory.Description, " ")
+	inventory.OrganizationID = inventory.OrganizationID
+	inventory.Description = inventory.Description
+	inventory.Variables = inventory.Variables
+	inventory.Modified = time.Now()
+	inventory.ModifiedBy = user.ID
 
-	err = db.Inventories().UpdateId(inventory.ID, req);
+	err = db.Inventories().UpdateId(inventory.ID, inventory);
 	if err != nil {
 		log.Println("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -247,10 +250,10 @@ func UpdateInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Inventory " + req.Name + " updated")
+	addActivity(req.ID, user.ID, "Inventory " + inventory.Name + " updated")
 
 	// set `related` and `summary` feilds
-	err = metadata.InventoryMetadata(&req);
+	err = metadata.InventoryMetadata(&inventory);
 	if err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -261,10 +264,10 @@ func UpdateInventory(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, inventory)
 }
 
-// Pathcnventory will update existing Inventory with
+// PatchInventory will update existing Inventory with
 // request parameters
 func PatchInventory(c *gin.Context) {
 	// get Inventory from the gin.Context
@@ -282,9 +285,9 @@ func PatchInventory(c *gin.Context) {
 		return
 	}
 
-	if len(req.OrganizationID) == 12 {
+	if req.OrganizationID != nil {
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(req.OrganizationID) {
+		if !helpers.OrganizationExist(*req.OrganizationID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -293,13 +296,13 @@ func PatchInventory(c *gin.Context) {
 		}
 	}
 
-	if len(req.Name) > 0 && req.Name != inventory.Name {
+	if req.Name != nil && *req.Name != inventory.Name {
 		ogID := inventory.OrganizationID
-		if len(req.OrganizationID) == 12 {
-			ogID = req.OrganizationID
+		if req.OrganizationID != nil {
+			ogID = *req.OrganizationID
 		}
 		// if inventory exists in the collection
-		if helpers.IsNotUniqueInventory(req.Name, ogID) {
+		if helpers.IsNotUniqueInventory(*req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
@@ -308,10 +311,26 @@ func PatchInventory(c *gin.Context) {
 		}
 	}
 
-	req.Modified = time.Now()
-	req.ModifiedBy = user.ID
+	if req.Name != nil {
+		inventory.Name = strings.Trim(*req.Name, " ")
+	}
 
-	if err := db.Inventories().UpdateId(inventory.ID, bson.M{"$set": req}); err != nil {
+	if req.Description != nil {
+		inventory.Description = strings.Trim(*req.Description, " ")
+	}
+
+	if req.OrganizationID != nil {
+		inventory.OrganizationID = *req.OrganizationID
+	}
+
+	if req.Variables != nil {
+		inventory.Variables = *req.Variables
+	}
+
+	inventory.Modified = time.Now()
+	inventory.ModifiedBy = user.ID
+
+	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Println("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -321,21 +340,10 @@ func PatchInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(inventory.ID, user.ID, "Inventory " + req.Name + " updated")
-
-	// get newly updated host
-	var resp models.Inventory
-	if err := db.Inventories().FindId(inventory.ID).One(&resp); err != nil {
-		log.Print("Error while getting the updated Inventory:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
-			Messages: []string{"Error while getting the updated Inventory"},
-		})
-		return
-	}
+	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.InventoryMetadata(&resp); err != nil {
+	if err := metadata.InventoryMetadata(&inventory); err != nil {
 		log.Println("Error while setting metatdata:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
@@ -345,7 +353,7 @@ func PatchInventory(c *gin.Context) {
 	}
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, inventory)
 }
 
 func RemoveInventory(c *gin.Context) {
