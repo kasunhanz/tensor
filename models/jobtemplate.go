@@ -46,6 +46,7 @@ type JobTemplate struct {
 	NextJobRun          *time.Time      `bson:"next_job_run,omitempty" json:"next_job_run" binding:"omitempty,naproperty"`
 	Status              string          `bson:"status,omitempty" json:"status" binding:"omitempty,naproperty"`
 	CurrentJobID        *bson.ObjectId  `bson:"current_job_id,omitempty" json:"current_job" binding:"omitempty,naproperty"`
+	CurrentUpdateID     *bson.ObjectId  `bson:"current_update_id,omitempty" json:"current_update" binding:"omitempty,naproperty"`
 	LastJobID           *bson.ObjectId  `bson:"last_job_id,omitempty" json:"last_job" binding:"omitempty,naproperty"`
 	NextScheduleID      *bson.ObjectId  `bson:"next_schedule_id,omitempty" json:"next_schedule" binding:"omitempty,naproperty"`
 	LastJobFailed       bool            `bson:"last_job_failed,omitempty" json:"last_job_failed" binding:"omitempty,naproperty"`

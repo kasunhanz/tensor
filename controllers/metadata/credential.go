@@ -4,55 +4,41 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"github.com/gin-gonic/gin"
+	log "github.com/Sirupsen/logrus"
 )
 
-func CredentialMetadata(cred *models.Credential) error {
+func CredentialMetadata(c *models.Credential) {
 
-	ID := cred.ID.Hex()
-	cred.Type = "credential"
-	cred.Url = "/v1/credentials/" + ID + "/"
+	ID := c.ID.Hex()
+	c.Type = "credential"
+	c.Url = "/v1/credentials/" + ID + "/"
 	related := gin.H{
-		"created_by": "/v1/users/" + cred.CreatedByID.Hex() + "/",
-		"modified_by": "/v1/users/" + cred.ModifiedByID.Hex() + "/",
+		"created_by": "/v1/users/" + c.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + c.ModifiedByID.Hex() + "/",
 		"owner_teams": "/v1/credentials/" + ID + "/owner_teams/",
 		"owner_users": "/v1/credentials/" + ID + "/owner_users/",
 		"activity_stream": "/v1/credentials/" + ID + "/activity_stream/",
 		"access_list": "/v1/credentials/" + ID + "/access_list/",
 		"object_roles": "/api/v1/credentials/" + ID + "/object_roles/",
-		"user": "/v1/users/" + cred.CreatedByID.Hex() + "/",
+		"user": "/v1/users/" + c.CreatedByID.Hex() + "/",
 	}
 
-	if cred.OrganizationID != nil {
-		related["organization"] = "/api/v1/organizations/" + *cred.OrganizationID + "/"
+	if c.OrganizationID != nil {
+		related["organization"] = "/api/v1/organizations/" + *c.OrganizationID + "/"
 	}
 
-	cred.Related = related
-
-	if err := credentialSummary(cred); err != nil {
-		return err
-	}
-
-	return nil
+	c.Related = related
+	credentialSummary(c)
 }
 
-func credentialSummary(cred *models.Credential) error {
+func credentialSummary(c *models.Credential) {
 
 	var modified models.User
 	var created models.User
 	var org models.Organization
 	var owners []gin.H
 
-	if err := db.Users().FindId(cred.CreatedByID).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(cred.ModifiedByID).One(&modified); err != nil {
-		return err
-	}
-
 	summary := gin.H{
-		"host": gin.H{}, // TODO: implement
-		"project": gin.H{}, // TODO: implement
 		"object_roles": []gin.H{
 			{
 				"Description": "Can manage all aspects of the credential",
@@ -67,29 +53,55 @@ func credentialSummary(cred *models.Credential) error {
 				"Name":"read",
 			},
 		},
-		"created_by": gin.H{
-			"id":         created.ID,
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"modified_by": gin.H{
+		"created_by": nil,
+		"modified_by": nil,
+		"owners": nil,
+	}
+
+	if err := db.Users().FindId(c.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": c.CreatedByID.Hex(),
+			"Credential": c.Name,
+			"Credential ID": c.ID.Hex(),
+		}).Errorln("Error while getting created by User")
+	} else {
+		summary["created_by"] = gin.H{
 			"id":         modified.ID,
 			"username":   modified.Username,
 			"first_name": modified.FirstName,
 			"last_name":  modified.LastName,
-		},
+		}
+	}
+
+	if err := db.Users().FindId(c.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": c.ModifiedByID.Hex(),
+			"Credential": c.Name,
+			"Credential ID": c.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID,
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
 	}
 
 
 	// owners
 	// teams and users
-	for _, v := range cred.Roles {
+	for _, v := range c.Roles {
 		switch v.Type {
 		case "user": {
 			var user models.User
 			if err := db.Users().FindId(v.UserID).One(&user); err != nil {
-				return err
+				log.WithFields(log.Fields{
+					"User ID": v.UserID.Hex(),
+					"Credential": c.Name,
+					"Credential ID": c.ID.Hex(),
+				}).Warnln("Error while getting owner user")
+				continue
 			}
 			owners = append(owners, gin.H{
 				"url": "/v1/users/" + v.UserID + "/",
@@ -102,7 +114,12 @@ func credentialSummary(cred *models.Credential) error {
 		case "team": {
 			var team models.Team
 			if err := db.Teams().FindId(v.TeamID).One(&team); err != nil {
-				return err
+				log.WithFields(log.Fields{
+					"Team ID": v.TeamID.Hex(),
+					"Credential": c.Name,
+					"Credential ID": c.ID.Hex(),
+				}).Warnln("Error while getting owner team")
+				continue
 			}
 			owners = append(owners, gin.H{
 				"url": "/v1/teams/" + v.TeamID + "/",
@@ -115,28 +132,31 @@ func credentialSummary(cred *models.Credential) error {
 		}
 	}
 
-	if cred.OrganizationID != nil {
-		if err := db.Organizations().FindId(*cred.OrganizationID).One(&org); err != nil {
-			return err
-		}
-		owners = append(owners, gin.H{
-			"url": "/v1/organizations/" + *cred.OrganizationID + "/",
-			"description": org.Description,
-			"type": "organization",
-			"id": org.ID,
-			"name": org.Name,
-		})
+	if c.OrganizationID != nil {
+		if err := db.Organizations().FindId(*c.OrganizationID).One(&org); err != nil {
+			log.WithFields(log.Fields{
+				"Organization ID": (*c.OrganizationID).Hex(),
+				"Credential": c.Name,
+				"Credential ID": c.ID.Hex(),
+			}).Warnln("Error while getting Organization")
+		} else {
+			owners = append(owners, gin.H{
+				"url": "/v1/organizations/" + *c.OrganizationID + "/",
+				"description": org.Description,
+				"type": "organization",
+				"id": org.ID,
+				"name": org.Name,
+			})
 
-		summary["organization"] = gin.H{
-			"id": org.ID,
-			"name": org.Name,
-			"description": org.Description,
+			summary["organization"] = gin.H{
+				"id": org.ID,
+				"name": org.Name,
+				"description": org.Description,
+			}
 		}
 	}
 
 	summary["owners"] = owners
 
-	cred.Summary = summary;
-
-	return nil
+	c.Summary = summary;
 }

@@ -19,6 +19,6 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 		Created: time.Now(),
 	}
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }

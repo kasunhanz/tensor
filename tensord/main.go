@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin"
@@ -16,13 +15,13 @@ import (
 )
 
 func main() {
-	fmt.Printf("Tensor : %v\n", util.Version)
-	fmt.Printf("Port : %v\n", util.Config.Port)
-	fmt.Printf("MongoDB : %v@%v %v\n", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
-	fmt.Printf("Tmp Path (projects home) : %v\n", util.Config.TmpPath)
+	log.Infoln("Tensor :", util.Version)
+	log.Infoln("Port :", util.Config.Port)
+	log.Infoln("MongoDB :", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
+	log.Infoln("Tmp Path (projects home) :", util.Config.TmpPath)
 
 	if err := db.Connect(); err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	defer func() {
@@ -43,10 +42,10 @@ func main() {
 	go runners.SystemPool.Run()
 
 	r.Run(util.Config.Port)
-
 }
 
 func recoveryHandler(c *gin.Context, err interface{}) {
+	log.Errorln("Panic occurred", err)
 	c.JSON(http.StatusInternalServerError, models.Error{
 		Code: http.StatusInternalServerError,
 		Messages: "You have not gotten any error messages recently," +

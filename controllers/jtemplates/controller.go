@@ -34,7 +34,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_JOB_TEMPLATE_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Job Template:", err) // log error to the system log
+		log.Errorln("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -47,7 +47,7 @@ func Middleware(c *gin.Context) {
 	err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate);
 
 	if err != nil {
-		log.Print("Error while getting the Job Template:", err) // log error to the system log
+		log.Errorln("Error while getting the Job Template:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -68,15 +68,7 @@ func GetJTemplate(c *gin.Context) {
 	//get template set by the middleware
 	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
 
-	if err := metadata.JTemplateMetadata(&jobTemplate); err != nil {
-		log.Print("Error while setting summary and related resources:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while setting summary and related resources"},
-		})
-		return
-
-	}
+	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
@@ -123,19 +115,12 @@ func GetJTemplates(c *gin.Context) {
 		if !roles.JobTemplateRead(user, tmpJobTemplate) {
 			continue
 		}
-		if err := metadata.JTemplateMetadata(&tmpJobTemplate); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Job Template"},
-			})
-			return
-		}
+		metadata.JTemplateMetadata(&tmpJobTemplate)
 		// good to go add to list
 		jobTemplates = append(jobTemplates, tmpJobTemplate)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -279,7 +264,7 @@ func AddJTemplate(c *gin.Context) {
 	// insert new object
 	err = db.JobTemplates().Insert(req);
 	if err != nil {
-		log.Println("Error while creating Job Template:", err)
+		log.Errorln("Error while creating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating  Job Template"},
@@ -291,15 +276,7 @@ func AddJTemplate(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Job Template " + req.Name + " created")
 
 	// set `related` and `summary` feilds
-	err = metadata.JTemplateMetadata(&req);
-	if err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job Template"},
-		})
-		return
-	}
+	metadata.JTemplateMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
@@ -408,7 +385,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.Println("Error while updating Job Template:", err)
+		log.Errorln("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
@@ -420,14 +397,7 @@ func UpdateJTemplate(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.JTemplateMetadata(&jobTemplate); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job Template"},
-		})
-		return
-	}
+	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
@@ -634,7 +604,7 @@ func PatchJTemplate(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.Println("Error while updating Job Template:", err)
+		log.Errorln("Error while updating Job Template:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
@@ -645,14 +615,7 @@ func PatchJTemplate(c *gin.Context) {
 	addActivity(jobTemplate.ID, user.ID, "Job Template " + jobTemplate.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.JTemplateMetadata(&jobTemplate); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job Template"},
-		})
-		return
-	}
+	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
@@ -671,7 +634,7 @@ func RemoveJTemplate(c *gin.Context) {
 	// remove object from the collection
 	err := db.JobTemplates().RemoveId(jobTemplate.ID);
 	if err != nil {
-		log.Println("Error while removing Job Temlate:", err)
+		log.Errorln("Error while removing Job Temlate:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Job Template"},
@@ -710,7 +673,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": _CTX_JOB_TEMPLATE}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -757,20 +720,13 @@ func Jobs(c *gin.Context) {
 	var tmpJob models.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
-		if err := metadata.JobMetadata(&tmpJob); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Jobs"},
-			})
-			return
-		}
+		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jbs = append(jbs, tmpJob)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving jobs data from the db:", err)
+		log.Errorln("Error while retriving jobs data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Jobs"},
@@ -957,7 +913,7 @@ func Launch(c *gin.Context) {
 		var credential models.Credential
 		err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential)
 		if err != nil {
-			log.Println("Error while getting Network Credential:", err)
+			log.Errorln("Error while getting Network Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
 				Messages: []string{"Error while getting Network Credential"},
@@ -971,7 +927,7 @@ func Launch(c *gin.Context) {
 		var credential models.Credential
 		err := db.Credentials().FindId(*job.CloudCredentialID).One(&credential)
 		if err != nil {
-			log.Println("Error while getting Cloud Credential:", err)
+			log.Errorln("Error while getting Cloud Credential:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
 				Messages: []string{"Error while getting Cloud Credential"},
@@ -984,7 +940,7 @@ func Launch(c *gin.Context) {
 	// get inventory information
 	var inventory models.Inventory
 	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
-		log.Println("Error while getting Inventory:", err)
+		log.Errorln("Error while getting Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Inventory"},
@@ -995,7 +951,7 @@ func Launch(c *gin.Context) {
 
 	var credential models.Credential
 	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-		log.Println("Error while getting Machine Credential:", err)
+		log.Errorln("Error while getting Machine Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Machine Credential"},
@@ -1007,7 +963,7 @@ func Launch(c *gin.Context) {
 	// get project information
 	var project models.Project
 	if err := db.Projects().FindId(job.ProjectID).One(&project); err != nil {
-		log.Println("Error while getting Project:", err)
+		log.Errorln("Error while getting Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Project"},
@@ -1019,7 +975,7 @@ func Launch(c *gin.Context) {
 	// Get jwt token for authorize Ansible inventory plugin
 	var token jwt.LocalToken
 	if err := jwt.NewAuthToken(&token); err != nil {
-		log.Println("Error while getting Token:", err)
+		log.Errorln("Error while getting Token:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Token"},
@@ -1030,7 +986,7 @@ func Launch(c *gin.Context) {
 
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.Println("Error while creating Job:", err)
+		log.Errorln("Error while creating Job:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Job"},
@@ -1042,14 +998,7 @@ func Launch(c *gin.Context) {
 	runners.AnsiblePool.Register <- &runnerJob
 
 	// set additianl information to Job
-	if err := metadata.JobMetadata(&job); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while setting metatdata"},
-		})
-		return
-	}
+	metadata.JobMetadata(&job)
 
 	// return serialized job
 	c.JSON(http.StatusCreated, job)
@@ -1093,7 +1042,7 @@ func LaunchInfo(c *gin.Context) {
 	var cred models.Credential
 
 	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.Println("Cound not find Credential", err)
+		log.Errorln("Cound not find Credential", err)
 		defaults["credential"] = nil
 		isCredentialNeeded = true
 	} else {
@@ -1106,7 +1055,7 @@ func LaunchInfo(c *gin.Context) {
 	var inven models.Inventory
 
 	if err := db.Inventories().FindId(jt.InventoryID).One(&inven); err != nil {
-		log.Println("Cound not find Inventory", err)
+		log.Errorln("Cound not find Inventory", err)
 		defaults["inventory"] = nil
 		isInventoryNeeded = true
 	} else {

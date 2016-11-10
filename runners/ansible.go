@@ -1,7 +1,6 @@
 package runners
 
 import (
-	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
@@ -62,11 +61,14 @@ func (p *AnsibleJobPool) Run() {
 	for {
 		select {
 		case job := <-p.Register:
+
+			log.Infoln("Ansible Job registered:", job.Job.Name, "[" + job.Job.ID.Hex() + "]")
 			if job.Job.AllowSimultaneous {
 				go job.run()
 				continue
 			}
 
+			log.Infoln("Adding Ansible Job to queue:", job.Job.Name, "[" + job.Job.ID.Hex() + "]")
 			p.queue = append(p.queue, job)
 		case <-ticker.C:
 			if len(p.queue) == 0 {
@@ -74,14 +76,13 @@ func (p *AnsibleJobPool) Run() {
 			}
 
 			job := p.queue[0]
+			log.Infoln("Selecting ", job.Job.Name, "[" + job.Job.ID.Hex() + "]", "from Job queue")
 		// if has running jobs and allow simultaneous
 		// because if the job is running and AllowSimultaneous false
 		// we need to make sure another instance of the same job will not run
 			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
-
-			fmt.Println("Running a task.")
 			go p.queue[0].run()
 			p.queue = p.queue[1:]
 		}
@@ -116,10 +117,10 @@ func (p *AnsibleJobPool) KillJob(id bson.ObjectId) bool {
 		if v.Job.ID == id {
 			// if scm update is configured on launch
 			if v.Project.ScmUpdateOnLaunch && v.Job.Status == "waiting" {
-				log.Println("Sending update kill signal to job:", id.Hex())
+				log.Infoln("Sending update kill signal to job:", id.Hex())
 				v.UpdateSigKill <- true
 			} else {
-				log.Println("Sending kill signal to job:", id.Hex())
+				log.Infoln("Sending kill signal to job:", id.Hex())
 				v.SigKill <- true //send kill signal
 			}
 			p.running = append(p.running[:k], p.running[k + 1:]...)
@@ -171,6 +172,7 @@ type AnsibleJob struct {
 }
 
 func (j *AnsibleJob) run() {
+	log.Infoln("Starting job:", j.Job.Name, "[" + j.Job.ID.Hex() + "]")
 	//create a boolean channel to send the kill signal
 	j.SigKill = make(chan bool)
 	j.UpdateSigKill = make(chan bool)
@@ -178,25 +180,25 @@ func (j *AnsibleJob) run() {
 	AnsiblePool.running = append(AnsiblePool.running, j)
 
 	j.status("pending")
-	log.Println("Job [" + j.Job.ID.Hex() + "] is pending:")
+	log.Infoln("Job [" + j.Job.ID.Hex() + "] changed status to pending")
 	// update if requested
 	if j.Project.ScmUpdateOnLaunch {
 		// wait for scm update
 		j.status("waiting")
-		log.Println("Job [" + j.Job.ID.Hex() + "] is waiting:")
+		log.Infoln("Job [" + j.Job.ID.Hex() + "] is waiting:")
 		updateJob, err := UpdateProject(j.Project)
 
 		// listen to channel
 		// if true kill the channel and exit
-		log.Println("Waiting for kill signal of update job:", updateJob.Job.ID.Hex())
+		log.Infoln("Waiting for kill signal of update job:", updateJob.Job.ID.Hex())
 		go func() {
 			for {
 				select {
 				case kill := <-j.UpdateSigKill:
-					log.Println("Received update kill signal:", kill)
+					log.Infoln("Received update kill signal:", kill, "[" + j.Job.ID.Hex() + "]")
 				// kill true then kill the update job
 					if kill {
-						log.Println("Sending received update kill signal to updatejob:", kill)
+						log.Infoln("Sending received update kill signal to updatejob:", kill)
 						updateJob.SigKill <- true
 					}
 				}
@@ -204,7 +206,9 @@ func (j *AnsibleJob) run() {
 		}()
 
 		if err != nil {
-			j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
+			e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
+			log.Errorln(e)
+			j.Job.JobExplanation = e
 			j.Job.ResultStdout = "stdout capture is missing"
 			j.jobError()
 			return
@@ -214,13 +218,16 @@ func (j *AnsibleJob) run() {
 
 		for range ticker.C {
 			if updateJob.Job.Status == "failed" || updateJob.Job.Status == "error" {
-				j.Job.JobExplanation = "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
+				e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
+				log.Errorln(e)
+				j.Job.JobExplanation = e
 				j.Job.ResultStdout = "stdout capture is missing"
 				j.jobError()
 				return
 			}
 			if updateJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
+				log.Infoln("Update job successful", updateJob.Job.Name, "[" + updateJob.Job.ID.Hex() + "]")
 				ticker.Stop()
 				break
 			}
@@ -231,7 +238,7 @@ func (j *AnsibleJob) run() {
 	j.start()
 
 	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running")
-	log.Println("Started: " + j.Job.ID.Hex() + "\n")
+	log.Infoln("Started Job", "[" + j.Job.ID.Hex() + "]")
 
 	//Generate directory paths and create directories
 	tmp := "/tmp/tensor_proot_" + util.UniqueNew() + "/"
@@ -255,24 +262,23 @@ func (j *AnsibleJob) run() {
 	client, socket, pid, cleanup := ssh.StartAgent()
 
 	defer func() {
-		fmt.Println("Stopped running tasks")
+		log.Infoln("Stopped running Job:", j.Job.Name, "[" + j.Job.ID.Hex() + "]", "Status:", j.Job.Status)
 		AnsiblePool.DetachFromRunning(j.Job.ID)
 		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
 		cleanup()
 	}()
 
 	if len(j.MachineCred.SshKeyData) > 0 {
-
 		if len(j.MachineCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
-				log.Println("Error while decyrpting Machine Credential", err)
+				log.Errorln("Error while decyrpting Machine Credential", err)
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
@@ -281,14 +287,14 @@ func (j *AnsibleJob) run() {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
-			log.Println("Error while decyrpting Machine Credential", err)
+			log.Errorln("Error while decyrpting Machine Credential", err)
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -300,13 +306,13 @@ func (j *AnsibleJob) run() {
 		if len(j.NetworkCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
 			if err != nil {
-				log.Println("Error while decyrpting Machine Credential", err)
+				log.Errorln("Error while decyrpting Machine Credential", err)
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
@@ -315,14 +321,14 @@ func (j *AnsibleJob) run() {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
-			log.Println("Error while decyrpting Machine Credential", err)
+			log.Errorln("Error while decyrpting Machine Credential", err)
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Println("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -332,7 +338,7 @@ func (j *AnsibleJob) run() {
 
 	cmd, err := j.getCmd(socket, pid);
 	if err != nil {
-		log.Println("Running playbook failed", err)
+		log.Errorln("Running playbook failed", err)
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
 		j.jobFail()
@@ -346,7 +352,7 @@ func (j *AnsibleJob) run() {
 
 	if err := cmd.Start(); err != nil {
 		if err != nil {
-			log.Println("Running playbook failed", err)
+			log.Errorln("Running playbook failed", err)
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -362,7 +368,7 @@ func (j *AnsibleJob) run() {
 			// kill true then kill the job
 				if kill {
 					if err := cmd.Process.Kill(); err != nil {
-						log.Println("Could not cancel the job")
+						log.Errorln("Could not cancel the job")
 						return // exit from goroutine
 					}
 					j.jobCancel() // update cancelled status
@@ -375,7 +381,7 @@ func (j *AnsibleJob) run() {
 	// set stdout if
 	j.Job.ResultStdout = string(b.Bytes())
 	if waitErr != nil {
-		log.Println("Running playbook failed", waitErr)
+		log.Errorln("Running playbook failed", waitErr)
 		j.Job.JobExplanation = waitErr.Error()
 		j.jobFail()
 		return
@@ -447,16 +453,11 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	// set job arguments, exclude unencrypted passwords etc.
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
 
-	// For example, if I type something like:
-	// $ exec /usr/bin/ssh-agent /bin/bash
-	// from my shell prompt, I end up in a bash that is setup correctly with the agent.
-	// As soon as that bash dies, or any process that replaced bash with exec dies, the agent exits.
-	// add -c for shell, yes it's ugly but meh! this is golden
 	pargs = append(pargs, j.Job.Playbook)
+	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
 	cmd := exec.Command("ansible-playbook", pargs...)
 	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
-
 	cmd.Env = []string{
 		"TERM=xterm",
 		"PROJECT_PATH=/opt/tensor/projects/" + j.Project.ID.Hex(),
@@ -481,6 +482,9 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	j.Job.JobENV = cmd.Env
 
+	log.Infoln("Job Directory", cmd.Dir)
+	log.Infoln("Job Environment", append([]string{}, cmd.Env...))
+
 	return cmd, nil
 }
 
@@ -488,28 +492,28 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 func (j *AnsibleJob) createJobDirs() {
 	// create credential paths
 	if err := os.MkdirAll(j.JobPaths.EtcTower, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.EtcTower)
+		log.Errorln("Unable to create directory: ", j.JobPaths.EtcTower)
 	}
 	if err := os.MkdirAll(j.JobPaths.CredentialPath, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.CredentialPath)
+		log.Errorln("Unable to create directory: ", j.JobPaths.CredentialPath)
 	}
 	if err := os.MkdirAll(j.JobPaths.Tmp, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.Tmp)
+		log.Errorln("Unable to create directory: ", j.JobPaths.Tmp)
 	}
 	if err := os.MkdirAll(j.JobPaths.TmpRand, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.TmpRand)
+		log.Errorln("Unable to create directory: ", j.JobPaths.TmpRand)
 	}
 	if err := os.MkdirAll(j.JobPaths.VarLib, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.VarLib)
+		log.Errorln("Unable to create directory: ", j.JobPaths.VarLib)
 	}
 	if err := os.MkdirAll(j.JobPaths.VarLibJobStatus, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.VarLibJobStatus)
+		log.Errorln("Unable to create directory: ", j.JobPaths.VarLibJobStatus)
 	}
 	if err := os.MkdirAll(j.JobPaths.VarLibProjects, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.VarLibProjects)
+		log.Errorln("Unable to create directory: ", j.JobPaths.VarLibProjects)
 	}
 	if err := os.MkdirAll(j.JobPaths.VarLog, 0770); err != nil {
-		log.Println("Unable to create directory: ", j.JobPaths.VarLog)
+		log.Errorln("Unable to create directory: ", j.JobPaths.VarLog)
 	}
 }
 
@@ -551,7 +555,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	if len(j.Job.ExtraVars) > 0 {
 		vars, err := json.Marshal(j.Job.ExtraVars)
 		if err != nil {
-			log.Println("Could not marshal extra vars", err)
+			log.Errorln("Could not marshal extra vars", err)
 		}
 		params = append(params, "-e", "'" + string(vars) + "'")
 	}
@@ -587,7 +591,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	rp, err := json.Marshal(extras);
 
 	if err != nil {
-		log.Println("Error while marshalling parameters")
+		log.Errorln("Error while marshalling parameters")
 	}
 	params = append(params, "-e", string(rp))
 
@@ -623,32 +627,32 @@ func (j *AnsibleJob) kinit() error {
 
 	// start two commands
 	if err := echo.Start(); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 
 	if err := kinit.Start(); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 
 	if err := echo.Wait(); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 
 	if err := kinit.Wait(); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 
 	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 		return err
 	}
 

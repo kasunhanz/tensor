@@ -18,7 +18,7 @@ func TeamRead(user models.User, team models.Team) bool {
 	// since this is read it doesn't matter what permission assined to the user
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": team.OrganizationID}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational memeber:", err)
+		log.Errorln("Error while checking the user and organizational memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -45,7 +45,7 @@ func TeamWrite(user models.User, team models.Team) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.role": ORGANIZATION_ADMIN, "_id": team.OrganizationID}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {

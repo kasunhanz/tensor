@@ -19,7 +19,7 @@ func AccessList(c *gin.Context) {
 	var organization models.Organization
 	err := db.Organizations().FindId(team.OrganizationID).One(&organization)
 	if err != nil {
-		log.Println("Error while retriving Organization:", err)
+		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Access List"},
@@ -152,7 +152,7 @@ func AccessList(c *gin.Context) {
 		var user models.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Println("Error while retriving user data:", err)
+			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:http.StatusInternalServerError,
 				Messages: []string{"Error while getting Access List"},

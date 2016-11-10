@@ -28,7 +28,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_HOST_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Host:", err) // log error to the system log
+		log.Errorln("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -39,7 +39,7 @@ func Middleware(c *gin.Context) {
 
 	var h models.Host
 	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
-		log.Print("Error while getting the Host:", err) // log error to the system log
+		log.Errorln("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -84,19 +84,12 @@ func GetHosts(c *gin.Context) {
 	var tmpHost models.Host
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
-		if err := metadata.HostMetadata(&tmpHost); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Hosts"},
-			})
-			return
-		}
+		metadata.HostMetadata(&tmpHost)
 		// good to go add to list
 		hosts = append(hosts, tmpHost)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Host data from the db:", err)
+		log.Errorln("Error while retriving Host data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Hosts"},
@@ -171,7 +164,7 @@ func AddHost(c *gin.Context) {
 	req.ModifiedByID = user.ID
 
 	if err := db.Hosts().Insert(req); err != nil {
-		log.Println("Error while creating Host:", err)
+		log.Errorln("Error while creating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Host"},
@@ -183,14 +176,7 @@ func AddHost(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Host " + req.Name + " created")
 
-	if err := metadata.HostMetadata(&req); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Host"},
-		})
-		return
-	}
+	metadata.HostMetadata(&req)
 
 	c.JSON(http.StatusCreated, req)
 }
@@ -253,7 +239,7 @@ func UpdateHost(c *gin.Context) {
 
 	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
-		log.Println("Error while updating Host:", err)
+		log.Errorln("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Host"},
@@ -263,14 +249,7 @@ func UpdateHost(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Host " + host.Name + " updated")
 
-	if err := metadata.HostMetadata(&host); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Host Information"},
-		})
-		return
-	}
+	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
@@ -367,7 +346,7 @@ func PatchHost(c *gin.Context) {
 
 	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
-		log.Println("Error while updating Host:", err)
+		log.Errorln("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Host"},
@@ -379,14 +358,7 @@ func PatchHost(c *gin.Context) {
 	addActivity(host.ID, user.ID, "Host " + host.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.HostMetadata(&host); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Host Information"},
-		})
-		return
-	}
+	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
@@ -399,7 +371,7 @@ func RemoveHost(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
-		log.Println("Error while removing Host:", err)
+		log.Errorln("Error while removing Host:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Host"},
@@ -419,7 +391,7 @@ func VariableData(c *gin.Context) {
 	variables := gin.H{}
 
 	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
-		log.Println("Error while getting Host variables")
+		log.Errorln("Error while getting Host variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code": http.StatusInternalServerError,
 			"message": []string{"Error while getting Host variables"},
@@ -440,7 +412,7 @@ func Groups(c *gin.Context) {
 	if host.GroupID != nil {
 		// find group for the host
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-			log.Println("Error while getting groups")
+			log.Errorln("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"code": http.StatusInternalServerError,
 				"message": []string{"Error while getting groups"},
@@ -471,7 +443,7 @@ func AllGroups(c *gin.Context) {
 	if host.GroupID != nil {
 		// find group for the host
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-			log.Println("Error while getting groups")
+			log.Errorln("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code: http.StatusInternalServerError,
 				Messages: []string{"Error while getting groups"},
@@ -489,7 +461,7 @@ func AllGroups(c *gin.Context) {
 		for group.ParentGroupID != nil {
 			// find group for the host
 			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-				log.Println("Error while getting groups")
+				log.Errorln("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code: http.StatusInternalServerError,
 					Messages: []string{"Error while getting groups"},
@@ -543,7 +515,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": _CTX_HOST}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},

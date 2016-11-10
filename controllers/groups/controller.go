@@ -29,7 +29,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_GROUP_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Group:", err) // log error to the system log
+		log.Errorln("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -42,7 +42,7 @@ func Middleware(c *gin.Context) {
 	err = db.Groups().FindId(bson.ObjectIdHex(ID)).One(&group);
 
 	if err != nil {
-		log.Print("Error while getting the Group:", err) // log error to the system log
+		log.Errorln("Error while getting the Group:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -59,14 +59,7 @@ func Middleware(c *gin.Context) {
 func GetGroup(c *gin.Context) {
 	group := c.MustGet(_CTX_GROUP).(models.Group)
 
-	if err := metadata.GroupMetadata(&group); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Group"},
-		})
-		return
-	}
+	metadata.GroupMetadata(&group)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, group)
 }
@@ -93,19 +86,12 @@ func GetGroups(c *gin.Context) {
 	var tmpGroup models.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
-		if err := metadata.GroupMetadata(&tmpGroup); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Groups"},
-			})
-			return
-		}
+		metadata.GroupMetadata(&tmpGroup)
 		// good to go add to list
 		groups = append(groups, tmpGroup)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Group data from the db:", err)
+		log.Errorln("Error while retriving Group data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Group"},
@@ -183,7 +169,7 @@ func AddGroup(c *gin.Context) {
 
 	err = db.Groups().Insert(req);
 	if err != nil {
-		log.Println("Error while creating Group:", err)
+		log.Errorln("Error while creating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Group"},
@@ -193,16 +179,7 @@ func AddGroup(c *gin.Context) {
 
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Group " + req.Name + " created")
-
-	err = metadata.GroupMetadata(&req);
-	if err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Group"},
-		})
-		return
-	}
+	metadata.GroupMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
@@ -267,7 +244,7 @@ func UpdateGroup(c *gin.Context) {
 
 	// update object
 	if err := db.Groups().UpdateId(group.ID, group); err != nil {
-		log.Println("Error while updating Group:", err)
+		log.Errorln("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Group"},
@@ -279,14 +256,7 @@ func UpdateGroup(c *gin.Context) {
 	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.GroupMetadata(&group); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Group"},
-		})
-		return
-	}
+	metadata.GroupMetadata(&group)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, group)
@@ -381,7 +351,7 @@ func PatchGroup(c *gin.Context) {
 
 	// update object
 	if err := db.Hosts().UpdateId(group.ID, group); err != nil {
-		log.Println("Error while updating Group:", err)
+		log.Errorln("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Group"},
@@ -391,15 +361,8 @@ func PatchGroup(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(group.ID, user.ID, "Group " + group.Name + " updated")
 
-	// set `related` and `summary` feilds
-	if err := metadata.GroupMetadata(&group); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Group Infomation"},
-		})
-		return
-	}
+	// set `related` and `summary` fields
+	metadata.GroupMetadata(&group)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, group)
@@ -424,7 +387,7 @@ func RemoveGroup(c *gin.Context) {
 	}
 	err := db.Groups().Find(query).Select(bson.M{"_id":1}).All(&childgroups);
 	if err != nil {
-		log.Println("Error while getting child Groups:", err)
+		log.Errorln("Error while getting child Groups:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group"},
@@ -442,26 +405,26 @@ func RemoveGroup(c *gin.Context) {
 	//remove hosts that has group ids of group and child groups
 	changes, err := db.Hosts().RemoveAll(bson.M{"group_id": bson.M{"$in": ids}});
 	if err != nil {
-		log.Println("Error while removing Group Hosts:", err)
+		log.Errorln("Error while removing Group Hosts:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group Hosts"},
 		})
 		return
 	}
-	log.Println("Hosts remove info:", changes.Removed)
+	log.Infoln("Hosts remove info:", changes.Removed)
 
 	// remove groups from the collection
 	changes, err = db.Groups().RemoveAll(query);
 	if err != nil {
-		log.Println("Error while removing Group:", err)
+		log.Errorln("Error while removing Group:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group"},
 		})
 		return
 	}
-	log.Println("Groups remove info:", changes.Removed)
+	log.Infoln("Groups remove info:", changes.Removed)
 
 	// add new activity to activity stream
 	addActivity(group.ID, user.ID, "Group " + group.Name + " deleted")
@@ -476,7 +439,7 @@ func VariableData(c *gin.Context) {
 	variables := gin.H{}
 
 	if err := json.Unmarshal([]byte(group.Variables), &variables); err != nil {
-		log.Println("Error while getting Group variables")
+		log.Errorln("Error while getting Group variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code": http.StatusInternalServerError,
 			"message": []string{"Error while getting Group variables"},

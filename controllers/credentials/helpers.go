@@ -32,6 +32,6 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 	});
 
 	if err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }

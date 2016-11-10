@@ -18,7 +18,7 @@ func CredentialRead(user models.User, credential models.Credential) bool {
 	// since this is read it doesn't matter what permission assigned to the user
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": credential.OrganizationID}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational memeber:", err)
+		log.Errorln("Error while checking the user and organizational memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -42,7 +42,7 @@ func CredentialRead(user models.User, credential models.Credential) bool {
 	//check team permissions if, the user is in a team assign indirect permissions
 	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -63,7 +63,7 @@ func CredentialWrite(user models.User, credential models.Credential) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": credential.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {
@@ -94,7 +94,7 @@ func CredentialWrite(user models.User, credential models.Credential) bool {
 	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -115,7 +115,7 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": credential.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 
@@ -146,7 +146,7 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 	}
 	count, err = db.Teams().Find(query).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -162,7 +162,7 @@ func AddCredentialUser(credential models.Credential, user bson.ObjectId, role st
 	err := db.Credentials().UpdateId(credential.ID, access);
 
 	if err != nil {
-		log.Println("Error while adding Role:", err)
+		log.Errorln("Error while adding Role:", err)
 		return err
 	}
 
@@ -175,7 +175,7 @@ func AddCredentialTeam(credential models.Credential, user bson.ObjectId, role st
 	err := db.Credentials().UpdateId(credential.ID, access);
 
 	if err != nil {
-		log.Println("Error while adding Role:", err)
+		log.Errorln("Error while adding Role:", err)
 		return err
 	}
 

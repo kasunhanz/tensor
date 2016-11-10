@@ -42,9 +42,7 @@ var Config *configType
 
 func init() {
 	flag.BoolVar(&InteractiveSetup, "setup", false, "perform interactive setup")
-
-	flag.BoolVar(&Secrets, "secrets", false, "generate cookie secrets")
-
+	flag.BoolVar(&Secrets, "secrets", false, "generate salt")
 	var pwd string
 	flag.StringVar(&pwd, "hash", "", "generate hash of given password")
 
@@ -53,12 +51,10 @@ func init() {
 	if len(pwd) > 0 {
 		password, _ := bcrypt.GenerateFromPassword([]byte(pwd), 11)
 		fmt.Println("Generated password: ", string(password))
-
 		os.Exit(0)
 	}
 	if Secrets {
-		GenerateCookieSecrets()
-
+		GenerateSalt()
 		os.Exit(0)
 	}
 
@@ -134,10 +130,7 @@ func init() {
 
 }
 
-func GenerateCookieSecrets() {
-	hash := securecookie.GenerateRandomKey(32)
-	encryption := securecookie.GenerateRandomKey(32)
-
-	fmt.Println("Generated Hash: ", base64.StdEncoding.EncodeToString(hash))
-	fmt.Println("Generated Encryption: ", base64.StdEncoding.EncodeToString(encryption))
+func GenerateSalt() {
+	salt := securecookie.GenerateRandomKey(32)
+	fmt.Println("Generated Salt: ", base64.StdEncoding.EncodeToString(salt))
 }

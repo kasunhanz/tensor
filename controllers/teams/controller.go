@@ -29,7 +29,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_TEAM, c)
 
 	if err != nil {
-		log.Print("Error while getting the Team:", err) // log error to the system log
+		log.Errorln("Error while getting the Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -41,7 +41,7 @@ func Middleware(c *gin.Context) {
 	var team models.Team
 	err = db.Teams().FindId(bson.ObjectIdHex(ID)).One(&team);
 	if err != nil {
-		log.Print("Error while getting the Team:", err) // log error to the system log
+		log.Errorln("Error while getting the Team:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -90,19 +90,12 @@ func GetTeams(c *gin.Context) {
 		if !roles.TeamRead(user, tmpTeam) {
 			continue
 		}
-		if err := metadata.TeamMetadata(&tmpTeam); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Teams"},
-			})
-			return
-		}
+		metadata.TeamMetadata(&tmpTeam)
 		// good to go add to list
 		teams = append(teams, tmpTeam)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Team data from the db:", err)
+		log.Errorln("Error while retriving Team data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Team"},
@@ -162,12 +155,12 @@ func AddTeam(c *gin.Context) {
 	req.ID = bson.NewObjectId()
 	req.Created = time.Now()
 	req.Modified = time.Now()
-	req.CreatedBy = user.ID
-	req.ModifiedBy = user.ID
+	req.CreatedByID = user.ID
+	req.ModifiedByID = user.ID
 
 	err := db.Teams().Insert(req);
 	if err != nil {
-		log.Println("Error while creating Team:", err)
+		log.Errorln("Error while creating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Team"},
@@ -178,15 +171,7 @@ func AddTeam(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Group " + req.Name + " created")
 
-	err = metadata.TeamMetadata(&req);
-	if err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Team"},
-		})
-		return
-	}
+	metadata.TeamMetadata(&req)
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
 }
@@ -233,11 +218,11 @@ func UpdateTeam(c *gin.Context) {
 	team.Description = strings.Trim(req.Description, " ")
 	team.OrganizationID = req.OrganizationID
 	team.Modified = time.Now()
-	team.ModifiedBy = user.ID
+	team.ModifiedByID = user.ID
 
 	// update object
 	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
-		log.Println("Error while updating Team:", err)
+		log.Errorln("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Team"},
@@ -249,14 +234,7 @@ func UpdateTeam(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Team " + team.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.TeamMetadata(&team); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Team"},
-		})
-		return
-	}
+	metadata.TeamMetadata(&team)
 
 	// render JSON with 200 status code
 	c.JSON(http.StatusOK, team)
@@ -338,11 +316,11 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	team.Modified = time.Now()
-	team.ModifiedBy = user.ID
+	team.ModifiedByID = user.ID
 
 	// update object
 	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
-		log.Println("Error while updating Team:", err)
+		log.Errorln("Error while updating Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Team"},
@@ -354,14 +332,7 @@ func PatchTeam(c *gin.Context) {
 	addActivity(team.ID, user.ID, "Team " + team.Name + " updated")
 
 	// set `related` and `summary` feilds
-	if err := metadata.TeamMetadata(&team); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Team Information"},
-		})
-		return
-	}
+	metadata.TeamMetadata(&team)
 
 	// render JSON with 200 status code
 	c.JSON(http.StatusOK, team)
@@ -378,7 +349,7 @@ func RemoveTeam(c *gin.Context) {
 	// remove object from the collection
 	err := db.Teams().RemoveId(team.ID);
 	if err != nil {
-		log.Println("Error while removing Team:", err)
+		log.Errorln("Error while removing Team:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Team"},
@@ -403,7 +374,7 @@ func Users(c *gin.Context) {
 			var user models.User
 			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
-				log.Println("Error while getting owner users for credential", team.ID, err)
+				log.Errorln("Error while getting owner users for credential", team.ID, err)
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -446,19 +417,12 @@ func Credentials(c *gin.Context) {
 		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
-		if err := metadata.CredentialMetadata(&tmpCred); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.CredentialMetadata(&tmpCred)
 		// good to go add to list
 		credentials = append(credentials, tmpCred)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -498,19 +462,12 @@ func Projects(c *gin.Context) {
 		if !roles.ProjectRead(user, tmpProject) {
 			continue
 		}
-		if err := metadata.ProjectMetadata(&tmpProject); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Projects"},
-			})
-			return
-		}
+		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
 		projects = append(projects, tmpProject)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Projects data from the db:", err)
+		log.Errorln("Error while retriving Projects data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Projects"},
@@ -542,7 +499,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": team.ID, "type": _CTX_TEAM}).All(activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},

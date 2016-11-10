@@ -10,14 +10,14 @@ import (
 
 
 // Create a new organization
-func ProjectMetadata(p *models.Project) error {
+func ProjectMetadata(p *models.Project) {
 
 	ID := p.ID.Hex()
 	p.Type = "project"
 	p.Url = "/v1/projects/" + ID + "/"
 	related := gin.H{
-		"created_by": "/v1/users/" + p.CreatedBy.Hex() + "/",
-		"modified_by": "/v1/users/" + p.ModifiedBy.Hex() + "/",
+		"created_by": "/v1/users/" + p.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + p.ModifiedByID.Hex() + "/",
 		"notification_templates_error": "/v1/projects/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/projects/" + ID + "/notification_templates_success/",
 		"object_roles": "/v1/projects/" + ID + "/object_roles/",
@@ -40,30 +40,38 @@ func ProjectMetadata(p *models.Project) error {
 	}
 
 	p.Related = related
-
-	if err := projectSummary(p); err != nil {
-		return err
-	}
-
-	return nil
+	projectSummary(p)
 }
 
-func projectSummary(p *models.Project) error {
+func projectSummary(p *models.Project) {
 
 	var modified models.User
 	var created models.User
 	var cred models.Credential
 	var org models.Organization
 
-	if err := db.Users().FindId(p.CreatedBy).One(&created); err != nil {
-		return err
+	if err := db.Users().FindId(p.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": p.CreatedByID.Hex(),
+			"Project": p.Name,
+			"Project ID": p.ID.Hex(),
+		}).Errorln("Error while getting created by User")
 	}
 
-	if err := db.Users().FindId(p.ModifiedBy).One(&modified); err != nil {
-		return err
+	if err := db.Users().FindId(p.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": p.ModifiedByID.Hex(),
+			"Project": p.Name,
+			"Project ID": p.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
 	}
 	if err := db.Organizations().FindId(p.OrganizationID).One(&org); err != nil {
-		return err
+		log.WithFields(log.Fields{
+			"SCM Credential ID": p.ScmCredentialID.Hex(),
+			"Project": p.Name,
+			"Project ID": p.ID.Hex(),
+		})
+		log.Errorln("Error while getting SCM Credential")
 	}
 
 	summary := gin.H{
@@ -106,7 +114,11 @@ func projectSummary(p *models.Project) error {
 
 	if p.ScmCredentialID != nil {
 		if err := db.Credentials().FindId(*p.ScmCredentialID).One(&cred); err != nil {
-			return err
+			log.WithFields(log.Fields{
+				"Project": p.Name,
+				"Project ID": p.ID.Hex(),
+				"Credential ID": p.ScmCredentialID.Hex(),
+			}).Errorln("Error while getting SCM Credential")
 		}
 
 		summary["credential"] = gin.H{
@@ -118,37 +130,41 @@ func projectSummary(p *models.Project) error {
 		}
 	}
 
-	var lastupdate models.Job
-	if err := db.Jobs().Find(bson.M{"job_type":"update_job", "project_id": p.ID}).Sort("-modified").One(&lastupdate); err != nil {
-		log.Println("Error while getting last update")
+	var lastu models.Job
+	if err := db.Jobs().Find(bson.M{"job_type":"update_job", "project_id": p.ID}).Sort("-modified").One(&lastu); err != nil {
+		log.WithFields(log.Fields{
+			"Project": p.Name,
+			"Project ID": p.ID,
+		}).Warnln("Error while getting last update job")
 		summary["last_update"] = nil
 	} else {
 		summary["last_update"] = gin.H{
-			"id": lastupdate.ID,
-			"name": lastupdate.Name,
-			"description": lastupdate.Description,
-			"finished": lastupdate.Finished,
-			"status": lastupdate.Status,
-			"failed": lastupdate.Failed,
+			"id": lastu.ID,
+			"name": lastu.Name,
+			"description": lastu.Description,
+			"finished": lastu.Finished,
+			"status": lastu.Status,
+			"failed": lastu.Failed,
 		}
 	}
 
-	var lastjob models.Job
-	if err := db.Jobs().Find(bson.M{"job_type":"job", "project_id": p.ID}).Sort("-modified").One(&lastjob); err != nil {
-		log.Println("Error while getting last job")
+	var lastj models.Job
+	if err := db.Jobs().Find(bson.M{"job_type":"job", "project_id": p.ID}).Sort("-modified").One(&lastj); err != nil {
+		log.WithFields(log.Fields{
+			"Project": p.Name,
+			"Project ID": p.ID.Hex(),
+		}).Warnln("Error while getting last job")
 		summary["last_job"] = nil
 	} else {
 		summary["last_job"] = gin.H{
-			"id": lastjob.ID,
-			"name": lastjob.Name,
-			"description": lastjob.Description,
-			"finished": lastjob.Finished,
-			"status": lastjob.Status,
-			"failed": lastjob.Failed,
+			"id": lastj.ID,
+			"name": lastj.Name,
+			"description": lastj.Description,
+			"finished": lastj.Finished,
+			"status": lastj.Status,
+			"failed": lastj.Failed,
 		}
 	}
 
 	p.Summary = summary
-
-	return nil
 }

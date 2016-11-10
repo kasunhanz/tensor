@@ -28,7 +28,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_CREDENTIAL_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Credential:", err)
+		log.Errorln("Error while getting the Credential:", err)
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -40,7 +40,7 @@ func Middleware(c *gin.Context) {
 
 	var credential models.Credential
 	if err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
-		log.Print("Error while getting the Credential:", err)
+		log.Errorln("Error while getting the Credential:", err)
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -68,15 +68,7 @@ func GetCredential(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	hideEncrypted(&credential)
-
-	if err := metadata.CredentialMetadata(&credential); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&credential)
 
 	c.JSON(http.StatusOK, credential)
 }
@@ -110,19 +102,12 @@ func GetCredentials(c *gin.Context) {
 		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
-		if err := metadata.CredentialMetadata(&tmpCred); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.CredentialMetadata(&tmpCred)
 		// good to go add to list
 		credentials = append(credentials, tmpCred)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -213,7 +198,7 @@ func AddCredential(c *gin.Context) {
 	}
 
 	if err := db.Credentials().Insert(req); err != nil {
-		log.Println("Error while creating Credential:", err)
+		log.Errorln("Error while creating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Credential"},
@@ -222,7 +207,7 @@ func AddCredential(c *gin.Context) {
 	}
 
 	if err := roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN); err != nil {
-		log.Println("Error while adding the user to roles:", err)
+		log.Errorln("Error while adding the user to roles:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while adding the user to roles"},
@@ -233,13 +218,7 @@ func AddCredential(c *gin.Context) {
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Credential " + req.Name + " created")
 	hideEncrypted(&req)
-	if err := metadata.CredentialMetadata(&req); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while setting metadata"},
-		})
-	}
+	metadata.CredentialMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
@@ -329,7 +308,7 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
-		log.Println("Error while updating Credential:", err)
+		log.Errorln("Error while updating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
@@ -341,14 +320,7 @@ func UpdateCredential(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Credential " + credential.Name + " updated")
 
 	hideEncrypted(&req)
-	if err := metadata.CredentialMetadata(&req); err != nil {
-		log.Println("Error while updating Credential:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&req)
 
 	c.JSON(http.StatusOK, req)
 }
@@ -492,7 +464,7 @@ func PatchCredential(c *gin.Context) {
 	credential.Modified = time.Now()
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
-		log.Println("Error while updating Credential:", err)
+		log.Errorln("Error while updating Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
@@ -504,14 +476,7 @@ func PatchCredential(c *gin.Context) {
 	addActivity(credential.ID, user.ID, "Credential " + credential.Name + " updated")
 
 	hideEncrypted(&credential)
-	if err := metadata.CredentialMetadata(&credential); err != nil {
-		log.Println("Error while updating Credential:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&credential)
 
 	c.JSON(http.StatusOK, credential)
 }
@@ -521,7 +486,7 @@ func RemoveCredential(c *gin.Context) {
 	u := c.MustGet(_CTX_USER).(models.User)
 
 	if err := db.Credentials().RemoveId(crd.ID); err != nil {
-		log.Println("Error while deleting Credential:", err)
+		log.Errorln("Error while deleting Credential:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while deleting Credential"},
@@ -546,7 +511,7 @@ func OwnerTeams(c *gin.Context) {
 			var team models.Team
 			err := db.Teams().FindId(v.TeamID).One(&team)
 			if err != nil {
-				log.Println("Error while getting owner teams for credential", credential.ID, err)
+				log.Errorln("Error while getting owner teams for credential", credential.ID, err)
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -580,7 +545,7 @@ func OwnerUsers(c *gin.Context) {
 			var user models.User
 			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
-				log.Println("Error while getting owner users for credential", credential.ID, err)
+				log.Errorln("Error while getting owner users for credential", credential.ID, err)
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -613,7 +578,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},

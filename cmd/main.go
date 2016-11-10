@@ -21,7 +21,7 @@ func main() {
 }
 
 func doSetup() int {
-	fmt.Println("Checking database connectivity.. Please be patient.")
+	log.Info("Checking database connectivity.. Please be patient.")
 
 	if err := db.Connect(); err != nil {
 		log.Fatal("\n Cannot connect to database!\n" + err.Error())

@@ -18,7 +18,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	// since this is read it doesn't matter what permission assined to the user
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational memeber:", err)
+		log.Errorln("Error while checking the user and organizational memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -42,7 +42,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	//check team permissions if, the user is in a team assign indirect permissions
 	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID, }).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -63,7 +63,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {
@@ -89,7 +89,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }
 	count, err = db.Teams().Find(query).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -110,7 +110,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": inventory.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {
@@ -138,7 +138,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 
@@ -165,7 +165,7 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 			"roles.role": ORGANIZATION_ADMIN},
 	).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {
@@ -198,7 +198,7 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 	}
 	count, err = db.Teams().Find(query).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
