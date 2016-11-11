@@ -24,14 +24,12 @@ import (
 //text := Decrypt(cryptoText)
 //fmt.Printf(text)
 
-var key []byte = []byte("8m86pie1ef8bghbq41ru!de4")
-
 // Encrypt string to base64 crypto using AES
 func CipherEncrypt(text string) string {
 	// key := []byte(keyText)
 	plaintext := []byte(text)
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(Config.Salt)
 	if err != nil {
 		panic(err)
 	}
@@ -56,7 +54,7 @@ func CipherEncrypt(text string) string {
 func CipherDecrypt(cryptoText string) string {
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(Config.Salt)
 	if err != nil {
 		log.Errorln("Error occured when generating new cipher block", err.Error())
 		return ""
