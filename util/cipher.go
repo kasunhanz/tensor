@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	log "github.com/Sirupsen/logrus"
 )
 
 
@@ -40,7 +41,8 @@ func CipherEncrypt(text string) string {
 	ciphertext := make([]byte, aes.BlockSize + len(plaintext))
 	iv := ciphertext[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		panic(err)
+		log.Errorln("Error occured when reading AES blocks", err.Error())
+		return ""
 	}
 
 	stream := cipher.NewCFBEncrypter(block, iv)
@@ -56,13 +58,14 @@ func CipherDecrypt(cryptoText string) string {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err)
+		log.Errorln("Error occured when generating new cipher block", err.Error())
+		return ""
 	}
 
 	// The IV needs to be unique, but not secure. Therefore it's common to
 	// include it at the beginning of the ciphertext.
 	if len(ciphertext) < aes.BlockSize {
-		panic("ciphertext too short")
+		log.Errorln("Ciper text is too short")
 	}
 	iv := ciphertext[:aes.BlockSize]
 	ciphertext = ciphertext[aes.BlockSize:]
