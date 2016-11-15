@@ -29,7 +29,7 @@ func CipherEncrypt(text string) string {
 	// key := []byte(keyText)
 	plaintext := []byte(text)
 
-	block, err := aes.NewCipher(Config.Salt)
+	block, err := aes.NewCipher([]byte(Config.Salt))
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func CipherEncrypt(text string) string {
 func CipherDecrypt(cryptoText string) string {
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
-	block, err := aes.NewCipher(Config.Salt)
+	block, err := aes.NewCipher([]byte(Config.Salt))
 	if err != nil {
 		log.Errorln("Error occured when generating new cipher block", err.Error())
 		return ""

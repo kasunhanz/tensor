@@ -156,28 +156,26 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 	return false
 }
 
-func AddCredentialUser(credential models.Credential, user bson.ObjectId, role string) error {
-
+func AddCredentialUser(credential models.Credential, user bson.ObjectId, role string) {
 	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type:"user", UserID:user, Role: role}}}
 	err := db.Credentials().UpdateId(credential.ID, access);
-
 	if err != nil {
-		log.Errorln("Error while adding Role:", err)
-		return err
+		log.WithFields(log.Fields{
+			"User ID": user,
+			"Credential ID": credential.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while adding the user to roles")
 	}
-
-	return nil
 }
 
-func AddCredentialTeam(credential models.Credential, user bson.ObjectId, role string) error {
-
-	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type:"team", UserID:user, Role: role}}}
+func AddCredentialTeam(credential models.Credential, team bson.ObjectId, role string) {
+	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type:"team", TeamID:team, Role: role}}}
 	err := db.Credentials().UpdateId(credential.ID, access);
-
 	if err != nil {
-		log.Errorln("Error while adding Role:", err)
-		return err
+		log.WithFields(log.Fields{
+			"Team ID": team,
+			"Credential ID": credential.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while adding the Team to roles")
 	}
-
-	return nil
 }

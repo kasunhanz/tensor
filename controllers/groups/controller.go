@@ -29,7 +29,10 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_GROUP_ID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Group:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Group ID": ID,
+			"Error": err.Error(),
+		}).Errorln("Error while getting Group ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -42,7 +45,10 @@ func Middleware(c *gin.Context) {
 	err = db.Groups().FindId(bson.ObjectIdHex(ID)).One(&group);
 
 	if err != nil {
-		log.Errorln("Error while getting the Group:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Group ID": ID,
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Group form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -66,6 +72,7 @@ func GetGroup(c *gin.Context) {
 
 // GetGroups returns groups as a serialized JSON object
 func GetGroups(c *gin.Context) {
+	user := c.MustGet(_CTX_USER).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -79,6 +86,10 @@ func GetGroups(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
+
 	var groups []models.Group
 	// new mongodb iterator
 	iter := query.Iter()
@@ -91,7 +102,10 @@ func GetGroups(c *gin.Context) {
 		groups = append(groups, tmpGroup)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Group data from the db:", err)
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Group ID": tmpGroup.ID.Hex(),
+		}).Debugln("User does not have read permissions")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Group"},
@@ -103,9 +117,20 @@ func GetGroups(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Group page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count": count,
+		"Next": pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip": pgi.Skip(),
+		"Limit": pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
@@ -123,7 +148,9 @@ func AddGroup(c *gin.Context) {
 
 	err := binding.JSON.Bind(c.Request, &req);
 	if err != nil {
-		// Return 400 if request has bad JSON format
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
@@ -167,9 +194,11 @@ func AddGroup(c *gin.Context) {
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 
-	err = db.Groups().Insert(req);
-	if err != nil {
-		log.Errorln("Error while creating Group:", err)
+	if err = db.Groups().Insert(req); err != nil {
+		log.WithFields(log.Fields{
+			"Group ID": req.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while creating Group")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Group"},
