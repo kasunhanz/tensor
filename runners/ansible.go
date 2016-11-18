@@ -557,7 +557,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 		if err != nil {
 			log.Errorln("Could not marshal extra vars", err)
 		}
-		params = append(params, "-e", "'" + string(vars) + "'")
+		params = append(params, "-e", string(vars))
 	}
 
 	// -t, TAGS, --tags=TAGS
