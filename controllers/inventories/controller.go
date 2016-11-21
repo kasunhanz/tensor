@@ -1,21 +1,22 @@
 package inventories
 
 import (
-	"gopkg.in/mgo.v2/bson"
-	"time"
-	"net/http"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"github.com/gin-gonic/gin"
-	"bitbucket.pearson.com/apseng/tensor/db"
-	log "github.com/Sirupsen/logrus"
-	"bitbucket.pearson.com/apseng/tensor/util"
-	"strconv"
 	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
-	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
-	"github.com/gin-gonic/gin/binding"
+	"net/http"
+	"strconv"
 	"strings"
+	"time"
+
+	"bitbucket.pearson.com/apseng/tensor/controllers/helpers"
+	"bitbucket.pearson.com/apseng/tensor/controllers/metadata"
+	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/roles"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const _CTX_INVENTORY = "inventory"
@@ -31,7 +32,7 @@ func Middleware(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
+			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
 		c.Abort()
@@ -39,12 +40,12 @@ func Middleware(c *gin.Context) {
 	}
 
 	var inventory models.Inventory
-	err = db.Inventories().FindId(bson.ObjectIdHex(ID)).One(&inventory);
+	err = db.Inventories().FindId(bson.ObjectIdHex(ID)).One(&inventory)
 
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
-			Code:http.StatusNotFound,
+			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
 		c.Abort()
@@ -92,7 +93,7 @@ func GetInventories(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Inventory"},
 		})
 		return
@@ -107,10 +108,10 @@ func GetInventories(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: inventories[pgi.Skip():pgi.End()],
+		Results:  inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -122,7 +123,7 @@ func AddInventory(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
 		return
@@ -132,7 +133,7 @@ func AddInventory(c *gin.Context) {
 	// if not fail
 	if helpers.OrganizationNotExist(req.OrganizationID) {
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
 		})
 		return
@@ -141,7 +142,7 @@ func AddInventory(c *gin.Context) {
 	// if inventory exists in the collection
 	if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory with this Name already exists."},
 		})
 		return
@@ -156,14 +157,14 @@ func AddInventory(c *gin.Context) {
 	if err := db.Inventories().Insert(req); err != nil {
 		log.Errorln("Error while creating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Inventory"},
 		})
 		return
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Inventory " + req.Name + " created")
+	addActivity(req.ID, user.ID, "Inventory "+req.Name+" created")
 
 	metadata.InventoryMetadata(&req)
 
@@ -180,11 +181,11 @@ func UpdateInventory(c *gin.Context) {
 	user := c.MustGet(_CTX_USER).(models.User)
 
 	var req models.Inventory
-	err := binding.JSON.Bind(c.Request, &req);
+	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
 		return
@@ -194,7 +195,7 @@ func UpdateInventory(c *gin.Context) {
 	// if not fail
 	if helpers.OrganizationNotExist(req.OrganizationID) {
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
 		})
 		return
@@ -204,32 +205,32 @@ func UpdateInventory(c *gin.Context) {
 		// if inventory exists in the collection
 		if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
 			c.JSON(http.StatusBadRequest, models.Error{
-				Code:http.StatusBadRequest,
+				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
 			})
 			return
 		}
 	}
 
-	inventory.Name = strings.Trim(inventory.Name, " ")
-	inventory.Description = strings.Trim(inventory.Description, " ")
-	inventory.OrganizationID = inventory.OrganizationID
-	inventory.Description = inventory.Description
-	inventory.Variables = inventory.Variables
+	inventory.Name = strings.Trim(req.Name, " ")
+	inventory.Description = strings.Trim(req.Description, " ")
+	inventory.OrganizationID = req.OrganizationID
+	inventory.Description = req.Description
+	inventory.Variables = req.Variables
 	inventory.Modified = time.Now()
 	inventory.ModifiedByID = user.ID
 
-	err = db.Inventories().UpdateId(inventory.ID, inventory);
+	err = db.Inventories().UpdateId(inventory.ID, inventory)
 	if err != nil {
 		log.Errorln("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Inventory"},
 		})
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Inventory " + inventory.Name + " updated")
+	addActivity(req.ID, user.ID, "Inventory "+inventory.Name+" updated")
 
 	// set `related` and `summary` feilds
 	metadata.InventoryMetadata(&inventory)
@@ -249,7 +250,7 @@ func PatchInventory(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
-			Code:http.StatusBadRequest,
+			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
 		return
@@ -259,7 +260,7 @@ func PatchInventory(c *gin.Context) {
 		// check whether the organization exist or not
 		if !helpers.OrganizationExist(*req.OrganizationID) {
 			c.JSON(http.StatusBadRequest, models.Error{
-				Code:http.StatusBadRequest,
+				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
 			})
 			return
@@ -274,7 +275,7 @@ func PatchInventory(c *gin.Context) {
 		// if inventory exists in the collection
 		if helpers.IsNotUniqueInventory(*req.Name, ogID) {
 			c.JSON(http.StatusBadRequest, models.Error{
-				Code:http.StatusBadRequest,
+				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
 			})
 			return
@@ -303,14 +304,14 @@ func PatchInventory(c *gin.Context) {
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Errorln("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Inventory"},
 		})
 		return
 	}
 
 	// add new activity to activity stream
-	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " updated")
+	addActivity(inventory.ID, user.ID, "Inventory "+inventory.Name+" updated")
 
 	// set `related` and `summary` feilds
 	metadata.InventoryMetadata(&inventory)
@@ -328,7 +329,7 @@ func RemoveInventory(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Hosts:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory Hosts"},
 		})
 	}
@@ -338,23 +339,23 @@ func RemoveInventory(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Groups:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory Groups"},
 		})
 	}
 	log.Infoln("Groups remove info:", changes.Removed)
 
-	err = db.Inventories().RemoveId(inventory.ID);
+	err = db.Inventories().RemoveId(inventory.ID)
 	if err != nil {
 		log.Errorln("Error while removing Inventory:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory"},
 		})
 	}
 
 	// add new activity to activity stream
-	addActivity(inventory.ID, user.ID, "Inventory " + inventory.Name + " deleted")
+	addActivity(inventory.ID, user.ID, "Inventory "+inventory.Name+" deleted")
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -373,23 +374,23 @@ func Script(c *gin.Context) {
 	if qhost != "" {
 		//get hosts for parent group
 		var host models.Host
-		err := db.Hosts().Find(bson.M{"name": qhost}).One(&host);
+		err := db.Hosts().Find(bson.M{"name": qhost}).One(&host)
 		if err != nil {
 			log.Errorln("Error while getting host", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
+				"code":    http.StatusInternalServerError,
 				"message": []string{"Error while getting vars"},
 			})
 			return
 		}
 		var gv gin.H
-		err = json.Unmarshal([]byte(host.Variables), &gv);
+		err = json.Unmarshal([]byte(host.Variables), &gv)
 		if err != nil {
 			log.Errorln("Error while unmarshalling group vars", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
+				"code":    http.StatusInternalServerError,
 				"message": []string{"Error while getting Hosts"},
 			})
 			return
@@ -410,7 +411,7 @@ func Script(c *gin.Context) {
 		log.Errorln("Error while getting groups", err)
 		// send a brief error description to client
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+			"code":    http.StatusInternalServerError,
 			"message": []string{"Error while getting Hosts"},
 		})
 		return
@@ -434,7 +435,7 @@ func Script(c *gin.Context) {
 			log.Errorln("Error while getting host for group", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
+				"code":    http.StatusInternalServerError,
 				"message": []string{"Error while getting Hosts"},
 			})
 			return
@@ -452,7 +453,7 @@ func Script(c *gin.Context) {
 			log.Errorln("Error while getting child groups", err)
 			// send a brief error description to client
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
+				"code":    http.StatusInternalServerError,
 				"message": []string{"Error while getting Hosts"},
 			})
 			return
@@ -476,7 +477,7 @@ func Script(c *gin.Context) {
 				log.Errorln("Error while unmarshalling group vars", err)
 				// send a brief error description to client
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"code": http.StatusInternalServerError,
+					"code":    http.StatusInternalServerError,
 					"message": []string{"Error while getting Hosts"},
 				})
 				return
@@ -484,9 +485,9 @@ func Script(c *gin.Context) {
 		}
 
 		resp[v.Name] = gin.H{
-			"hosts": hostnames,
+			"hosts":    hostnames,
 			"children": groupnames,
-			"vars": gv,
+			"vars":     gv,
 		}
 
 	}
@@ -500,7 +501,7 @@ func Script(c *gin.Context) {
 				log.Errorln("Error while unmarshalling group vars", err)
 				// send a brief error description to client
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"code": http.StatusInternalServerError,
+					"code":    http.StatusInternalServerError,
 					"message": []string{"Error while getting Hosts"},
 				})
 				return
@@ -518,7 +519,7 @@ func Script(c *gin.Context) {
 		log.Errorln("Error while getting non-grouped hosts", err)
 		// send a brief error description to client
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+			"code":    http.StatusInternalServerError,
 			"message": []string{"Error while getting non-grouped Hosts"},
 		})
 		return
@@ -532,7 +533,7 @@ func Script(c *gin.Context) {
 				log.Errorln("Error while unmarshalling group vars", err)
 				// send a brief error description to client
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"code": http.StatusInternalServerError,
+					"code":    http.StatusInternalServerError,
 					"message": []string{"Error while getting Hosts"},
 				})
 				return
@@ -582,7 +583,7 @@ func JobTemplates(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Job Templates"},
 		})
 		return
@@ -597,10 +598,10 @@ func JobTemplates(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: jobTemplate[pgi.Skip():pgi.End()],
+		Results:  jobTemplate[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -612,9 +613,9 @@ func RootGroups(c *gin.Context) {
 	var groups []models.Group
 	query := bson.M{
 		"inventory_id": inv.ID,
-		"$or":[]bson.M{
+		"$or": []bson.M{
 			{"parent_group_id": bson.M{"$exists": false}},
-			{"parent_group_id":nil},
+			{"parent_group_id": nil},
 		},
 	}
 	// new mongodb iterator
@@ -635,7 +636,7 @@ func RootGroups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
 		return
@@ -650,10 +651,10 @@ func RootGroups(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: groups[pgi.Skip():pgi.End()],
+		Results:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -684,7 +685,7 @@ func Groups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
 		return
@@ -699,10 +700,10 @@ func Groups(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: groups[pgi.Skip():pgi.End()],
+		Results:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -733,7 +734,7 @@ func Hosts(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Host data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Hosts"},
 		})
 		return
@@ -748,10 +749,10 @@ func Hosts(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: hosts[pgi.Skip():pgi.End()],
+		Results:  hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -765,7 +766,7 @@ func ActivityStream(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
 		})
 		return
@@ -780,10 +781,10 @@ func ActivityStream(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: activities[pgi.Skip():pgi.End()],
+		Results:  activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -805,14 +806,13 @@ func Tree(c *gin.Context) {
 
 		//TODO: children
 
-
 		// good to go add to list
 		groups = append(groups, tmpGroup)
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
+			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
 		return
@@ -827,10 +827,10 @@ func Tree(c *gin.Context) {
 	}
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
-		Count:count,
-		Next: pgi.NextPage(),
+		Count:    count,
+		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results: groups[pgi.Skip():pgi.End()],
+		Results:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -842,7 +842,7 @@ func VariableData(c *gin.Context) {
 	if err := json.Unmarshal([]byte(inventory.Variables), &variables); err != nil {
 		log.Errorln("Error while getting Inventory Variables")
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+			"code":    http.StatusInternalServerError,
 			"message": []string{"Error while getting Inventory Variables"},
 		})
 		return
