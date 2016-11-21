@@ -5,18 +5,18 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 // Create a new organization
-func OrganizationMetadata(o *models.Organization) error {
+func OrganizationMetadata(o *models.Organization) {
 
 	ID := o.ID.Hex()
 	o.Type = "organization"
 	o.Url = "/v1/organizations/" + ID + "/"
 	o.Related = gin.H{
-		"created_by": "/v1/users/" + o.CreatedBy.Hex() + "/",
-		"modified_by": "/v1/users/" + o.ModifiedBy.Hex() + "/",
+		"created_by": "/v1/users/" + o.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + o.ModifiedByID.Hex() + "/",
 		"notification_templates_error": "/v1/organizations/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/organizations/" + ID + "/notification_templates_success/",
 		"users": "/v1/organizations/" + ID + "/users/",
@@ -32,98 +32,116 @@ func OrganizationMetadata(o *models.Organization) error {
 		"projects": "/v1/organizations/" + ID + "/projects/",
 	}
 
-	if err := organizationSummary(o); err != nil {
-		return err
-	}
-
-	return nil
+	organizationSummary(o);
 }
 
-func organizationSummary(o *models.Organization) error {
+func organizationSummary(o *models.Organization) {
 
 	var modified models.User
 	var created models.User
-	var owners []models.User
-
-	if err := db.Users().FindId(o.CreatedBy).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(o.ModifiedBy).One(&modified); err != nil {
-		return err
-	}
 
 	jcount, err := db.JobTemplates().Find(bson.M{"organization_id": o.ID}).Count();
 	if err != nil {
-		log.Println("Erro wile getting JobTemplates count")
+		log.WithFields(log.Fields{
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting Job Template count")
 	}
 
 	ucount, err := db.Users().Find(bson.M{"organization_id": o.ID}).Count();
 	if err != nil {
-		log.Println("Erro wile getting Users count")
+		log.WithFields(log.Fields{
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting Users count")
 	}
 
 	tcount, err := db.Teams().Find(bson.M{"organization_id": o.ID}).Count();
 	if err != nil {
-		log.Println("Erro wile getting Team count")
+		log.WithFields(log.Fields{
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting Teams count")
 	}
 
 	icount, err := db.Inventories().Find(bson.M{"organization_id": o.ID}).Count();
 	if err != nil {
-		log.Println("Erro wile getting Inventories count")
+		log.WithFields(log.Fields{
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting Inventories count")
 	}
 
 	pcount, err := db.Projects().Find(bson.M{"organization_id": o.ID}).Count();
 	if err != nil {
-		log.Println("Erro wile getting Project count")
+		log.WithFields(log.Fields{
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting Projects count")
 	}
-
-	//TODO: include teams to owners list
 
 	summary := gin.H{
 		"object_roles": []gin.H{
 			{
-				"Description": "Can view all settings for the organization",
-				"Name":"auditor",
+				"description": "Can view all settings for the organization",
+				"name":"auditor",
 			},
 			{
-				"Description":"Can manage all aspects of the organization",
-				"Name":"admin",
+				"description":"Can manage all aspects of the organization",
+				"name":"admin",
 			},
 			{
-				"Description":"User is a member of the organization",
-				"Name":"member",
+				"description":"User is a member of the organization",
+				"name":"member",
 			},
 			{
-				"Description":"May view settings for the organization",
-				"Name":"read",
+				"description":"May view settings for the organization",
+				"name":"read",
 			},
 		},
-
-		"related_field_counts": map[string]int{
+		"related_field_counts": gin.H{
 			"job_templates":jcount,
 			"users":ucount,
 			"teams":tcount,
-			"admins":0,
+			"admins":0, //TODO: get admins count
 			"inventories":icount,
 			"projects":pcount,
 		},
-		"created_by": gin.H{
-			"id":         created.ID,
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"modified_by": gin.H{
-			"id":         modified.ID,
+		"created_by": nil,
+		"modified_by": nil,
+		"owners": nil,
+	}
+
+	if err := db.Users().FindId(o.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": o.CreatedByID.Hex(),
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting created by User")
+	} else {
+		summary["created_by"] = gin.H{
+			"id":         modified.ID.Hex(),
 			"username":   modified.Username,
 			"first_name": modified.FirstName,
 			"last_name":  modified.LastName,
-		},
-		"owners": owners,
+		}
 	}
 
-	o.SummaryFields = summary
+	if err := db.Users().FindId(o.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": o.ModifiedByID.Hex(),
+			"Organization": o.Name,
+			"Organization ID": o.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
+	}
 
-	return nil
+	//TODO: include teams to owners list
+	o.Summary = summary
 }

@@ -2,7 +2,7 @@ package sockets
 
 import (
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
@@ -55,7 +55,7 @@ func (c *connection) readPump() {
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+				log.Errorf("error: %v", err)
 			}
 			break
 		}

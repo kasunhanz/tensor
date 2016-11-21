@@ -3,7 +3,7 @@ package runners
 import (
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 )
@@ -23,7 +23,7 @@ func (t *SystemJob) start() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 }
 
@@ -50,7 +50,7 @@ func (t *SystemJob) fail() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -80,7 +80,7 @@ func (t *SystemJob) jobCancel() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -110,7 +110,7 @@ func (t *SystemJob) success() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -127,7 +127,7 @@ func (t *SystemJob) updateProject() {
 	}
 
 	if err := db.Projects().UpdateId(t.Job.ProjectID, d); err != nil {
-		log.Println("Failed to update project", err)
+		log.Errorln("Failed to update project", err)
 	}
 }
 
@@ -143,6 +143,6 @@ func addSystemActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 	}
 
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }

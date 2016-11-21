@@ -5,7 +5,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/util"
@@ -23,7 +23,7 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 		Created: time.Now(),
 	}
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }
 

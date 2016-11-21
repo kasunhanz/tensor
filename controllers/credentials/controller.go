@@ -4,7 +4,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"time"
@@ -28,7 +28,10 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_CREDENTIAL_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": ID,
+			"Error": err.Error(),
+		}).Errorln("Error while getting Credential ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -40,7 +43,10 @@ func Middleware(c *gin.Context) {
 
 	var credential models.Credential
 	if err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
-		log.Print("Error while getting the Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": ID,
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Credential form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -68,15 +74,7 @@ func GetCredential(c *gin.Context) {
 	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
 
 	hideEncrypted(&credential)
-
-	if err := metadata.CredentialMetadata(&credential); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&credential)
 
 	c.JSON(http.StatusOK, credential)
 }
@@ -96,6 +94,10 @@ func GetCredentials(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
+
 	var credentials []models.Credential
 	// new mongodb iterator
 	iter := query.Iter()
@@ -106,23 +108,22 @@ func GetCredentials(c *gin.Context) {
 		// if the user doesn't have access to credential
 		// skip to next
 		if !roles.CredentialRead(user, tmpCred) {
+			log.WithFields(log.Fields{
+				"User ID": user.ID.Hex(),
+				"Credential ID": tmpCred.ID.Hex(),
+			}).Debugln("User does not have read permissions")
 			continue
 		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
-		if err := metadata.CredentialMetadata(&tmpCred); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.CredentialMetadata(&tmpCred)
 		// good to go add to list
 		credentials = append(credentials, tmpCred)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -134,9 +135,20 @@ func GetCredentials(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count": count,
+		"Next": pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip": pgi.Skip(),
+		"Limit": pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
@@ -152,6 +164,9 @@ func AddCredential(c *gin.Context) {
 	var req models.Credential
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
@@ -213,7 +228,10 @@ func AddCredential(c *gin.Context) {
 	}
 
 	if err := db.Credentials().Insert(req); err != nil {
-		log.Println("Error while creating Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": req.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while creating Credential")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Credential"},
@@ -221,25 +239,11 @@ func AddCredential(c *gin.Context) {
 		return
 	}
 
-	if err := roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN); err != nil {
-		log.Println("Error while adding the user to roles:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while adding the user to roles"},
-		})
-		return
-	}
-
+	roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN)
 	// add new activity to activity stream
 	addActivity(req.ID, user.ID, "Credential " + req.Name + " created")
 	hideEncrypted(&req)
-	if err := metadata.CredentialMetadata(&req); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while setting metadata"},
-		})
-	}
+	metadata.CredentialMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
@@ -284,9 +288,9 @@ func UpdateCredential(c *gin.Context) {
 
 	// system generated
 	credential.Name = strings.Trim(req.Name, " ")
+	credential.Description = strings.Trim(req.Description, " ")
 	credential.Kind = req.Kind
 	credential.Cloud = req.Cloud
-	credential.Description = strings.Trim(req.Description, " ")
 	credential.Host = req.Host
 	credential.Username = req.Username
 	credential.SecurityToken = req.SecurityToken
@@ -329,7 +333,10 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
-		log.Println("Error while updating Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": req.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while updating Credential")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
@@ -341,14 +348,7 @@ func UpdateCredential(c *gin.Context) {
 	addActivity(req.ID, user.ID, "Credential " + credential.Name + " updated")
 
 	hideEncrypted(&req)
-	if err := metadata.CredentialMetadata(&req); err != nil {
-		log.Println("Error while updating Credential:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&req)
 
 	c.JSON(http.StatusOK, req)
 }
@@ -492,7 +492,10 @@ func PatchCredential(c *gin.Context) {
 	credential.Modified = time.Now()
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
-		log.Println("Error while updating Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": credential.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while updating Credential")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
@@ -504,14 +507,7 @@ func PatchCredential(c *gin.Context) {
 	addActivity(credential.ID, user.ID, "Credential " + credential.Name + " updated")
 
 	hideEncrypted(&credential)
-	if err := metadata.CredentialMetadata(&credential); err != nil {
-		log.Println("Error while updating Credential:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
-		return
-	}
+	metadata.CredentialMetadata(&credential)
 
 	c.JSON(http.StatusOK, credential)
 }
@@ -521,7 +517,10 @@ func RemoveCredential(c *gin.Context) {
 	u := c.MustGet(_CTX_USER).(models.User)
 
 	if err := db.Credentials().RemoveId(crd.ID); err != nil {
-		log.Println("Error while deleting Credential:", err)
+		log.WithFields(log.Fields{
+			"Credential ID": crd.ID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Error while deleting Credential")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while deleting Credential"},
@@ -546,7 +545,10 @@ func OwnerTeams(c *gin.Context) {
 			var team models.Team
 			err := db.Teams().FindId(v.TeamID).One(&team)
 			if err != nil {
-				log.Println("Error while getting owner teams for credential", credential.ID, err)
+				log.WithFields(log.Fields{
+					"Credential ID": credential.ID,
+					"Error": err.Error(),
+				}).Errorln("Error while getting owner teams for credential")
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -559,9 +561,21 @@ func OwnerTeams(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+
+	log.WithFields(log.Fields{
+		"Count": count,
+		"Next": pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip": pgi.Skip(),
+		"Limit": pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
@@ -580,7 +594,10 @@ func OwnerUsers(c *gin.Context) {
 			var user models.User
 			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
-				log.Println("Error while getting owner users for credential", credential.ID, err)
+				log.WithFields(log.Fields{
+					"Credential ID": credential.ID,
+					"Error": err.Error(),
+				}).Errorln("Error while getting owner users for Credential")
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -593,9 +610,20 @@ func OwnerUsers(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("OwnerUser page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count": count,
+		"Next": pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip": pgi.Skip(),
+		"Limit": pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,
@@ -613,7 +641,9 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Activity data from the db")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -625,9 +655,20 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count": count,
+		"Next": pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip": pgi.Skip(),
+		"Limit": pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:count,

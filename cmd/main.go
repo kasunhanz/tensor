@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"bufio"
 	"strings"
 	"gopkg.in/mgo.v2/bson"
@@ -21,7 +21,7 @@ func main() {
 }
 
 func doSetup() int {
-	fmt.Println("Checking database connectivity.. Please be patient.")
+	log.Info("Checking database connectivity.. Please be patient.")
 
 	if err := db.Connect(); err != nil {
 		log.Fatal("\n Cannot connect to database!\n" + err.Error())

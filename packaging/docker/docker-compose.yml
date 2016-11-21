@@ -27,7 +27,7 @@ services:
       - '8010:8010'
     restart: always
     environment:
-      TENSOR_PORT: 8010
+      TENSOR_PORT: ":8010"
       PROJECT_PATH: "/opt/tensor/projects"
       HOME_PATH: "/opt/tensor/"
       TENSOR_DB_USER: tensor
@@ -35,6 +35,7 @@ services:
       TENSOR_DB_NAME: tensordb
       TENSOR_DB_REPLICA: ""
       TENSOR_DB_HOSTS: "mongo:27017"
+      TENSOR_SALT: "8m86pie1ef8bghbq41ru!de4"
     tty: true
     stdin_open: true
     networks:

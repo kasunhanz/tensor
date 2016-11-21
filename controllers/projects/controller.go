@@ -7,7 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"path/filepath"
@@ -33,7 +33,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_PROJECT_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Project:", err) // log error to the system log
+		log.Errorln("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -45,7 +45,7 @@ func Middleware(c *gin.Context) {
 	var project models.Project
 	err = db.Projects().FindId(bson.ObjectIdHex(ID)).One(&project);
 	if err != nil {
-		log.Print("Error while getting the Project:", err) // log error to the system log
+		log.Errorln("Error while getting the Project:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -93,19 +93,12 @@ func GetProjects(c *gin.Context) {
 		if !roles.ProjectRead(user, tmpProject) {
 			continue
 		}
-		if err := metadata.ProjectMetadata(&tmpProject); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Project"},
-			})
-			return
-		}
+		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
 		projects = append(projects, tmpProject)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Project data from the db:", err)
+		log.Errorln("Error while retriving Project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Project"},
@@ -178,13 +171,13 @@ func AddProject(c *gin.Context) {
 
 	req.ID = bson.NewObjectId()
 	req.LocalPath = "/opt/tensor/projects/" + req.ID.Hex()
-	req.CreatedBy = user.ID
-	req.ModifiedBy = user.ID
+	req.CreatedByID = user.ID
+	req.ModifiedByID = user.ID
 	req.Created = time.Now()
 	req.Modified = time.Now()
 
 	if err := db.Projects().Insert(req); err != nil {
-		log.Println("Error while creating Project:", err)
+		log.Errorln("Error while creating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating Project"},
@@ -197,17 +190,10 @@ func AddProject(c *gin.Context) {
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(req); err != nil {
-		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
+		log.Errorln("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
-	if err := metadata.ProjectMetadata(&req); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Project"},
-		})
-		return
-	}
+	metadata.ProjectMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
@@ -280,7 +266,7 @@ func UpdateProject(c *gin.Context) {
 
 	// update object
 	if err := db.Projects().UpdateId(project.ID, project); err != nil {
-		log.Println("Error while updating Project:", err)
+		log.Errorln("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Project"},
@@ -293,18 +279,11 @@ func UpdateProject(c *gin.Context) {
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(project); err != nil {
-		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
+		log.Errorln("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
-	if err := metadata.ProjectMetadata(&project); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while creating Project"},
-		})
-		return
-	}
+	metadata.ProjectMetadata(&project)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, project)
@@ -423,12 +402,12 @@ func PatchProject(c *gin.Context) {
 		project.ScmUpdateCacheTimeout = *req.ScmUpdateCacheTimeout
 	}
 
-	project.ModifiedBy = user.ID
+	project.ModifiedByID = user.ID
 	project.Modified = time.Now()
 
 	// update object
 	if err := db.Projects().UpdateId(project.ID, project); err != nil {
-		log.Println("Error while updating Project:", err)
+		log.Errorln("Error while updating Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while updating Project"},
@@ -441,19 +420,11 @@ func PatchProject(c *gin.Context) {
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(project); err != nil {
-		log.Println("Error while scm update " + sysJobID.Job.ID.Hex(), err)
+		log.Errorln("Error while scm update " + sysJobID.Job.ID.Hex(), err)
 	}
 
 	// set `related` and `summary` feilds
-	if err := metadata.ProjectMetadata(&project); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Project Information"},
-		})
-		return
-	}
-
+	metadata.ProjectMetadata(&project)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, project)
 }
@@ -468,7 +439,7 @@ func RemoveProject(c *gin.Context) {
 
 	changes, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID})
 	if err != nil {
-		log.Println("Error while removing Project Jobs:", err)
+		log.Errorln("Error while removing Project Jobs:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Project Jobs"},
@@ -476,11 +447,11 @@ func RemoveProject(c *gin.Context) {
 		return
 	}
 
-	log.Println("Jobs remove info:", changes.Removed)
+	log.Infoln("Jobs remove info:", changes.Removed)
 
 	changes, err = db.JobTemplates().RemoveAll(bson.M{"project_id": project.ID})
 	if err != nil {
-		log.Println("Error while removing Project Job Templates:", err)
+		log.Errorln("Error while removing Project Job Templates:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Project Job Templates"},
@@ -488,11 +459,11 @@ func RemoveProject(c *gin.Context) {
 		return
 	}
 
-	log.Println("Job Template remove info:", changes.Removed)
+	log.Infoln("Job Template remove info:", changes.Removed)
 
 	// remove object from the collection
 	if err = db.Projects().RemoveId(project.ID); err != nil {
-		log.Println("Error while removing Project:", err)
+		log.Errorln("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while removing Project"},
@@ -504,7 +475,7 @@ func RemoveProject(c *gin.Context) {
 	// cleanup directories from a concurrent thread
 	go func() {
 		if err := os.RemoveAll(project.LocalPath); err != nil {
-			log.Println("An error occured while removing project directory", err.Error())
+			log.Errorln("An error occured while removing project directory", err.Error())
 		}
 	}()
 
@@ -531,7 +502,7 @@ func Playbooks(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Println("Error while getting Playbooks:", err)
+		log.Errorln("Error while getting Playbooks:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Playbooks"},
@@ -552,7 +523,7 @@ func Teams(c *gin.Context) {
 		if v.Type == "team" {
 			err := db.Teams().FindId(v.TeamID).One(&tmpTeam)
 			if err != nil {
-				log.Println("Error while getting Teams:", err)
+				log.Errorln("Error while getting Teams:", err)
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:http.StatusInternalServerError,
 					Messages: []string{"Error while getting Teams"},
@@ -560,16 +531,7 @@ func Teams(c *gin.Context) {
 				return
 			}
 
-			err = metadata.TeamMetadata(&tmpTeam)
-			if err != nil {
-				log.Println("Error while setting Metatdata:", err)
-				c.JSON(http.StatusInternalServerError, models.Error{
-					Code:http.StatusInternalServerError,
-					Messages: []string{"Error while getting Teams"},
-				})
-				return
-			}
-
+			metadata.TeamMetadata(&tmpTeam)
 			tms = append(tms, tmpTeam)
 		}
 	}
@@ -598,7 +560,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -630,7 +592,7 @@ func ProjectUpdates(c *gin.Context) {
 	match := bson.M{}
 	match = parser.Match([]string{"status", "type", "failed"}, match)
 	match = parser.Lookups([]string{"id", "name", "labels"}, match)
-	log.Println(match)
+	log.Infoln(match)
 
 	// get only project update jobs
 	match["job_type"] = "update_job"
@@ -655,19 +617,12 @@ func ProjectUpdates(c *gin.Context) {
 		if !roles.JobRead(user, tmpJob) {
 			continue
 		}
-		if err := metadata.JobMetadata(&tmpJob); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jobs = append(jobs, tmpJob)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},

@@ -4,7 +4,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"gopkg.in/mgo.v2/bson"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func JobRead(user models.User, jtemplate models.Job) bool {
@@ -18,7 +18,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	var project models.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
-		log.Println("Error while getting project")
+		log.Errorln("Error while getting project")
 		return false
 	}
 
@@ -26,7 +26,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	// since this is read it doesn't matter what permission assined to the user
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational memeber:", err)
+		log.Errorln("Error while checking the user and organizational memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -50,7 +50,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	//check team permissions if, the user is in a team assign indirect permissions
 	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -71,7 +71,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	var project models.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
-		log.Println("Error while getting project")
+		log.Errorln("Error while getting project")
 		return false
 	}
 
@@ -79,7 +79,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 	if count > 0 {
@@ -108,7 +108,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	}
 	count, err = db.Teams().Find(query).Count()
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 	if count > 0 {
@@ -129,7 +129,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 	var project models.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
-		log.Println("Error while getting project")
+		log.Errorln("Error while getting project")
 		return false
 	}
 
@@ -137,7 +137,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 	// since this is write permission it is must user need to be an admin
 	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
 	if err != nil {
-		log.Println("Error while checking the user and organizational admin:", err)
+		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
 	}
 
@@ -171,7 +171,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
-		log.Println("Error while checking the user is granted teams' memeber:", err)
+		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
 	}
 

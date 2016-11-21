@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"golang.org/x/crypto/ssh/agent"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -21,13 +21,13 @@ import (
 func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 	bin, err := exec.LookPath("ssh-agent")
 	if err != nil {
-		log.Println("could not find ssh-agent")
+		log.Errorln("could not find ssh-agent")
 	}
 
 	cmd := exec.Command(bin, "-s")
 	out, err := cmd.Output()
 	if err != nil {
-		log.Printf("cmd.Output: %v", err)
+		log.Errorf("cmd.Output: %v", err)
 	}
 
 	/* Output looks like:
@@ -39,24 +39,24 @@ func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 	line := bytes.SplitN(fields[0], []byte("="), 2)
 	line[0] = bytes.TrimLeft(line[0], "\n")
 	if string(line[0]) != "SSH_AUTH_SOCK" {
-		log.Printf("could not find key SSH_AUTH_SOCK in %q", fields[0])
+		log.Infof("could not find key SSH_AUTH_SOCK in %q", fields[0])
 	}
 	socket = string(line[1])
 
 	line = bytes.SplitN(fields[2], []byte("="), 2)
 	line[0] = bytes.TrimLeft(line[0], "\n")
 	if string(line[0]) != "SSH_AGENT_PID" {
-		log.Printf("could not find key SSH_AGENT_PID in %q", fields[2])
+		log.Infof("could not find key SSH_AGENT_PID in %q", fields[2])
 	}
 	pidStr := line[1]
 	pid, err = strconv.Atoi(string(pidStr))
 	if err != nil {
-		log.Printf("Atoi(%q): %v", pidStr, err)
+		log.Infof("Atoi(%q): %v", pidStr, err)
 	}
 
 	conn, err := net.Dial("unix", string(socket))
 	if err != nil {
-		log.Printf("net.Dial: %v", err)
+		log.Infof("net.Dial: %v", err)
 	}
 
 	ac := agent.NewClient(conn)
@@ -77,7 +77,7 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
 		return key, nil
 	} else {
-		log.Println(err)
+		log.Errorln(err)
 	}
 
 	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
@@ -88,13 +88,13 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 			return nil, errors.New("ssh/agent: found unknown private key type in PKCS#8 wrapping")
 		}
 	} else {
-		log.Println(err)
+		log.Errorln(err)
 	}
 
 	if key, err := x509.ParseECPrivateKey(der); err == nil {
 		return key, nil
 	} else {
-		log.Println(err)
+		log.Errorln(err)
 	}
 
 	return nil, errors.New("ssh/agent: failed to parse private key")
@@ -128,7 +128,7 @@ func GetEncryptedKey(data []byte, password string) (agent.AddedKey, error) {
 	// encrypted key, unencrypt using password
 	der, err := x509.DecryptPEMBlock(block, []byte(password))
 	if err != nil {
-		log.Println("Error while decrypting key")
+		log.Errorln("Error while decrypting key")
 		return key, err
 	}
 

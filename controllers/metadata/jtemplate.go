@@ -4,13 +4,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 
 
 // Create a new organization
-func JTemplateMetadata(jt *models.JobTemplate) error {
+func JTemplateMetadata(jt *models.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "inventory"
@@ -39,42 +40,20 @@ func JTemplateMetadata(jt *models.JobTemplate) error {
 
 	jt.Related = related
 
-	if err := jTemplateSummary(jt); err != nil {
-		return err
-	}
-
-	return nil
+	jTemplateSummary(jt)
 }
 
-func jTemplateSummary(jt *models.JobTemplate) error {
+func jTemplateSummary(jt *models.JobTemplate) {
 
 	var modified models.User
 	var created models.User
 	var inv models.Inventory
 	var job models.Job
 	var cjob models.Job
+	var cupdate models.Job
 	var cred models.Credential
 	var proj models.Project
-
-	if err := db.Users().FindId(jt.CreatedByID).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(jt.ModifiedByID).One(&modified); err != nil {
-		return err
-	}
-
-	if err := db.Inventories().FindId(jt.InventoryID).One(&inv); err != nil {
-		return err
-	}
-
-	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		return err
-	}
-
-	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
-		return err
-	}
+	var recentJobs []models.Job
 
 	summary := gin.H{
 		"object_roles": []gin.H{
@@ -91,14 +70,56 @@ func jTemplateSummary(jt *models.JobTemplate) error {
 				"Name":"read",
 			},
 		},
-		"current_update": gin.H{
-			"id": job.ID,
-			"name": job.Name,
-			"description": job.Description,
-			"status": job.Status,
-			"failed": job.Failed,
-		},
-		"inventory": gin.H{
+		"current_update": nil,
+		"inventory": nil,
+		"current_job":  nil,
+		"credential": nil,
+		"created_by": nil,
+		"project":nil,
+		"modified_by": nil,
+		"can_copy": true,
+		"can_edit": true,
+		"recent_jobs": nil,
+	}
+
+	if err := db.Users().FindId(jt.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": jt.CreatedByID.Hex(),
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["created_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
+	}
+
+	if err := db.Users().FindId(jt.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": jt.ModifiedByID.Hex(),
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
+	}
+
+	if err := db.Inventories().FindId(jt.InventoryID).One(&inv); err != nil {
+		log.WithFields(log.Fields{
+			"Inventory ID": jt.InventoryID.Hex(),
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting Inventory")
+	} else {
+		summary["inventory"] = gin.H{
 			"id": inv.ID,
 			"name": inv.Name,
 			"description": inv.Description,
@@ -110,59 +131,93 @@ func jTemplateSummary(jt *models.JobTemplate) error {
 			"has_inventory_sources": inv.HasInventorySources,
 			"total_inventory_sources": inv.TotalInventorySources,
 			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
-		},
-		"current_job":  gin.H{},
-		"credential": gin.H{
+		}
+	}
+
+	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
+		log.WithFields(log.Fields{
+			"Credential ID": jt.MachineCredentialID.Hex(),
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting Credential")
+	} else {
+		summary["credential"] = gin.H{
 			"id": cred.ID,
 			"name": cred.Name,
 			"description": cred.Description,
 			"kind": cred.Kind,
 			"cloud": cred.Cloud,
-		},
-		"created_by": gin.H{
-			"id":         created.ID.Hex(),
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"project": gin.H{
+		}
+	}
+
+	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
+		log.WithFields(log.Fields{
+			"Project ID": jt.MachineCredentialID.Hex(),
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting Project")
+	} else {
+		summary["project"] = gin.H{
 			"id": proj.ID,
 			"name": proj.Description,
 			"description": proj.Description,
 			"status": proj.Status,
-		},
-		"modified_by": gin.H{
-			"id":         modified.ID.Hex(),
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
-		},
-		"can_copy": true,
-		"can_edit": true,
-		"recent_jobs": []gin.H{
-			{
-				"status": "pending",
-				"finished": nil,
-				"id": 15,
-			},
-		},
+		}
 	}
 
 	if jt.CurrentJobID != nil {
 		if err := db.Jobs().FindId(*jt.CurrentJobID).One(&cjob); err == nil {
-			log.Println("No current job found", err)
+			log.WithFields(log.Fields{
+				"Current Job ID": (*jt.CurrentJobID).Hex(),
+				"Job Template": jt.Name,
+				"Job Template ID": jt.ID.Hex(),
+			}).Errorln("Error while getting Current Job")
 		} else {
 			summary["current_job"] = gin.H{
-				"id": job.ID,
-				"name": job.Name,
+				"id": cjob.ID,
+				"name": cjob.Name,
 				"description": job.Description,
-				"status": job.Status,
-				"failed": job.Failed,
+				"status": cjob.Status,
+				"failed": cjob.Failed,
 			}
 		}
 	}
 
-	jt.Summary = summary
+	if jt.CurrentUpdateID != nil {
+		if err := db.Jobs().FindId(*jt.CurrentUpdateID).One(&cupdate); err == nil {
+			log.WithFields(log.Fields{
+				"Current Update ID": (*jt.CurrentUpdateID).Hex(),
+				"Job Template": jt.Name,
+				"Job Template ID": jt.ID.Hex(),
+			}).Errorln("Error while getting Current Update Job")
+		} else {
+			summary["current_update"] = gin.H{
+				"id": cupdate.ID,
+				"name": cupdate.Name,
+				"description": cupdate.Description,
+				"status": cupdate.Status,
+				"failed": cupdate.Failed,
+			}
+		}
+	}
 
-	return nil
+	if err := db.Jobs().Find(bson.M{"job_template_id": jt.ID}).Sort("-modified").Limit(10).All(&recentJobs); err == nil {
+		log.WithFields(log.Fields{
+			"Job Template": jt.Name,
+			"Job Template ID": jt.ID.Hex(),
+		}).Errorln("Error while getting Current Job")
+	} else {
+		var a []gin.H
+		for _, v := range recentJobs {
+			a = append(a, gin.H{
+				"status": v.Status,
+				"finished": v.Finished,
+				"id": v.ID.Hex(),
+			})
+		}
+
+		summary["recent_jobs"] = a
+	}
+
+	jt.Summary = summary
 }

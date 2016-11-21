@@ -5,7 +5,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"net/url"
 	"strings"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -62,7 +62,7 @@ func (p *QueryParser) Lookups(fields []string, query bson.M) bson.M {
 	query = p.Ne(fields, query)
 	query = p.Gte(fields, query)
 
-	log.Println(query)
+	log.Infoln(query)
 	return query
 }
 

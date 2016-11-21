@@ -4,9 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	log "github.com/Sirupsen/logrus"
 )
 
-func JobMetadata(job *models.Job) error {
+func JobMetadata(job *models.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
 	job.Url = "/v1/jobs/" + ID + "/"
@@ -46,27 +47,15 @@ func JobMetadata(job *models.Job) error {
 	}
 
 	job.Related = related
-	if err := JobSummary(job); err != nil {
-		return err
-	}
-
-	return nil
+	JobSummary(job)
 }
 
-func JobSummary(job *models.Job) error {
+func JobSummary(job *models.Job) {
 	var proj models.Project
-	if err := db.Projects().FindId(job.ProjectID).One(&proj); err != nil {
-		return err
-	}
 
 	summary := gin.H{
 		"credential": nil,
-		"project": gin.H{
-			"id": proj.ID,
-			"name": proj.Name,
-			"description": proj.Description,
-			"status": proj.Status,
-		},
+		"project": nil,
 		"labels": gin.H{
 			"count": 0,
 			"results": []gin.H{},
@@ -80,78 +69,114 @@ func JobSummary(job *models.Job) error {
 	if len(job.ModifiedByID) == 12 {
 		var modified models.User
 		if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
-			return err
-		}
-		summary["modified_by"] = gin.H{
-			"id":         modified.ID.Hex(),
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
+			log.WithFields(log.Fields{
+				"User ID": job.ModifiedByID.Hex(),
+				"Job": job.Name,
+				"Job ID": job.ID.Hex(),
+			}).Errorln("Error while getting modified by User")
+		} else {
+			summary["modified_by"] = gin.H{
+				"id":         modified.ID.Hex(),
+				"username":   modified.Username,
+				"first_name": modified.FirstName,
+				"last_name":  modified.LastName,
+			}
 		}
 	}
-	// only if job exist
+
 	if len(job.CreatedByID) == 12 {
 		var created models.User
 		if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
-			return err
-		}
-		summary["created_by"] = gin.H{
-			"id":         created.ID.Hex(),
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
+			log.WithFields(log.Fields{
+				"User ID": job.CreatedByID.Hex(),
+				"Job": job.Name,
+				"Job ID": job.ID.Hex(),
+			}).Errorln("Error while getting created by User")
+		} else {
+			summary["created_by"] = gin.H{
+				"id":         created.ID.Hex(),
+				"username":   created.Username,
+				"first_name": created.FirstName,
+				"last_name":  created.LastName,
+			}
 		}
 	}
 
 	if len(job.InventoryID) == 12 {
 		var inv models.Inventory
 		if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
-			return err
-		}
-
-		summary["inventory"] = gin.H{
-			"id": inv.ID.Hex(),
-			"name": inv.Name,
-			"description": inv.Description,
-			"has_active_failures": inv.HasActiveFailures,
-			"total_hosts": inv.TotalHosts,
-			"hosts_with_active_failures": inv.HostsWithActiveFailures,
-			"total_groups": inv.TotalGroups,
-			"groups_with_active_failures": inv.GroupsWithActiveFailures,
-			"has_inventory_sources": inv.HasInventorySources,
-			"total_inventory_sources": inv.TotalInventorySources,
-			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
+			log.WithFields(log.Fields{
+				"Inventory ID": job.InventoryID.Hex(),
+				"Job": job.Name,
+				"Job ID": job.ID.Hex(),
+			}).Errorln("Error while getting Inventory")
+		} else {
+			summary["inventory"] = gin.H{
+				"id": inv.ID.Hex(),
+				"name": inv.Name,
+				"description": inv.Description,
+				"has_active_failures": inv.HasActiveFailures,
+				"total_hosts": inv.TotalHosts,
+				"hosts_with_active_failures": inv.HostsWithActiveFailures,
+				"total_groups": inv.TotalGroups,
+				"groups_with_active_failures": inv.GroupsWithActiveFailures,
+				"has_inventory_sources": inv.HasInventorySources,
+				"total_inventory_sources": inv.TotalInventorySources,
+				"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
+			}
 		}
 	}
 
 	if len(job.JobTemplateID) == 12 {
 		var jtemp models.JobTemplate
 		if err := db.JobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
-			return err
-		}
-		summary["job_template"] = gin.H{
-			"id": jtemp.ID.Hex(),
-			"name": jtemp.Name,
-			"description": jtemp.Description,
+			log.WithFields(log.Fields{
+				"Job Template ID": job.JobTemplateID.Hex(),
+				"Job": job.Name,
+				"Job ID": job.ID.Hex(),
+			}).Warnln("Error while getting Job Template")
+		} else {
+			summary["job_template"] = gin.H{
+				"id": jtemp.ID.Hex(),
+				"name": jtemp.Name,
+				"description": jtemp.Description,
+			}
 		}
 	}
 
 	if len(job.MachineCredentialID) == 12 {
 		var cred models.Credential
 		if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
-			return err
+			log.WithFields(log.Fields{
+				"Credential ID": job.MachineCredentialID.Hex(),
+				"Job": job.Name,
+				"Job ID": job.ID.Hex(),
+			}).Warnln("Error while getting Machine Credential")
+		} else {
+			summary["credential"] = gin.H{
+				"id": cred.ID,
+				"name": cred.Name,
+				"description": cred.Description,
+				"kind": cred.Kind,
+				"cloud": cred.Cloud,
+			}
 		}
+	}
 
-		summary["credential"] = gin.H{
-			"id": cred.ID,
-			"name": cred.Name,
-			"description": cred.Description,
-			"kind": cred.Kind,
-			"cloud": cred.Cloud,
+	if err := db.Projects().FindId(job.ProjectID).One(&proj); err != nil {
+		log.WithFields(log.Fields{
+			"Project ID": job.ProjectID.Hex(),
+			"Job": job.Name,
+			"Job ID": job.ID.Hex(),
+		}).Warnln("Error while getting Project")
+	} else {
+		summary["project"] = gin.H{
+			"id": proj.ID,
+			"name": proj.Name,
+			"description": proj.Description,
+			"status": proj.Status,
 		}
 	}
 
 	job.Summary = summary
-
-	return nil
 }

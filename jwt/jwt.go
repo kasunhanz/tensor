@@ -5,7 +5,7 @@ import (
 	"gopkg.in/dgrijalva/jwt-go.v3"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"errors"
 )
@@ -26,7 +26,7 @@ func NewAuthToken(t *LocalToken) error {
 	var admin models.User
 
 	if err := db.Users().Find(bson.M{"username": "admin"}).One(&admin); err != nil {
-		log.Println("User not found, Create JWT Token faild")
+		log.Errorln("User not found, Create JWT Token faild")
 		return errors.New("User not found, Create JWT Token faild")
 	}
 
@@ -38,7 +38,7 @@ func NewAuthToken(t *LocalToken) error {
 	tokenString, err := token.SignedString(HeaderAuthMiddleware.Key)
 
 	if err != nil {
-		log.Println("Create JWT Token faild")
+		log.Errorln("Create JWT Token faild")
 		return errors.New("Create JWT Token faild")
 	}
 

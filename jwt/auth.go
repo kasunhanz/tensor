@@ -11,6 +11,7 @@ import (
 	"net/mail"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
+	log "github.com/Sirupsen/logrus"
 )
 
 var HeaderAuthMiddleware *jwt.GinJWTMiddleware
@@ -18,7 +19,7 @@ var HeaderAuthMiddleware *jwt.GinJWTMiddleware
 func init() {
 	HeaderAuthMiddleware = &jwt.GinJWTMiddleware{
 		Realm:      "api",
-		Key:        []byte(util.Config.CookieHash),
+		Key:        []byte(util.Config.Salt),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour,
 		Authenticator: func(loginid string, password string, c *gin.Context) (string, bool) {
@@ -37,12 +38,13 @@ func init() {
 
 			var user models.User
 
-
 			if err := db.Users().Find(q).One(&user); err != nil {
+				log.Warningln("Auth: User not found", q)
 				return "", false
 			}
 
 			if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+				log.Warningln("Auth: PasswordHash mismach")
 				return "", false
 			}
 
@@ -52,6 +54,7 @@ func init() {
 		Authorizator: func(userID string, c *gin.Context) bool {
 			var user models.User
 			if err := db.Users().FindId(bson.ObjectIdHex(userID)).One(&user); err != nil {
+				log.Warningln("Auth: User not found", userID)
 				return false
 			}
 

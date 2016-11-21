@@ -4,10 +4,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	log "github.com/Sirupsen/logrus"
 )
 
 // Create a new organization
-func HostMetadata(host *models.Host) error {
+func HostMetadata(host *models.Host) {
 
 	ID := host.ID.Hex()
 	host.Type = "host"
@@ -28,33 +29,60 @@ func HostMetadata(host *models.Host) error {
 		"inventory": "/v1/inventories/" + host.InventoryID + "/",
 	}
 
-	if err := hostSummary(host); err != nil {
-		return err
-	}
-
-	return nil
+	hostSummary(host)
 }
 
-func hostSummary(host *models.Host) error {
+func hostSummary(host *models.Host) {
 
 	var modified models.User
 	var created models.User
 	var inv models.Inventory
 
+	summary := gin.H{
+		"recent_jobs": []gin.H{}, //TODO: recent_jobs
+		"inventory": nil,
+		"modified_by": nil,
+		"created_by": nil,
+	}
+
 	if err := db.Users().FindId(host.CreatedByID).One(&created); err != nil {
-		return err
+		log.WithFields(log.Fields{
+			"User ID": host.CreatedByID.Hex(),
+			"Host": host.Name,
+			"Host ID": host.ID.Hex(),
+		}).Errorln("Error while getting created by User")
+	} else {
+		summary["created_by"] = gin.H{
+			"id":         created.ID.Hex(),
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
+		}
 	}
 
 	if err := db.Users().FindId(host.ModifiedByID).One(&modified); err != nil {
-		return err
+		log.WithFields(log.Fields{
+			"User ID": host.ModifiedByID.Hex(),
+			"Host": host.Name,
+			"Host ID": host.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
 	}
 
 	if err := db.Inventories().FindId(host.InventoryID).One(&inv); err != nil {
-		return err
-	}
-
-	host.Summary = gin.H{
-		"inventory": gin.H{
+		log.WithFields(log.Fields{
+			"Inventory ID": host.InventoryID.Hex(),
+			"Host": host.Name,
+			"Host ID": host.ID.Hex(),
+		}).Errorln("Error while getting Inventory")
+	} else {
+		summary["inventory"] = gin.H{
 			"id": inv.ID,
 			"name": inv.Name,
 			"description": inv.Description,
@@ -66,21 +94,8 @@ func hostSummary(host *models.Host) error {
 			"has_inventory_sources": inv.HasInventorySources,
 			"total_inventory_sources": inv.TotalInventorySources,
 			"inventory_sources_with_failures": inv.InventorySourcesWithFailures,
-		},
-		"modified_by": gin.H{
-			"id":         modified.ID.Hex(),
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
-		},
-		"created_by": gin.H{
-			"id":         created.ID.Hex(),
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"recent_jobs": []gin.H{},
+		}
 	}
 
-	return nil
+	host.Summary = summary
 }

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"github.com/gin-gonic/gin"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
 	"bitbucket.pearson.com/apseng/tensor/db"
@@ -28,7 +28,7 @@ func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(_CTX_JOB_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the Job:", err) // log error to the system log
+		log.Errorln("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -40,7 +40,7 @@ func Middleware(c *gin.Context) {
 	var job models.Job
 	err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job);
 	if err != nil {
-		log.Print("Error while getting the Job:", err) // log error to the system log
+		log.Errorln("Error while getting the Job:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -60,14 +60,7 @@ func GetJob(c *gin.Context) {
 	//get Job set by the middleware
 	job := c.MustGet(_CTX_JOB).(models.Job)
 
-	if err := metadata.JobMetadata(&job); err != nil {
-		log.Println("Error while setting metatdata:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:http.StatusInternalServerError,
-			Messages: []string{"Error while getting Jobs"},
-		})
-		return
-	}
+	metadata.JobMetadata(&job)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, job)
@@ -102,19 +95,12 @@ func GetJobs(c *gin.Context) {
 		if !roles.JobRead(user, tmpJob) {
 			continue
 		}
-		if err := metadata.JobMetadata(&tmpJob); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Jobs"},
-			})
-			return
-		}
+		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jobs = append(jobs, tmpJob)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},

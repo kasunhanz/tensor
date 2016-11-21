@@ -3,7 +3,7 @@ package runners
 import (
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/models"
 )
@@ -23,7 +23,7 @@ func (t *AnsibleJob) start() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 }
 
@@ -36,7 +36,7 @@ func (t *AnsibleJob) status(s string) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 }
 
@@ -63,7 +63,7 @@ func (t *AnsibleJob) jobFail() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -94,7 +94,7 @@ func (t *AnsibleJob) jobCancel() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -124,7 +124,7 @@ func (t *AnsibleJob) jobError() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -155,7 +155,7 @@ func (t *AnsibleJob) jobSuccess() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Println("Failed to update job status, status was", t.Job.Status, err)
+		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
 	}
 
 	t.updateProject()
@@ -173,7 +173,7 @@ func (t *AnsibleJob) updateProject() {
 	}
 
 	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
-		log.Println("Failed to update project", err)
+		log.Errorln("Failed to update project", err)
 	}
 }
 
@@ -188,7 +188,7 @@ func (t *AnsibleJob) updateJobTemplate() {
 	}
 
 	if err := db.JobTemplates().UpdateId(t.Template.ID, d); err != nil {
-		log.Println("Failed to update JobTemplate", t.Job.Status, err)
+		log.Errorln("Failed to update JobTemplate", t.Job.Status, err)
 	}
 }
 
@@ -204,6 +204,6 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 	}
 
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }

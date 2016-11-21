@@ -1,7 +1,6 @@
 package runners
 
 import (
-	"log"
 	"os/exec"
 	"time"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	"errors"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
+	log "github.com/Sirupsen/logrus"
 )
 
 type SystemJobPool struct {
@@ -118,7 +118,7 @@ func (j *SystemJob) run() {
 	// create job directories
 	j.createJobDirs()
 
-	log.Println("Started system job: " + j.Job.ID.Hex() + "\n")
+	log.Infoln("Started system job", "[" + j.Job.ID.Hex() + "]", j.Job.Name)
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
@@ -127,13 +127,13 @@ func (j *SystemJob) run() {
 		if len(j.Credential.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)), util.CipherDecrypt(j.Credential.SshKeyUnlock))
 			if err != nil {
-				log.Println("Error while decrypting Credential", err)
+				log.Errorln("Error while decrypting Credential", err)
 				j.Job.JobExplanation = err.Error()
 				j.fail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Println("Error while adding decrypted Key", err)
+				log.Errorln("Error while adding decrypted Key", err)
 				j.Job.JobExplanation = err.Error()
 				j.fail()
 				return
@@ -143,14 +143,14 @@ func (j *SystemJob) run() {
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)))
 
 		if err != nil {
-			log.Println("Error while decrypting Credential", err)
+			log.Errorln("Error while decrypting Credential", err)
 			j.Job.JobExplanation = err.Error()
 			j.fail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Println("Error while adding decrypted Key to SSH Agent", err)
+			log.Errorln("Error while adding decrypted Key to SSH Agent", err)
 			j.Job.JobExplanation = err.Error()
 			j.fail()
 			return
@@ -159,7 +159,7 @@ func (j *SystemJob) run() {
 	}
 
 	defer func() {
-		log.Println("Stopped running system jobs")
+		log.Infoln("Stopped running update system jobs", j.Job.Name, "[" + j.Job.ID.Hex() + "]")
 		SystemPool.DetachFromRunning(j.Job.ID)
 		// cleanup the mess
 		cleanup()
@@ -168,7 +168,7 @@ func (j *SystemJob) run() {
 	cmd, err := j.getSystemCmd(socket, pid);
 
 	if err != nil {
-		log.Println("Running Project update task failed", err)
+		log.Errorln("Running Project update task failed", err)
 		j.Job.JobExplanation = err.Error()
 		j.fail()
 		return
@@ -180,11 +180,11 @@ func (j *SystemJob) run() {
 		for {
 			select {
 			case kill := <-j.SigKill:
-				log.Println("Received update job kill signal:", kill)
+				log.Infoln("Received update job kill signal:", kill)
 			// kill true then kill the job
 				if kill {
 					if err := cmd.Process.Kill(); err != nil {
-						log.Println("Could not cancel the job")
+						log.Errorln("Could not cancel the job")
 						return // exit from goroutine
 					}
 					j.jobCancel() // update cancelled status
@@ -196,7 +196,7 @@ func (j *SystemJob) run() {
 	output, err := cmd.CombinedOutput()
 	j.Job.ResultStdout = string(output)
 	if err != nil {
-		log.Println("Running Project update task failed", err)
+		log.Errorln("Running Project update task failed", err)
 		j.Job.JobExplanation = err.Error()
 		j.fail()
 		return
@@ -209,7 +209,7 @@ func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
-		log.Println("Could not marshal extra vars", err)
+		log.Errorln("Could not marshal extra vars", err)
 	}
 	// ansible-playbook parameters
 	arguments := []string{"-i", "localhost,", "-v", "-e", string(vars), j.Job.Playbook}
@@ -245,7 +245,7 @@ func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 func (j *SystemJob) createJobDirs() {
 	if err := os.MkdirAll("/opt/tensor/projects/" + j.Job.ProjectID.Hex(), 0770); err != nil {
-		log.Println("Unable to create directory: ", "/opt/tensor/projects/" + j.Job.ProjectID.Hex())
+		log.Errorln("Unable to create directory: ", "/opt/tensor/projects/" + j.Job.ProjectID.Hex())
 	}
 }
 
@@ -282,19 +282,11 @@ func UpdateProject(p models.Project) (*SystemJob, error) {
 		extras["scm_branch"] = "HEAD"
 	}
 
-	// Parameters required by the system
-	rp, err := json.Marshal(extras);
-
-	if err != nil {
-		log.Println("Error while marshalling parameters", err)
-	}
-
 	job.ExtraVars = extras
 
-	log.Print(string(rp))
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.Println("Error while creating update Job:", err)
+		log.Errorln("Error while creating update Job:", err)
 		return nil, errors.New("Error while creating update Job:")
 	}
 
@@ -307,7 +299,7 @@ func UpdateProject(p models.Project) (*SystemJob, error) {
 	if len(job.CredentialID) == 12 {
 		var credential models.Credential
 		if err := db.Credentials().FindId(job.CredentialID).One(&credential); err != nil {
-			log.Println("Error while getting SCM Credential", err)
+			log.Errorln("Error while getting SCM Credential", err)
 			return nil, errors.New("Error while getting SCM Credential")
 		}
 		runnerJob.Credential = credential

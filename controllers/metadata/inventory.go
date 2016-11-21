@@ -4,18 +4,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	log "github.com/Sirupsen/logrus"
 )
 
 
 
 // Create a new organization
-func InventoryMetadata(i *models.Inventory) error {
+func InventoryMetadata(i *models.Inventory) {
 
 	ID := i.ID.Hex()
 	i.Type = "inventory"
 	i.Url = "/v1/inventories/" + ID + "/"
 	i.Related = gin.H{
-		"created_by": "/v1/users/" + i.CreatedBy.Hex() + "/",
+		"created_by": "/v1/users/" + i.CreatedByID.Hex() + "/",
 		"job_templates": "/v1/inventories/" + ID + "/job_templates/",
 		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates/",
 		"variable_data": "/v1/inventories/" + ID + "/variable_data/",
@@ -32,42 +33,23 @@ func InventoryMetadata(i *models.Inventory) error {
 		"organization": "/v1/organizations/" + i.OrganizationID.Hex() + "/",
 	}
 
-	if err := inventorySummary(i); err != nil {
-		return err
-	}
-
-	return nil
+	inventorySummary(i)
 }
 
-func inventorySummary(i *models.Inventory) error {
+func inventorySummary(i *models.Inventory) {
 	var modified models.User
 	var created models.User
 	var org models.Organization
 
-	if err := db.Users().FindId(i.CreatedBy).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(i.ModifiedBy).One(&modified); err != nil {
-		return err
-	}
-
-	if err := db.Organizations().FindId(i.OrganizationID).One(&org); err != nil {
-		return err
-	}
-
-	//TODO: fill these from database
-	/*i.HasActiveFailures = false
-	i.TotalHosts = 6
-	i.HostsWithActiveFailures = 0
-	i.TotalGroups = 2
-	i.GroupsWithActiveFailures = 0
-	i.HasInventorySources = false
-	i.TotalInventorySources = 0
-	i.InventorySourcesWithFailures = 0
-	*/
-
-	i.SummaryFields = gin.H{
+	summary := gin.H{
+		"has_active_failures": i.HasActiveFailures,
+		"total_hosts": i.TotalHosts,
+		"hosts_with_active_failures": i.HostsWithActiveFailures,
+		"total_groups": i.TotalGroups,
+		"groups_with_active_failures": i.GroupsWithActiveFailures,
+		"has_inventory_sources": i.HasInventorySources,
+		"total_inventory_sources": i.TotalInventorySources,
+		"inventory_sources_with_failures": i.InventorySourcesWithFailures,
 		"object_roles": []gin.H{
 			{
 				"description": "Can use the inventory in a job template",
@@ -90,18 +72,54 @@ func inventorySummary(i *models.Inventory) error {
 				"name": "read",
 			},
 		},
-		"organization": gin.H{
-			"id": org.ID.Hex(),
-			"name": org.Name,
-			"description": org.Description,
-		},
-		"created_by": gin.H{
+		"created_by": nil,
+		"modified_by": nil,
+		"organization": nil,
+	}
+
+	if err := db.Users().FindId(i.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": i.CreatedByID.Hex(),
+			"Inventory": i.Name,
+			"Inventory ID": i.ID.Hex(),
+		}).Errorln("Error while getting created by User")
+	} else {
+		summary["created_by"] = gin.H{
 			"id":         created.ID.Hex(),
 			"username":   created.Username,
 			"first_name": created.FirstName,
 			"last_name":  created.LastName,
-		},
+		}
 	}
 
-	return nil
+	if err := db.Users().FindId(i.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": i.CreatedByID.Hex(),
+			"Inventory": i.Name,
+			"Inventory ID": i.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         created.ID.Hex(),
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
+		}
+	}
+
+	if err := db.Organizations().FindId(i.OrganizationID).One(&org); err != nil {
+		log.WithFields(log.Fields{
+			"Organization ID": i.OrganizationID.Hex(),
+			"Inventory": i.Name,
+			"Inventory ID": i.ID.Hex(),
+		}).Errorln("Error while getting Organization")
+	} else {
+		summary["organization"] = gin.H{
+			"id": org.ID.Hex(),
+			"name": org.Name,
+			"description": org.Description,
+		}
+	}
+
+	i.Summary = summary
 }

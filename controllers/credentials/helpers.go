@@ -2,7 +2,7 @@ package credentials
 
 import (
 	"bitbucket.pearson.com/apseng/tensor/models"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"time"
@@ -32,6 +32,6 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
 	});
 
 	if err != nil {
-		log.Println("Failed to add new Activity", err)
+		log.Errorln("Failed to add new Activity", err)
 	}
 }

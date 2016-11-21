@@ -4,59 +4,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	log "github.com/Sirupsen/logrus"
 )
 
 
 
 // Create a new organization
-func TeamMetadata(o *models.Team) error {
+func TeamMetadata(tm *models.Team) {
 
-	o.Type = "team"
-	o.Url = "/v1/teams/" + o.ID.Hex() + "/"
-	o.Related = gin.H{
-		"created_by": "/v1/users/" + o.CreatedBy.Hex() + "/",
-		"modified_by": "/v1/users/" + o.ModifiedBy.Hex() + "/",
-		"users": "/v1/teams/" + o.ID.Hex() + "/users/",
-		"roles": "/v1/teams/" + o.ID.Hex() + "/roles/",
-		"object_roles": "/v1/teams/" + o.ID.Hex() + "/object_roles/",
-		"credentials": "/v1/teams/" + o.ID.Hex() + "/credentials/",
-		"projects": "/v1/teams/" + o.ID.Hex() + "/projects/",
-		"activity_stream": "/v1/teams/" + o.ID.Hex() + "/activity_stream/",
-		"access_list": "/v1/teams/" + o.ID.Hex() + "/access_list/",
-		"organization": "/v1/organizations/" + o.OrganizationID.Hex() + "/",
+	tm.Type = "team"
+	tm.Url = "/v1/teams/" + tm.ID.Hex() + "/"
+	tm.Related = gin.H{
+		"created_by": "/v1/users/" + tm.CreatedByID.Hex() + "/",
+		"modified_by": "/v1/users/" + tm.ModifiedByID.Hex() + "/",
+		"users": "/v1/teams/" + tm.ID.Hex() + "/users/",
+		"roles": "/v1/teams/" + tm.ID.Hex() + "/roles/",
+		"object_roles": "/v1/teams/" + tm.ID.Hex() + "/object_roles/",
+		"credentials": "/v1/teams/" + tm.ID.Hex() + "/credentials/",
+		"projects": "/v1/teams/" + tm.ID.Hex() + "/projects/",
+		"activity_stream": "/v1/teams/" + tm.ID.Hex() + "/activity_stream/",
+		"access_list": "/v1/teams/" + tm.ID.Hex() + "/access_list/",
+		"organization": "/v1/organizations/" + tm.OrganizationID.Hex() + "/",
 	}
 
-	if err := teamSummary(o); err != nil {
-		return err
-	}
-
-	return nil
+	teamSummary(tm)
 }
 
-func teamSummary(o *models.Team) error {
+func teamSummary(tm *models.Team) {
 
 	var modified models.User
 	var created models.User
 	var org models.Organization
 
-	if err := db.Users().FindId(o.CreatedBy).One(&created); err != nil {
-		return err
-	}
-
-	if err := db.Users().FindId(o.ModifiedBy).One(&modified); err != nil {
-		return err
-	}
-
-	if err := db.Organizations().FindId(o.OrganizationID).One(&org); err != nil {
-		return err
-	}
-
-	o.SummaryFields = gin.H{
-		"organization": gin.H{
-			"id": org.ID,
-			"name": org.Name,
-			"description": org.Description,
-		},
+	summary := gin.H{
+		"organization": nil,
 		"object_roles": gin.H{
 			"admin_role": gin.H{
 				"description": "Can manage all aspects of the team",
@@ -71,19 +52,53 @@ func teamSummary(o *models.Team) error {
 				"name": "read",
 			},
 		},
-		"created_by": gin.H{
-			"id":         created.ID,
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
-		},
-		"modified_by": gin.H{
-			"id":         modified.ID,
+		"created_by": nil,
+		"modified_by": nil,
+	}
+
+	if err := db.Users().FindId(tm.CreatedByID).One(&created); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": tm.CreatedByID.Hex(),
+			"Team": tm.Name,
+			"Team ID": tm.ID.Hex(),
+		}).Errorln("Error while getting created by User")
+	} else {
+		summary["created_by"] = gin.H{
+			"id":         modified.ID.Hex(),
 			"username":   modified.Username,
 			"first_name": modified.FirstName,
 			"last_name":  modified.LastName,
-		},
+		}
 	}
 
-	return nil
+	if err := db.Users().FindId(tm.ModifiedByID).One(&modified); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": tm.ModifiedByID.Hex(),
+			"Team": tm.Name,
+			"Team ID": tm.ID.Hex(),
+		}).Errorln("Error while getting modified by User")
+	} else {
+		summary["modified_by"] = gin.H{
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
+		}
+	}
+
+	if err := db.Organizations().FindId(tm.OrganizationID).One(&org); err != nil {
+		log.WithFields(log.Fields{
+			"Organization ID": tm.OrganizationID.Hex(),
+			"Team": tm.Name,
+			"Team ID": tm.ID.Hex(),
+		}).Errorln("Error while getting Organization")
+	} else {
+		summary["organization"] = gin.H{
+			"id": org.ID,
+			"name": org.Name,
+			"description": org.Description,
+		}
+	}
+
+	tm.Summary = summary
 }

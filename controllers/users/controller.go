@@ -4,10 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"gopkg.in/mgo.v2/bson"
-	"fmt"
 	"time"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"net/http"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
@@ -23,7 +22,7 @@ func Middleware(c *gin.Context) {
 	userID, err := util.GetIdParam(_CTX_USER_ID, c)
 
 	if err != nil {
-		log.Print("Error while getting the User:", err) // log error to the system log
+		log.Errorln("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -35,7 +34,7 @@ func Middleware(c *gin.Context) {
 	var user models.User
 	err = db.Users().FindId(bson.ObjectIdHex(userID)).One(&user);
 	if err != nil {
-		log.Print("Error while getting the User:", err) // log error to the system log
+		log.Errorln("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -86,7 +85,7 @@ func GetUsers(c *gin.Context) {
 		users = append(users, tmpUser)
 	}
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving Credential data from the db:", err)
+		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -128,7 +127,7 @@ func AddUser(c *gin.Context) {
 	user.Created = time.Now()
 
 	if err := db.Users().Insert(user); err != nil {
-		log.Println("Error while creating User:", err)
+		log.Errorln("Error while creating User:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while creating User"},
@@ -171,7 +170,7 @@ func DeleteUser(c *gin.Context) {
 		panic(err)
 	}
 
-	fmt.Println(info.Matched)
+	log.Info(info.Matched)
 
 	if err := db.Users().RemoveId(user.ID); err != nil {
 		panic(err)
@@ -190,20 +189,13 @@ func Projects(c *gin.Context) {
 	var tmpProjct models.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProjct) {
-		if err := metadata.ProjectMetadata(&tmpProjct); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Projects"},
-			})
-			return
-		}
+		metadata.ProjectMetadata(&tmpProjct)
 		// good to go add to list
 		projts = append(projts, tmpProjct)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving project data from the db:", err)
+		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Projects"},
@@ -237,20 +229,13 @@ func Credentials(c *gin.Context) {
 	var tmpCredential models.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCredential) {
-		if err := metadata.CredentialMetadata(&tmpCredential); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.CredentialMetadata(&tmpCredential)
 		// add to list
 		creds = append(creds, tmpCredential)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving project data from the db:", err)
+		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credentials"},
@@ -284,20 +269,13 @@ func Teams(c *gin.Context) {
 	var tmpTeam models.Team
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpTeam) {
-		if err := metadata.TeamMetadata(&tmpTeam); err != nil {
-			log.Println("Error while setting metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Credentials"},
-			})
-			return
-		}
+		metadata.TeamMetadata(&tmpTeam)
 		// add to list
 		tms = append(tms, tmpTeam)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving project data from the db:", err)
+		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credentials"},
@@ -331,20 +309,13 @@ func Organizations(c *gin.Context) {
 	var tmpOrganization models.Organization
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpOrganization) {
-		if err := metadata.OrganizationMetadata(&tmpOrganization); err != nil {
-			log.Println("Error while getting organization metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Organizations"},
-			})
-			return
-		}
+		metadata.OrganizationMetadata(&tmpOrganization)
 		// add to list
 		orgs = append(orgs, tmpOrganization)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving organization data from the db:", err)
+		log.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organizations"},
@@ -378,20 +349,13 @@ func AdminsOfOrganizations(c *gin.Context) {
 	var tmpOrganization models.Organization
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpOrganization) {
-		if err := metadata.OrganizationMetadata(&tmpOrganization); err != nil {
-			log.Println("Error while getting organization metatdata:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
-				Code:http.StatusInternalServerError,
-				Messages: []string{"Error while getting Organizations"},
-			})
-			return
-		}
+		metadata.OrganizationMetadata(&tmpOrganization)
 		// add to list
 		orgs = append(orgs, tmpOrganization)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Println("Error while retriving organization data from the db:", err)
+		log.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organizations"},
@@ -423,7 +387,7 @@ func ActivityStream(c *gin.Context) {
 	err := db.ActivityStream().Find(bson.M{"actor_id": user.ID}).All(&activities)
 
 	if err != nil {
-		log.Println("Error while retriving Activity data from the db:", err)
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:http.StatusInternalServerError,
 			Messages: []string{"Error while getting Activities"},
