@@ -1,10 +1,10 @@
 package roles
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"gopkg.in/mgo.v2/bson"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func CredentialRead(user models.User, credential models.Credential) bool {
@@ -40,7 +40,7 @@ func CredentialRead(user models.User, credential models.Credential) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -88,7 +88,7 @@ func CredentialWrite(user models.User, credential models.Credential) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:": bson.M{"$in": teams},
+		"_id:":          bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 	count, err = db.Teams().Find(query).Count()
@@ -141,7 +141,7 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:": bson.M{"$in": teams},
+		"_id:":          bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 	count, err = db.Teams().Find(query).Count()
@@ -157,25 +157,25 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 }
 
 func AddCredentialUser(credential models.Credential, user bson.ObjectId, role string) {
-	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type:"user", UserID:user, Role: role}}}
-	err := db.Credentials().UpdateId(credential.ID, access);
+	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type: "user", UserID: user, Role: role}}}
+	err := db.Credentials().UpdateId(credential.ID, access)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"User ID": user,
+			"User ID":       user,
 			"Credential ID": credential.ID.Hex(),
-			"Error": err.Error(),
+			"Error":         err.Error(),
 		}).Errorln("Error while adding the user to roles")
 	}
 }
 
 func AddCredentialTeam(credential models.Credential, team bson.ObjectId, role string) {
-	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type:"team", TeamID:team, Role: role}}}
-	err := db.Credentials().UpdateId(credential.ID, access);
+	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type: "team", TeamID: team, Role: role}}}
+	err := db.Credentials().UpdateId(credential.ID, access)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"Team ID": team,
+			"Team ID":       team,
 			"Credential ID": credential.ID.Hex(),
-			"Error": err.Error(),
+			"Error":         err.Error(),
 		}).Errorln("Error while adding the Team to roles")
 	}
 }

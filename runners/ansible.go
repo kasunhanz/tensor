@@ -1,34 +1,21 @@
 package runners
 
 import (
-	"time"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	log "github.com/Sirupsen/logrus"
+	"bytes"
+	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
-	"io"
-	"bytes"
-	"bitbucket.pearson.com/apseng/tensor/ssh"
-	"strings"
-	"gopkg.in/mgo.v2/bson"
-	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/util"
 	"strconv"
-)
+	"strings"
+	"time"
 
-// JobPaths
-type JobPaths struct {
-	EtcTower        string
-	Tmp             string
-	VarLib          string
-	VarLibJobStatus string
-	VarLibProjects  string
-	VarLog          string
-	TmpRand         string
-	ProjectRoot     string
-	AnsiblePath     string
-	CredentialPath  string
-}
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/ssh"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
+)
 
 type AnsibleJobPool struct {
 	queue    []*AnsibleJob
@@ -62,13 +49,13 @@ func (p *AnsibleJobPool) Run() {
 		select {
 		case job := <-p.Register:
 
-			log.Infoln("Ansible Job registered:", job.Job.Name, "[" + job.Job.ID.Hex() + "]")
+			log.Infoln("Ansible Job registered:", job.Job.Name, "["+job.Job.ID.Hex()+"]")
 			if job.Job.AllowSimultaneous {
 				go job.run()
 				continue
 			}
 
-			log.Infoln("Adding Ansible Job to queue:", job.Job.Name, "[" + job.Job.ID.Hex() + "]")
+			log.Infoln("Adding Ansible Job to queue:", job.Job.Name, "["+job.Job.ID.Hex()+"]")
 			p.queue = append(p.queue, job)
 		case <-ticker.C:
 			if len(p.queue) == 0 {
@@ -76,10 +63,10 @@ func (p *AnsibleJobPool) Run() {
 			}
 
 			job := p.queue[0]
-			log.Infoln("Selecting ", job.Job.Name, "[" + job.Job.ID.Hex() + "]", "from Job queue")
-		// if has running jobs and allow simultaneous
-		// because if the job is running and AllowSimultaneous false
-		// we need to make sure another instance of the same job will not run
+			log.Infoln("Selecting ", job.Job.Name, "["+job.Job.ID.Hex()+"]", "from Job queue")
+			// if has running jobs and allow simultaneous
+			// because if the job is running and AllowSimultaneous false
+			// we need to make sure another instance of the same job will not run
 			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
 				continue
 			}
@@ -92,7 +79,7 @@ func (p *AnsibleJobPool) Run() {
 func (p *AnsibleJobPool) DetachFromRunning(id bson.ObjectId) bool {
 	for k, v := range p.running {
 		if v.Job.ID == id {
-			p.running = append(p.running[:k], p.running[k + 1:]...)
+			p.running = append(p.running[:k], p.running[k+1:]...)
 			return true
 		}
 	}
@@ -107,7 +94,7 @@ func (p *AnsibleJobPool) KillJob(id bson.ObjectId) bool {
 	for k, v := range p.queue {
 		if v.Job.ID == id {
 			// remove from job queue
-			p.queue = append(p.queue[:k], p.queue[k + 1:]...)
+			p.queue = append(p.queue[:k], p.queue[k+1:]...)
 			v.jobCancel() // update job in database
 			return true
 		}
@@ -123,7 +110,7 @@ func (p *AnsibleJobPool) KillJob(id bson.ObjectId) bool {
 				log.Infoln("Sending kill signal to job:", id.Hex())
 				v.SigKill <- true //send kill signal
 			}
-			p.running = append(p.running[:k], p.running[k + 1:]...)
+			p.running = append(p.running[:k], p.running[k+1:]...)
 			v.jobCancel() // update job in database
 			return true
 		}
@@ -166,13 +153,12 @@ type AnsibleJob struct {
 	Project       models.Project
 	User          models.User
 	Token         string
-	JobPaths      JobPaths
 	SigKill       chan bool
 	UpdateSigKill chan bool
 }
 
 func (j *AnsibleJob) run() {
-	log.Infoln("Starting job:", j.Job.Name, "[" + j.Job.ID.Hex() + "]")
+	log.Infoln("Starting job:", j.Job.Name, "["+j.Job.ID.Hex()+"]")
 	//create a boolean channel to send the kill signal
 	j.SigKill = make(chan bool)
 	j.UpdateSigKill = make(chan bool)
@@ -195,8 +181,8 @@ func (j *AnsibleJob) run() {
 			for {
 				select {
 				case kill := <-j.UpdateSigKill:
-					log.Infoln("Received update kill signal:", kill, "[" + j.Job.ID.Hex() + "]")
-				// kill true then kill the update job
+					log.Infoln("Received update kill signal:", kill, "["+j.Job.ID.Hex()+"]")
+					// kill true then kill the update job
 					if kill {
 						log.Infoln("Sending received update kill signal to updatejob:", kill)
 						updateJob.SigKill <- true
@@ -227,7 +213,7 @@ func (j *AnsibleJob) run() {
 			}
 			if updateJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
-				log.Infoln("Update job successful", updateJob.Job.Name, "[" + updateJob.Job.ID.Hex() + "]")
+				log.Infoln("Update job successful", updateJob.Job.Name, "["+updateJob.Job.ID.Hex()+"]")
 				ticker.Stop()
 				break
 			}
@@ -237,34 +223,16 @@ func (j *AnsibleJob) run() {
 
 	j.start()
 
-	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running")
-	log.Infoln("Started Job", "[" + j.Job.ID.Hex() + "]")
-
-	//Generate directory paths and create directories
-	tmp := "/tmp/tensor_proot_" + util.UniqueNew() + "/"
-	j.JobPaths = JobPaths{
-		EtcTower: tmp + util.UniqueNew(),
-		Tmp: tmp + util.UniqueNew(),
-		VarLib: tmp + util.UniqueNew(),
-		VarLibJobStatus: tmp + util.UniqueNew(),
-		VarLibProjects: tmp + util.UniqueNew(),
-		VarLog: tmp + util.UniqueNew(),
-		TmpRand: "/tmp/tensor__" + util.UniqueNew(),
-		ProjectRoot: "/opt/tensor/projects/" + j.Project.ID.Hex(),
-		AnsiblePath: "/opt/ansible/bin",
-		CredentialPath: "/tmp/tensor_" + util.UniqueNew(),
-	}
-
-	// create job directories
-	j.createJobDirs()
+	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running")
+	log.Infoln("Started Job", "["+j.Job.ID.Hex()+"]")
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
 	defer func() {
-		log.Infoln("Stopped running Job:", j.Job.Name, "[" + j.Job.ID.Hex() + "]", "Status:", j.Job.Status)
+		log.Infoln("Stopped running Job:", j.Job.Name, "["+j.Job.ID.Hex()+"]", "Status:", j.Job.Status)
 		AnsiblePool.DetachFromRunning(j.Job.ID)
-		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished")
+		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished")
 		cleanup()
 	}()
 
@@ -336,7 +304,7 @@ func (j *AnsibleJob) run() {
 
 	}
 
-	cmd, err := j.getCmd(socket, pid);
+	cmd, err := j.getCmd(socket, pid)
 	if err != nil {
 		log.Errorln("Running playbook failed", err)
 		j.Job.ResultStdout = "stdout capture is missing"
@@ -365,7 +333,7 @@ func (j *AnsibleJob) run() {
 		for {
 			select {
 			case kill := <-j.SigKill:
-			// kill true then kill the job
+				// kill true then kill the job
 				if kill {
 					if err := cmd.Process.Kill(); err != nil {
 						log.Errorln("Could not cancel the job")
@@ -377,7 +345,7 @@ func (j *AnsibleJob) run() {
 		}
 	}()
 
-	waitErr := cmd.Wait();
+	waitErr := cmd.Wait()
 	// set stdout if
 	j.Job.ResultStdout = string(b.Bytes())
 	if waitErr != nil {
@@ -396,7 +364,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
-		"-i", "/opt/tensor/plugins/inventory/tensorrest.py",
+		"-i", "/var/lib/tensor/plugins/inventory/tensorrest.py",
 	}
 	pPlaybook = j.buildParams(pPlaybook)
 
@@ -415,7 +383,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		pPlaybook = append(pPlaybook, "-u", uname)
 
 		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
-			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + util.CipherDecrypt(j.MachineCred.Password) + "")
+			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.MachineCred.Password)+"")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
@@ -429,17 +397,17 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 		// default become method is sudo
 		if len(j.MachineCred.BecomeMethod) > 0 {
-			pPlaybook = append(pPlaybook, "--become-method=" + j.MachineCred.BecomeMethod)
+			pPlaybook = append(pPlaybook, "--become-method="+j.MachineCred.BecomeMethod)
 		}
 
 		// default become user is root
 		if len(j.MachineCred.BecomeUsername) > 0 {
-			pPlaybook = append(pPlaybook, "--become-user=" + j.MachineCred.BecomeUsername)
+			pPlaybook = append(pPlaybook, "--become-user="+j.MachineCred.BecomeUsername)
 		}
 
 		// for now this is more convenient than --ask-become-pass with sshpass
 		if len(j.MachineCred.BecomePassword) > 0 {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.MachineCred.BecomePassword) + "'")
+			pSecure = append(pSecure, "-e", "'ansible_become_pass="+util.CipherDecrypt(j.MachineCred.BecomePassword)+"'")
 		}
 	}
 
@@ -457,19 +425,19 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
 	cmd := exec.Command("ansible-playbook", pargs...)
-	cmd.Dir = "/opt/tensor/projects/" + j.Project.ID.Hex()
+	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
 	cmd.Env = []string{
 		"TERM=xterm",
-		"PROJECT_PATH=/opt/tensor/projects/" + j.Project.ID.Hex(),
-		"HOME_PATH=/opt/tensor/",
-		"PWD=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
+		"HOME_PATH=" + util.Config.ProjectsHome + "/",
+		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"SHLVL=1",
 		"HOME=/root",
-		"_=/opt/tensor/bin/tensord",
-		"PATH=/bin:/usr/local/go/bin:/opt/tensor/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"_=/usr/bin/tensord",
+		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
-		"ANSIBLE_CALLBACK_PLUGINS=/opt/tensor/plugins/callback",
+		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
 		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
 		"ANSIBLE_FORCE_COLOR=True",
@@ -486,35 +454,6 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	log.Infoln("Job Environment", append([]string{}, cmd.Env...))
 
 	return cmd, nil
-}
-
-// createJobDirs
-func (j *AnsibleJob) createJobDirs() {
-	// create credential paths
-	if err := os.MkdirAll(j.JobPaths.EtcTower, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.EtcTower)
-	}
-	if err := os.MkdirAll(j.JobPaths.CredentialPath, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.CredentialPath)
-	}
-	if err := os.MkdirAll(j.JobPaths.Tmp, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.Tmp)
-	}
-	if err := os.MkdirAll(j.JobPaths.TmpRand, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.TmpRand)
-	}
-	if err := os.MkdirAll(j.JobPaths.VarLib, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.VarLib)
-	}
-	if err := os.MkdirAll(j.JobPaths.VarLibJobStatus, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.VarLibJobStatus)
-	}
-	if err := os.MkdirAll(j.JobPaths.VarLibProjects, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.VarLibProjects)
-	}
-	if err := os.MkdirAll(j.JobPaths.VarLog, 0770); err != nil {
-		log.Errorln("Unable to create directory: ", j.JobPaths.VarLog)
-	}
 }
 
 func (j *AnsibleJob) buildParams(params []string) []string {
@@ -567,7 +506,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 
 	// --skip-tags=SKIP_TAGS
 	if len(j.Job.SkipTags) > 0 {
-		params = append(params, "--skip-tags=" + j.Job.SkipTags)
+		params = append(params, "--skip-tags="+j.Job.SkipTags)
 	}
 
 	// --force-handlers
@@ -576,19 +515,19 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	}
 
 	if len(j.Job.StartAtTask) > 0 {
-		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
+		params = append(params, "--start-at-task="+j.Job.StartAtTask)
 	}
 
 	extras := map[string]interface{}{
 		"tensor_job_template_name": j.Template.Name,
-		"tensor_job_id": j.Job.ID.Hex(),
-		"tensor_user_id": j.Job.CreatedByID.Hex(),
-		"tensor_job_template_id": j.Template.ID.Hex(),
-		"tensor_user_name": "admin",
-		"tensor_job_launch_type": j.Job.LaunchType,
+		"tensor_job_id":            j.Job.ID.Hex(),
+		"tensor_user_id":           j.Job.CreatedByID.Hex(),
+		"tensor_job_template_id":   j.Template.ID.Hex(),
+		"tensor_user_name":         "admin",
+		"tensor_job_launch_type":   j.Job.LaunchType,
 	}
 	// Parameters required by the system
-	rp, err := json.Marshal(extras);
+	rp, err := json.Marshal(extras)
 
 	if err != nil {
 		log.Errorln("Error while marshalling parameters")

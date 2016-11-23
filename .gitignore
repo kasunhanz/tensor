@@ -24,21 +24,11 @@ _testmain.go
 *.prof
 *.pyc
 
-#ignore build artifacts
+#ignore build and docker artifacts
 build
-dist
-deb-build
+data
+packaging/docker/tensor/tensor.deb
 
 #ignore project vs code
 .vscode/
 .idea/
-
-#nodeingore
-node_modules
-
-#ignore jade gens less gens and bundle.js
-client/html/*.html
-client/html/*/*.html
-client/html/*/*/*.html
-client/css/tensor.css
-client/js/bundle.js

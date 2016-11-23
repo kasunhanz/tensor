@@ -1,39 +1,38 @@
 package models
 
 import (
-	"time"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 )
-
 
 // User is model for user collection
 type User struct {
-	ID              bson.ObjectId `bson:"_id" json:"id"`
-	Type            string        `bson:"-" json:"type"`
-	Url             string        `bson:"-" json:"url"`
-	Related         gin.H         `bson:"-" json:"related"`
+	ID      bson.ObjectId `bson:"_id" json:"id"`
+	Type    string        `bson:"-" json:"type"`
+	Url     string        `bson:"-" json:"url"`
+	Related gin.H         `bson:"-" json:"related"`
 
-	Username        string        `bson:"username" json:"username" binding:"required,min=1,max=500"`
-	FirstName       string        `bson:"first_name" json:"first_name"`
-	LastName        string        `bson:"last_name" json:"last_name"`
-	Email           string        `bson:"email" json:"email" binding:"required"`
-	IsSuperUser     bool          `bson:"is_superuser" json:"is_superuser"`
-	IsSystemAuditor bool          `bson:"is_system_auditor" json:"is_system_auditor"`
-	Password        string        `bson:"password" json:"-"`
+	Username        string         `bson:"username" json:"username" binding:"required,min=1,max=500"`
+	FirstName       string         `bson:"first_name" json:"first_name"`
+	LastName        string         `bson:"last_name" json:"last_name"`
+	Email           string         `bson:"email" json:"email" binding:"required"`
+	IsSuperUser     bool           `bson:"is_superuser" json:"is_superuser"`
+	IsSystemAuditor bool           `bson:"is_system_auditor" json:"is_system_auditor"`
+	Password        string         `bson:"password" json:"-"`
 	OrganizationID  *bson.ObjectId `bson:"organization_id" json:"organization"`
 
-	Deleted         bool          `bson:"deleted" json:"-"`
+	Deleted bool `bson:"deleted" json:"-"`
 
-	Created         time.Time     `bson:"created" json:"created"`
+	Created time.Time `bson:"created" json:"created"`
 }
 
 type AccessUser struct {
-	ID              bson.ObjectId `bson:"_id" json:"id"`
-	Type            string        `bson:"-" json:"type"`
-	Url             string        `bson:"-" json:"url"`
-	Related         gin.H         `bson:"-" json:"related"`
-	Summary         *AccessType    `bson:"-" json:"summary_fields"`
+	ID      bson.ObjectId `bson:"_id" json:"id"`
+	Type    string        `bson:"-" json:"type"`
+	Url     string        `bson:"-" json:"url"`
+	Related gin.H         `bson:"-" json:"related"`
+	Summary *AccessType   `bson:"-" json:"summary_fields"`
 
 	Created         time.Time     `bson:"created" json:"created"`
 	Username        string        `bson:"username" json:"username" binding:"required"`

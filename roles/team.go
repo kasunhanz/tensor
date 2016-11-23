@@ -1,10 +1,10 @@
 package roles
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"gopkg.in/mgo.v2/bson"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TeamRead(user models.User, team models.Team) bool {

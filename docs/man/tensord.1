@@ -1,0 +1,85 @@
+'\" t
+.\"     Title: tensord
+.\"    Author: :doctype:manpage
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 07/18/2016
+.\"    Manual: System administration commands
+.\"    Source: tensord 0.1.3
+.\"  Language: English
+.\"
+.TH "TENSOR" "1" "07/18/2016" "Tensor 2\&.2\&.0" "System administration commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+tensor \- REST based system administration server
+.SH "SYNOPSIS"
+.sp
+tensor [\-setup] [\-secrets] [\-hash]
+.SH "DESCRIPTION"
+.sp
+\fBTensor\fR is an extra\-simple tool/framework/API for doing \*(Aqremote things\*(Aq\&.
+.SH "ARGUMENTS"
+.PP
+\fBhost\-pattern\fR
+.RS 4
+A name of a group in the inventory, a shell\-like glob selecting hosts in inventory or any combination of the two separated by commas\&.
+.RE
+.SH "OPTIONS"
+.PP
+\fB\-setup\fR
+.RS 4
+Start guided initial setup of the application and users\&.
+.RE
+.PP
+\fB\-secrets\fR
+.RS 4
+Generate cookie secrets\&.
+.RE
+.PP
+\fB\-hash\fR
+.RS 4
+Generate hash of given password\&.
+.RE
+.PP
+\fB\-\-version\fR
+.RS 4
+Show program version number and exit\&.
+.RE
+.SH "FILES"
+.sp
+/etc/tensor.conf \(em Default configuration file
+.sp
+.SH "AUTHOR"
+.sp
+Tensor was originally written by Gamunu Balagalla\&. See the AUTHORS file for a complete list of contributors\&.
+.SH "COPYRIGHT"
+.sp
+Copyright \(co 2016, Gamunu Balagalla Tensor is released under the terms of the MIT License\&.
+.SH "SEE ALSO"
+.sp
+\fBansible\fR(1), \fBansible\-playbook\fR(1)
+.sp
+Extensive documentation is available in the documentation site: https://gamunu\&.github\&.io/tensor\&. IRC and mailing list info can be found in file CONTRIBUTING\&.md
+.SH "AUTHOR"
+.PP
+\fB:doctype:manpage\fR
+.RS 4
+Author.
+.RE

@@ -1,10 +1,10 @@
 package db
 
 import (
-	"gopkg.in/mgo.v2"
-	"time"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2"
+	"time"
 )
 
 var MongoDb *mgo.Database

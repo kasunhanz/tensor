@@ -1,3 +1,5 @@
-bin/* usr/bin
+bin/* usr/bin/
 etc/tensor.conf etc/
 systemd/tensord.service /lib/systemd/system/
+lib/plugins/inventory/* /var/lib/tensor/plugins/inventory/
+lib/playbooks/* /var/lib/tensor/projects/

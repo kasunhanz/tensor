@@ -1,17 +1,17 @@
 package jwt
 
 import (
-	"time"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/appleboy/gin-jwt.v2"
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"gopkg.in/mgo.v2/bson"
-	"strings"
-	"net/mail"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/util"
-	"golang.org/x/crypto/bcrypt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/appleboy/gin-jwt.v2"
+	"gopkg.in/mgo.v2/bson"
+	"net/mail"
+	"strings"
+	"time"
 )
 
 var HeaderAuthMiddleware *jwt.GinJWTMiddleware

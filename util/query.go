@@ -1,22 +1,28 @@
 package util
 
 import (
-	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
 	"net/url"
 	"strings"
+
 	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var (
+	// OrderParam is the key of the url
+	// order parameter
 	OrderParam = "order_by"
 )
 
+// QueryParser used to store the context and
+// gin request form
 type QueryParser struct {
 	context *gin.Context
 	From    url.Values
 }
 
+// NewQueryParser initialize a new QueryParser
 func NewQueryParser(c *gin.Context) QueryParser {
 	parser := QueryParser{}
 	parser.context = c
@@ -29,10 +35,12 @@ func NewQueryParser(c *gin.Context) QueryParser {
 	return parser
 }
 
+// OrderBy appends order_by clause to mongodb query
 func (p *QueryParser) OrderBy() string {
 	return p.context.Query(OrderParam)
 }
 
+// Match adds equality condition to match an exact match
 func (p *QueryParser) Match(s []string, query bson.M) bson.M {
 	for i := range s {
 		if q := p.context.Query(s[i]); q != "" {
@@ -42,6 +50,7 @@ func (p *QueryParser) Match(s []string, query bson.M) bson.M {
 	return query
 }
 
+// Lookups calls all lookup functions
 func (p *QueryParser) Lookups(fields []string, query bson.M) bson.M {
 
 	query = p.Exact(fields, query)
@@ -77,14 +86,14 @@ func (p *QueryParser) Exact(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__exact"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{"/^" + ar[j] + "$/", ""} }
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: ""}}
 			}
 		}
 	}
 	return query
 }
 
-// Exact adds regex to mgo query to check a field is an exact match
+// IExact adds regex to mgo query to check a field is an exact match
 // this is the case insensitive version of Exact
 // accepting fields must pass to fields parameter
 func (p *QueryParser) IExact(s []string, query bson.M) bson.M {
@@ -93,13 +102,12 @@ func (p *QueryParser) IExact(s []string, query bson.M) bson.M {
 		ic := s[i] + "__iexact"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{"/^" + ar[j] + "$/", "i"} }
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: "i"}}
 			}
 		}
 	}
 	return query
 }
-
 
 // Contains adds regex to mgo query to check a field contain a value
 // accepting fields must pass to fields parameter
@@ -109,7 +117,7 @@ func (p *QueryParser) Contains(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__contains"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{"/.*" + ar[j] + ".*/", ""} }
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/.*" + ar[j] + ".*/", Options: ""}}
 			}
 		}
 	}
@@ -125,7 +133,7 @@ func (p *QueryParser) IContains(s []string, query bson.M) bson.M {
 		ic := s[i] + "__icontains"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{"/.*" + ar[j] + ".*/", "i"} }
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/.*" + ar[j] + ".*/", Options: "i"}}
 			}
 		}
 	}
@@ -140,7 +148,7 @@ func (p *QueryParser) Startswith(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__startswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{"/^" + ar[j] + "/", ""} }
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "/", Options: ""}}
 			}
 		}
 	}
@@ -156,7 +164,7 @@ func (p *QueryParser) IStartswith(s []string, query bson.M) bson.M {
 		ic := s[i] + "__istartswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{"/^" + ar[j] + "/", "i"} }
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "/", Options: "i"}}
 			}
 		}
 	}
@@ -171,7 +179,7 @@ func (p *QueryParser) Endswith(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__endswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{"/^" + ar[j] + "$/", ""} }
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: ""}}
 			}
 		}
 	}
@@ -187,13 +195,12 @@ func (p *QueryParser) IEndswith(s []string, query bson.M) bson.M {
 		ic := s[i] + "__iendswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{"/" + ar[j] + "$/", "i"} }
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/" + ar[j] + "$/", Options: "i"}}
 			}
 		}
 	}
 	return query
 }
-
 
 // Gt adds $gt to mgo query to check a field greater than the comparison value
 // accepting fields must pass to fields parameter
@@ -203,7 +210,7 @@ func (p *QueryParser) Gt(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__gt"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$gt": ar[j] }
+				query[fields[i]] = bson.M{"$gt": ar[j]}
 			}
 		}
 	}
@@ -218,7 +225,7 @@ func (p *QueryParser) Gte(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__gte"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$gte": ar[j] }
+				query[fields[i]] = bson.M{"$gte": ar[j]}
 			}
 		}
 	}
@@ -233,14 +240,14 @@ func (p *QueryParser) Lt(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__lt"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$lt": ar[j] }
+				query[fields[i]] = bson.M{"$lt": ar[j]}
 			}
 		}
 	}
 	return query
 }
 
-// Gt adds $lte to mgo query to check a field less than  or equal to the comparison value
+// Lte adds $lte to mgo query to check a field less than  or equal to the comparison value
 // accepting fields must pass to fields parameter
 func (p *QueryParser) Lte(fields []string, query bson.M) bson.M {
 	for i := range fields {
@@ -248,7 +255,7 @@ func (p *QueryParser) Lte(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__lte"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$lte": ar[j] }
+				query[fields[i]] = bson.M{"$lte": ar[j]}
 			}
 		}
 	}
@@ -262,7 +269,7 @@ func (p *QueryParser) IsNull(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__isnull"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for range ar {
-				query[fields[i]] = bson.M{"$lte": nil }
+				query[fields[i]] = bson.M{"$lte": nil}
 			}
 		}
 	}
@@ -282,14 +289,13 @@ func (p *QueryParser) In(fields []string, query bson.M) bson.M {
 				// split string by `,`
 				values := strings.Split(ar[j], ",")
 				if len(values) > 0 {
-					query[fields[i]] = bson.M{"$in": values }
+					query[fields[i]] = bson.M{"$in": values}
 				}
 			}
 		}
 	}
 	return query
 }
-
 
 // Eq check the given field or related object is equel to given value
 func (p *QueryParser) Eq(fields []string, query bson.M) bson.M {
@@ -298,21 +304,21 @@ func (p *QueryParser) Eq(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__eq"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$eq": ar[j] }
+				query[fields[i]] = bson.M{"$eq": ar[j]}
 			}
 		}
 	}
 	return query
 }
 
-// Eq check the given field or related object is not equal to given value
+// Ne check the given field or related object is not equal to given value
 func (p *QueryParser) Ne(fields []string, query bson.M) bson.M {
 	for i := range fields {
 		// avoid hacks by using defined parameters
 		ic := fields[i] + "__ne"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$ne": ar[j] }
+				query[fields[i]] = bson.M{"$ne": ar[j]}
 			}
 		}
 	}

@@ -2,19 +2,19 @@ package ssh
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh/agent"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"golang.org/x/crypto/ssh/agent"
-	log "github.com/Sirupsen/logrus"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
-	"crypto"
-	"crypto/rsa"
-	"crypto/ecdsa"
 )
 
 // startAgent executes ssh-agent, and returns a Agent interface to it.
