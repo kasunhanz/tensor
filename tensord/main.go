@@ -1,24 +1,24 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/gin-gonic/gin"
-	"bitbucket.pearson.com/apseng/tensor/controllers"
-	"bitbucket.pearson.com/apseng/tensor/controllers/sockets"
-	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/runners"
+	"time"
+
+	"bitbucket.pearson.com/apseng/tensor/api"
+	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"net/http"
-	"bitbucket.pearson.com/apseng/tensor/crashy"
+	"bitbucket.pearson.com/apseng/tensor/runners"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/contrib/ginrus"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 func main() {
 	log.Infoln("Tensor :", util.Version)
 	log.Infoln("Port :", util.Config.Port)
 	log.Infoln("MongoDB :", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
-	log.Infoln("Tmp Path (projects home) :", util.Config.TmpPath)
+	log.Infoln("Projects Home:", util.Config.ProjectsHome)
 
 	if err := db.Connect(); err != nil {
 		log.Fatalln(err)
@@ -34,7 +34,8 @@ func main() {
 	binding.Validator = &util.SpaceValidator{}
 
 	r := gin.New()
-	r.Use(crashy.Recovery(recoveryHandler))
+	r.Use(ginrus.Ginrus(log.StandardLogger(), time.RFC3339, true))
+	r.Use(gin.Recovery())
 
 	controllers.Route(r)
 
@@ -42,14 +43,4 @@ func main() {
 	go runners.SystemPool.Run()
 
 	r.Run(util.Config.Port)
-}
-
-func recoveryHandler(c *gin.Context, err interface{}) {
-	log.Errorln("Panic occurred", err)
-	c.JSON(http.StatusInternalServerError, models.Error{
-		Code: http.StatusInternalServerError,
-		Messages: "You have not gotten any error messages recently," +
-			" so here is a random one just to let you know that we haven't caring.",
-	})
-	c.Abort()
 }

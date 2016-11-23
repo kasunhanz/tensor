@@ -1,10 +1,10 @@
 package roles
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"gopkg.in/mgo.v2/bson"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func JobRead(user models.User, jtemplate models.Job) bool {
@@ -48,7 +48,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -103,7 +103,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:": bson.M{"$in": teams},
+		"_id:":          bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 	count, err = db.Teams().Find(query).Count()
@@ -164,7 +164,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:": bson.M{"$in": teams},
+		"_id:":          bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 

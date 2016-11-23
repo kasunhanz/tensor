@@ -1,13 +1,13 @@
 package jwt
 
 import (
-	"time"
-	"gopkg.in/dgrijalva/jwt-go.v3"
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
-	log "github.com/Sirupsen/logrus"
-	"gopkg.in/mgo.v2/bson"
 	"errors"
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/dgrijalva/jwt-go.v3"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
 type LocalToken struct {

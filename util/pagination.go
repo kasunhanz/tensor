@@ -1,18 +1,18 @@
 package util
 
 import (
-	"strconv"
 	"github.com/gin-gonic/gin"
 	"math"
+	"strconv"
 )
 
 var (
 	DefaultLimit = int(10)
-	MinLimit = int(1)
-	MaxLimit = int(500)
-	LimitParam = "page_size"
-	DefaultPage = int(1)
-	PageParam = "page"
+	MinLimit     = int(1)
+	MaxLimit     = int(500)
+	LimitParam   = "page_size"
+	DefaultPage  = int(1)
+	PageParam    = "page"
 )
 
 type Pagination struct {
@@ -23,12 +23,12 @@ type Pagination struct {
 
 func NewPagination(c *gin.Context, n int) *Pagination {
 	p := Pagination{
-		page : pageParser(c.Request.URL.Query().Get(PageParam)),
-		limit : limitParser(c.Request.URL.Query().Get(LimitParam)),
+		page:      pageParser(c.Request.URL.Query().Get(PageParam)),
+		limit:     limitParser(c.Request.URL.Query().Get(LimitParam)),
 		itemCount: n,
 	}
 
-	return &p;
+	return &p
 }
 
 func (p *Pagination) Offset() int {
@@ -69,9 +69,9 @@ func (p *Pagination) totalPages() int {
 }
 
 func (p *Pagination) NextPage() interface{} {
-	if (p.page >= p.totalPages()) {
+	if p.page >= p.totalPages() {
 		return nil
-	} else if (p.page < 1) {
+	} else if p.page < 1 {
 		return DefaultPage
 	}
 	return (p.page + 1)

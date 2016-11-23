@@ -19,17 +19,15 @@ services:
           - mongo
 
   tensor:
-    build:
-      context: ./tensor
+    image: gamunu/tensor:latest
     volumes:
-      - ../../:/go/src/bitbucket.pearson.com/apseng/tensor
+      - ../../data:/data
     ports:
       - '8010:8010'
     restart: always
     environment:
       TENSOR_PORT: ":8010"
-      PROJECT_PATH: "/opt/tensor/projects"
-      HOME_PATH: "/opt/tensor/"
+      PROJECTS_HOME: "/data"
       TENSOR_DB_USER: tensor
       TENSOR_DB_PASSWORD: tensor
       TENSOR_DB_NAME: tensordb

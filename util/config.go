@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"os"
-	log "github.com/Sirupsen/logrus"
-	"strings"
 )
 
 var InteractiveSetup bool
@@ -26,16 +27,15 @@ type MongoDBConfig struct {
 }
 
 type configType struct {
-	MongoDB  MongoDBConfig `yaml:"mongodb"`
+	MongoDB MongoDBConfig `yaml:"mongodb"`
 	// Format `:port_num` eg, :3000
-	Port     string `yaml:"port"`
+	Port string `yaml:"port"`
 
 	// Tensor stores projects here
-	TmpPath  string `yaml:"tmp_path"`
-	HomePath string `yaml:"home_path"`
+	ProjectsHome string `yaml:"projects_home"`
 
 	// cookie hashing & encryption
-	Salt     string `yaml:"salt"`
+	Salt string `yaml:"salt"`
 }
 
 var Config *configType
@@ -82,16 +82,10 @@ func init() {
 		Config.Port = ":3000"
 	}
 
-	if len(os.Getenv("PROJECT_PATH")) > 0 {
-		Config.TmpPath = os.Getenv("PROJECT_PATH")
-	} else if len(Config.TmpPath) == 0 {
-		Config.TmpPath = "/opt/tensor/projects"
-	}
-
-	if len(os.Getenv("HOME_PATH")) > 0 {
-		Config.HomePath = os.Getenv("HOME_PATH")
-	} else if len(Config.HomePath) == 0 {
-		Config.HomePath = "/opt/tensor"
+	if len(os.Getenv("PROJECTS_HOME")) > 0 {
+		Config.ProjectsHome = os.Getenv("PROJECTS_HOME")
+	} else if len(Config.ProjectsHome) == 0 {
+		Config.ProjectsHome = "/opt/tensor/projects"
 	}
 
 	if len(os.Getenv("TENSOR_SALT")) > 0 {
@@ -120,9 +114,9 @@ func init() {
 		Config.MongoDB.Hosts = strings.Split(os.Getenv("TENSOR_DB_HOSTS"), ";")
 	}
 
-	if _, err := os.Stat(Config.TmpPath); os.IsNotExist(err) {
-		fmt.Printf(" Running: mkdir -p %v..\n", Config.TmpPath)
-		if err := os.MkdirAll(Config.TmpPath, 0755); err != nil {
+	if _, err := os.Stat(Config.ProjectsHome); os.IsNotExist(err) {
+		fmt.Printf(" Running: mkdir -p %v..\n", Config.ProjectsHome)
+		if err := os.MkdirAll(Config.ProjectsHome, 0755); err != nil {
 			log.Fatal(err)
 			os.Exit(7)
 		}

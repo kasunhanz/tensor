@@ -4,47 +4,47 @@ import (
 	"reflect"
 	"sync"
 
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"fmt"
 	"github.com/gin-gonic/gin/binding"
-	"gopkg.in/go-playground/validator.v9"
-	"regexp"
-	"strings"
-	"net"
-	en_translations "gopkg.in/go-playground/validator.v9/translations/en"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/universal-translator"
-	"fmt"
-	"bitbucket.pearson.com/apseng/tensor/models"
+	"gopkg.in/go-playground/validator.v9"
+	en_translations "gopkg.in/go-playground/validator.v9/translations/en"
 	"io"
+	"net"
+	"regexp"
+	"strings"
 )
 
 const (
-	Become string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
+	Become         string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
 	CredentialKind string = "^(windows|ssh|net|scm|aws|rax|vmware|satellite6|cloudforms|gce|azure|openstack)$"
-	ScmType string = "^(manual|git|hg|svn)$"
-	JobType string = "^(run|check|scan)$"
+	ScmType        string = "^(manual|git|hg|svn)$"
+	JobType        string = "^(run|check|scan)$"
 
-	DNSName string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`
-	IP string = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
-	URLSchema string = `((ftp|tcp|udp|wss?|https?):\/\/)`
-	URLUsername string = `(\S+(:\S*)?@)`
-	URLPath string = `((\/|\?|#)[^\s]*)`
-	URLPort string = `(:(\d{1,5}))`
-	URLIP string = `([1-9]\d?|1\d\d|2[01]\d|22[0-3])(\.(1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.([0-9]\d?|1\d\d|2[0-4]\d|25[0-4]))`
+	DNSName      string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`
+	IP           string = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+	URLSchema    string = `((ftp|tcp|udp|wss?|https?):\/\/)`
+	URLUsername  string = `(\S+(:\S*)?@)`
+	URLPath      string = `((\/|\?|#)[^\s]*)`
+	URLPort      string = `(:(\d{1,5}))`
+	URLIP        string = `([1-9]\d?|1\d\d|2[01]\d|22[0-3])(\.(1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.([0-9]\d?|1\d\d|2[0-4]\d|25[0-4]))`
 	URLSubdomain string = `((www\.)|([a-zA-Z0-9]([-\.][a-zA-Z0-9]+)*))`
-	URL string = `^` + URLSchema + `?` + URLUsername + `?` + `((` + URLIP + `|(\[` + IP + `\])|(([a-zA-Z0-9]([a-zA-Z0-9-]+)?[a-zA-Z0-9]([-\.][a-zA-Z0-9]+)*)|(` + URLSubdomain + `?))?(([a-zA-Z\x{00a1}-\x{ffff}0-9]+-?-?)*[a-zA-Z\x{00a1}-\x{ffff}0-9]+)(?:\.([a-zA-Z\x{00a1}-\x{ffff}]{1,}))?))` + URLPort + `?` + URLPath + `?$`
+	URL          string = `^` + URLSchema + `?` + URLUsername + `?` + `((` + URLIP + `|(\[` + IP + `\])|(([a-zA-Z0-9]([a-zA-Z0-9-]+)?[a-zA-Z0-9]([-\.][a-zA-Z0-9]+)*)|(` + URLSubdomain + `?))?(([a-zA-Z\x{00a1}-\x{ffff}0-9]+-?-?)*[a-zA-Z\x{00a1}-\x{ffff}0-9]+)(?:\.([a-zA-Z\x{00a1}-\x{ffff}]{1,}))?))` + URLPort + `?` + URLPath + `?$`
 )
 
 // use a single instance , it caches struct info
-var Uni      *ut.UniversalTranslator
+var Uni *ut.UniversalTranslator
 var trans ut.Translator
 
 var (
-	rxBecome = regexp.MustCompile(Become)
-	rxDNSName = regexp.MustCompile(DNSName)
-	rxURL = regexp.MustCompile(URL)
+	rxBecome         = regexp.MustCompile(Become)
+	rxDNSName        = regexp.MustCompile(DNSName)
+	rxURL            = regexp.MustCompile(URL)
 	rxCredentialKind = regexp.MustCompile(CredentialKind)
-	rxScmType = regexp.MustCompile(ScmType)
-	rxJobType = regexp.MustCompile(JobType)
+	rxScmType        = regexp.MustCompile(ScmType)
+	rxJobType        = regexp.MustCompile(JobType)
 )
 
 type SpaceValidator struct {
@@ -82,7 +82,6 @@ func (v *SpaceValidator) lazyinit() {
 		v.validate.RegisterValidation("naproperty", NaProperty)
 		v.validate.RegisterValidation("scmtype", IsScmType)
 		v.validate.RegisterValidation("jobtype", IsJobType)
-
 
 		//translations
 		// credentialkind
@@ -147,7 +146,6 @@ func kindOfData(data interface{}) reflect.Kind {
 func isBecome(fl validator.FieldLevel) bool {
 	return rxBecome.MatchString(fl.Field().String())
 }
-
 
 // IsDNSName will validate the given string as a DNS name
 func IsDNSName(fl validator.FieldLevel) bool {
@@ -218,6 +216,7 @@ func GetValidationErrors(err error) []string {
 
 	return []string{}
 }
+
 // TODO: openstack,azure,gce,
 func CredentialStructLevelValidation(sl validator.StructLevel) {
 

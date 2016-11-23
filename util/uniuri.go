@@ -59,7 +59,7 @@ func UniqueNewLenChars(length int, chars []byte) string {
 	}
 	maxrb := 255 - (256 % clen)
 	b := make([]byte, length)
-	r := make([]byte, length + (length / 4)) // storage for random bytes.
+	r := make([]byte, length+(length/4)) // storage for random bytes.
 	i := 0
 	for {
 		if _, err := rand.Read(r); err != nil {
@@ -71,7 +71,7 @@ func UniqueNewLenChars(length int, chars []byte) string {
 				// Skip this number to avoid modulo bias.
 				continue
 			}
-			b[i] = chars[c % clen]
+			b[i] = chars[c%clen]
 			i++
 			if i == length {
 				return string(b)

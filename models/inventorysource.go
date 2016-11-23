@@ -1,15 +1,15 @@
 package models
 
 import (
-	"gopkg.in/mgo.v2/bson"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Inventory is the model for
 // Inventory collection
 // TODO: not implemented
 type InventorySource struct {
-	ID                 bson.ObjectId `bson:"_id" json:"id"`
+	ID bson.ObjectId `bson:"_id" json:"id"`
 
 	Source             string        `bson:"source" json:"source"`
 	SourcePath         string        `bson:"source_path" json:"source_path"`
@@ -26,8 +26,8 @@ type InventorySource struct {
 	InventoryID        bson.ObjectId `bson:"inventory_id" json:"inventory"`
 	SourceScriptID     bson.ObjectId `bson:"source_script_id" json:"source_script"`
 
-	Type               string        `bson:"-" json:"type"`
-	Url                string        `bson:"-" json:"url"`
-	Related            gin.H         `bson:"-" json:"related"`
-	SummaryFields      gin.H         `bson:"-" json:"summary_fields"`
+	Type          string `bson:"-" json:"type"`
+	Url           string `bson:"-" json:"url"`
+	Related       gin.H  `bson:"-" json:"related"`
+	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 }

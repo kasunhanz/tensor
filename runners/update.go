@@ -1,20 +1,21 @@
 package runners
 
 import (
-	"os/exec"
-	"time"
-	"fmt"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"strings"
-	"os"
-	"bitbucket.pearson.com/apseng/tensor/ssh"
-	"gopkg.in/mgo.v2/bson"
 	"encoding/json"
-	"bitbucket.pearson.com/apseng/tensor/db"
 	"errors"
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
+	"strings"
+	"time"
+
+	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/ssh"
+	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type SystemJobPool struct {
@@ -60,7 +61,7 @@ func (p *SystemJobPool) hasJobForProject(job *SystemJob) bool {
 func (p *SystemJobPool) DetachFromRunning(id bson.ObjectId) bool {
 	for k, v := range p.running {
 		if v.Job.ID == id {
-			p.running = append(p.running[:k], p.running[k + 1:]...)
+			p.running = append(p.running[:k], p.running[k+1:]...)
 			return true
 		}
 	}
@@ -78,8 +79,8 @@ func (p *SystemJobPool) Run() {
 	for {
 		select {
 		case job := <-p.Register:
-		// check whether a existing
-		// job running for the project update
+			// check whether a existing
+			// job running for the project update
 			go job.run()
 		case <-ticker.C:
 			if len(p.queue) == 0 {
@@ -87,7 +88,7 @@ func (p *SystemJobPool) Run() {
 			}
 
 			job := p.queue[0]
-		// if has running jobs
+			// if has running jobs
 			if p.hasRunningJob(job) {
 				continue
 			}
@@ -99,6 +100,10 @@ func (p *SystemJobPool) Run() {
 	}
 }
 
+// SystemJob inlcudes current information about current job,
+// project, scm credential, credential path and
+// achannel to send a kill signal to running job
+// if true passed to SigKill the job will be terminated
 type SystemJob struct {
 	Job            models.SystemJob
 	Project        models.Project
@@ -118,7 +123,7 @@ func (j *SystemJob) run() {
 	// create job directories
 	j.createJobDirs()
 
-	log.Infoln("Started system job", "[" + j.Job.ID.Hex() + "]", j.Job.Name)
+	log.Infoln("Started system job", "["+j.Job.ID.Hex()+"]", j.Job.Name)
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
@@ -159,13 +164,13 @@ func (j *SystemJob) run() {
 	}
 
 	defer func() {
-		log.Infoln("Stopped running update system jobs", j.Job.Name, "[" + j.Job.ID.Hex() + "]")
+		log.Infoln("Stopped running update system jobs", j.Job.Name, "["+j.Job.ID.Hex()+"]")
 		SystemPool.DetachFromRunning(j.Job.ID)
 		// cleanup the mess
 		cleanup()
 	}()
 
-	cmd, err := j.getSystemCmd(socket, pid);
+	cmd, err := j.getSystemCmd(socket, pid)
 
 	if err != nil {
 		log.Errorln("Running Project update task failed", err)
@@ -181,7 +186,7 @@ func (j *SystemJob) run() {
 			select {
 			case kill := <-j.SigKill:
 				log.Infoln("Received update job kill signal:", kill)
-			// kill true then kill the job
+				// kill true then kill the job
 				if kill {
 					if err := cmd.Process.Kill(); err != nil {
 						log.Errorln("Could not cancel the job")
@@ -218,19 +223,19 @@ func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 	j.Job.JobARGS = []string{"ansible-playbook", strings.Join(arguments, " ")}
 
 	cmd := exec.Command("ansible-playbook", arguments...)
-	cmd.Dir = "/opt/tensor/system/projects/"
+	cmd.Dir = "/var/lib/tensor/projects/"
 
 	cmd.Env = []string{
 		"TERM=xterm",
-		"PROJECT_PATH=/opt/tensor/projects/" + j.Project.ID.Hex(),
-		"HOME_PATH=/opt/tensor/",
-		"PWD=/opt/tensor/projects/" + j.Project.ID.Hex(),
+		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
+		"HOME_PATH=" + util.Config.ProjectsHome + "/",
+		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"SHLVL=1",
 		"HOME=/root",
-		"_=/opt/tensor/bin/tensord",
-		"PATH=/bin:/usr/local/go/bin:/opt/tensor/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"_=/usr/bin/tensord",
+		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
-		"ANSIBLE_CALLBACK_PLUGINS=/opt/tensor/plugins/callback",
+		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
 		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
 		"ANSIBLE_FORCE_COLOR=True",
@@ -244,25 +249,27 @@ func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 }
 
 func (j *SystemJob) createJobDirs() {
-	if err := os.MkdirAll("/opt/tensor/projects/" + j.Job.ProjectID.Hex(), 0770); err != nil {
-		log.Errorln("Unable to create directory: ", "/opt/tensor/projects/" + j.Job.ProjectID.Hex())
+	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
+		log.Errorln("Unable to create directory: ", util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex())
 	}
 }
 
+// UpdateProject will create and start a update system job
+// using ansible playbook project_update.yml
 func UpdateProject(p models.Project) (*SystemJob, error) {
 	job := models.SystemJob{
-		ID: bson.NewObjectId(),
-		Name: p.Name + " update Job",
+		ID:          bson.NewObjectId(),
+		Name:        p.Name + " update Job",
 		Description: "Updates " + p.Name + " Project",
-		LaunchType: models.JOB_LAUNCH_TYPE_MANUAL,
-		CancelFlag: false,
-		Status: "pending",
-		JobType: models.JOBTYPE_UPDATE_JOB,
-		Playbook: "project_update.yml",
-		Verbosity: 0,
-		ProjectID: p.ID,
-		Created:time.Now(),
-		Modified:time.Now(),
+		LaunchType:  models.JOB_LAUNCH_TYPE_MANUAL,
+		CancelFlag:  false,
+		Status:      "pending",
+		JobType:     models.JOBTYPE_UPDATE_JOB,
+		Playbook:    "project_update.yml",
+		Verbosity:   0,
+		ProjectID:   p.ID,
+		Created:     time.Now(),
+		Modified:    time.Now(),
 	}
 
 	if p.ScmCredentialID != nil {
@@ -270,12 +277,13 @@ func UpdateProject(p models.Project) (*SystemJob, error) {
 	}
 
 	extras := map[string]interface{}{
-		"scm_branch": p.ScmBranch,
-		"scm_type": p.ScmType,
-		"project_path": "/opt/tensor/projects/" + p.ID.Hex(),
-		"scm_clean": p.ScmClean,
-		"scm_url": p.ScmUrl,
+		"scm_branch":           p.ScmBranch,
+		"scm_type":             p.ScmType,
+		"project_path":         util.Config.ProjectsHome + "/" + p.ID.Hex(),
+		"scm_clean":            p.ScmClean,
+		"scm_url":              p.ScmUrl,
 		"scm_delete_on_update": p.ScmDeleteOnUpdate,
+		"scm_accept_hostkey":   true,
 	}
 
 	if p.ScmBranch == "" {
@@ -287,13 +295,13 @@ func UpdateProject(p models.Project) (*SystemJob, error) {
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
 		log.Errorln("Error while creating update Job:", err)
-		return nil, errors.New("Error while creating update Job:")
+		return nil, errors.New("Error while creating update Job")
 	}
 
 	// create new background job
 	runnerJob := SystemJob{
-		Job: job,
-		Project:p,
+		Job:     job,
+		Project: p,
 	}
 
 	if len(job.CredentialID) == 12 {

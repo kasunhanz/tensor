@@ -1,10 +1,10 @@
 package roles
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/db"
-	"gopkg.in/mgo.v2/bson"
+	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func InventoryRead(user models.User, inventory models.Inventory) bool {
@@ -40,7 +40,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	}
 
 	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID, }).Count()
+	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "organization_id": inventory.OrganizationID, "roles.user_id": user.ID}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 		return false
@@ -86,7 +86,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }
+	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}
 	count, err = db.Teams().Find(query).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
@@ -134,7 +134,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID, }
+	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}
 	count, err = db.Teams().Find(query).Count()
 
 	if err != nil {
@@ -161,8 +161,8 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 	count, err := db.Organizations().Find(
 		bson.M{
 			"roles.user_id": user.ID,
-			"_id": inventory.OrganizationID,
-			"roles.role": ORGANIZATION_ADMIN},
+			"_id":           inventory.OrganizationID,
+			"roles.role":    ORGANIZATION_ADMIN},
 	).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational admin:", err)
@@ -193,7 +193,7 @@ func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:": bson.M{"$in": teams},
+		"_id:":          bson.M{"$in": teams},
 		"roles.user_id": user.ID,
 	}
 	count, err = db.Teams().Find(query).Count()

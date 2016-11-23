@@ -1,17 +1,17 @@
 package main
 
 import (
-	"os"
+	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/util"
+	"bufio"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"bufio"
-	"strings"
-	"gopkg.in/mgo.v2/bson"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
+	"os"
+	"strings"
 	"time"
-	"bitbucket.pearson.com/apseng/tensor/util"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"bitbucket.pearson.com/apseng/tensor/db"
 )
 
 func main() {
@@ -30,11 +30,11 @@ func doSetup() int {
 	stdin := bufio.NewReader(os.Stdin)
 
 	user := models.User{
-		ID: bson.NewObjectId(),
-		Username: "admin",
+		ID:              bson.NewObjectId(),
+		Username:        "admin",
 		IsSystemAuditor: false,
-		IsSuperUser: true,
-		Created: time.Now(),
+		IsSuperUser:     true,
+		Created:         time.Now(),
 	}
 	// username is optional (default admin)
 	username := readNewline("\n > Username (optional, default `admin`): ", stdin)
@@ -82,7 +82,7 @@ func doSetup() int {
 			os.Exit(1)
 		}
 
-		fmt.Printf("\n You are all setup %v!\n", ouser.FirstName + " " + ouser.LastName)
+		fmt.Printf("\n You are all setup %v!\n", ouser.FirstName+" "+ouser.LastName)
 	}
 	fmt.Printf(" You can login with `%v`.\n", user.Username)
 
