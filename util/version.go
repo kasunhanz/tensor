@@ -1,4 +1,6 @@
 package util
 
-// Version is for hold the system version globally
-var Version = "0.1.4"
+// Version is the current Tensor Version
+// This must update with the VERSION file in the
+// SCM root directory
+var Version = "0.1.5"
