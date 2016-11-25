@@ -1,0 +1,13 @@
+Tensor NOTICE
+=============
+
+Developed at Pearson (https://www.pearson.com).
+
+Contributors and Copyright holders:
+    * Copyright 2016, Pearson
+    * Copyright 2016, Gamunu Balagalla <udaya.balagalla@pearson.com>
+
+This product bundles Gin Gonic which is available under a
+"MIT License" license.  For details, see https://gin-gonic.github.io/gin/.
+
+Tensor incorporates code modified from Ansible Semaphore (https://ansible-semaphore.github.io/semaphore), which was written by Castaway Consulting LLC.
