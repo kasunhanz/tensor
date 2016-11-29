@@ -12,7 +12,7 @@ Section: admin
 Priority: extra
 Homepage: https://gamunu.github.io/tensor/
 Description: Comprehensive web-based automation framework and
- Centralized infrastructure management REST API,
+ Centralized infrastructure management platform,
  provides role-based access control, job scheduling, inventory management.
  .
  Tensor features:
