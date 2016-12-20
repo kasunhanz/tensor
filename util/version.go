@@ -3,4 +3,4 @@ package util
 // Version is the current Tensor Version
 // This must update with the VERSION file in the
 // SCM root directory
-var Version = "0.1.5"
+var Version = "0.2.0"

@@ -1,10 +1,11 @@
 package db
 
 import (
+	"time"
+
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
-	"time"
 )
 
 var MongoDb *mgo.Database
@@ -52,7 +53,7 @@ func Connect() error {
 	}
 
 	// Switch the session to a monotonic behavior.
-	//session.SetMode(mgo.Monotonic, true)
+	// session.SetMode(mgo.Monotonic, true)
 
 	if err := session.Ping(); err != nil {
 		return err

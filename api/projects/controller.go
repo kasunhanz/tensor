@@ -485,11 +485,31 @@ func RemoveProject(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// Playbooks returs array of playbooks contains in project directory
 func Playbooks(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(_CTX_PROJECT).(models.Project)
 
 	files := []string{}
+
+	if _, err := os.Stat(project.LocalPath); err != nil {
+		if os.IsNotExist(err) {
+			log.Errorln("Project directory does not exist", err)
+			c.JSON(http.StatusNoContent, models.Error{
+				Code:     http.StatusNoContent,
+				Messages: []string{"Project directory does not exist"},
+			})
+			return
+		}
+
+		log.Errorln("Could not read project directory", err)
+		c.JSON(http.StatusNoContent, models.Error{
+			Code:     http.StatusNoContent,
+			Messages: []string{"Could not read project directory"},
+		})
+		return
+	}
+
 	err := filepath.Walk(project.LocalPath, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml", f.Name())

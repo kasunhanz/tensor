@@ -8,7 +8,6 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	"bitbucket.pearson.com/apseng/tensor/roles"
-	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -132,10 +131,8 @@ func GetJobs(c *gin.Context) {
 // can_cancel: [boolean] Indicates whether this job can be canceled
 func CancelInfo(c *gin.Context) {
 	//get Job set by the middleware
-	job := c.MustGet(_CTX_JOB).(models.Job)
-
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, gin.H{"can_cancel": runners.CanCancel(job.ID)})
+	c.JSON(http.StatusOK, gin.H{"can_cancel": false})
 }
 
 // Cancel cancels the pending job.
@@ -143,16 +140,10 @@ func CancelInfo(c *gin.Context) {
 // canceled.
 func Cancel(c *gin.Context) {
 	//get Job set by the middleware
-	job := c.MustGet(_CTX_JOB).(models.Job)
-
-	if runners.CancelJob(job.ID) {
-		c.AbortWithStatus(http.StatusAccepted)
-		return
-	}
-
 	c.AbortWithStatus(http.StatusMethodNotAllowed)
 }
 
+// StdOut returns ANSI standard output of a Job
 func StdOut(c *gin.Context) {
 	//get Job set by the middleware
 	job := c.MustGet(_CTX_JOB).(models.Job)

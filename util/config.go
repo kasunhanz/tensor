@@ -26,8 +26,14 @@ type MongoDBConfig struct {
 	ReplicaSet string   `yaml:"replica_set"`
 }
 
+type RedisConfig struct {
+	Host string `yaml:"host"`
+}
+
 type configType struct {
 	MongoDB MongoDBConfig `yaml:"mongodb"`
+
+	Redis RedisConfig `yaml:"redis"`
 	// Format `:port_num` eg, :3000
 	Port string `yaml:"port"`
 
@@ -112,6 +118,10 @@ func init() {
 
 	if len(os.Getenv("TENSOR_DB_HOSTS")) > 0 {
 		Config.MongoDB.Hosts = strings.Split(os.Getenv("TENSOR_DB_HOSTS"), ";")
+	}
+
+	if len(os.Getenv("TENSOR_REDIS_HOST")) > 0 {
+		Config.Redis.Host = os.Getenv("TENSOR_REDIS_HOST")
 	}
 
 	if _, err := os.Stat(Config.ProjectsHome); os.IsNotExist(err) {

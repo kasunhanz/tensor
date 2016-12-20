@@ -3,7 +3,6 @@ package runners
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,113 +11,14 @@ import (
 
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/queue"
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type SystemJobPool struct {
-	queue    []*SystemJob
-	Register chan *SystemJob
-	running  []*SystemJob
-}
-
-var SystemPool = SystemJobPool{
-	queue:    make([]*SystemJob, 0),
-	Register: make(chan *SystemJob),
-	running:  make([]*SystemJob, 0),
-}
-
-// hasRunningJob will loop through the running job queue to
-// determine whether the given job is available in the queue
-// if the job is exist in the job queue will return true otherwise
-// returns false
-// Accepts pointer to SystemJob
-func (p *SystemJobPool) hasRunningJob(job *SystemJob) bool {
-	for _, v := range p.running {
-		if v.Job.ID == job.Job.ID {
-			return true
-		}
-	}
-	return false
-}
-
-// hasJobForProject will loop through the running job queue to
-// determine whether a job is running to update the project
-// if a job is exist in the job queue will return true otherwise
-// returns false
-// Accepts pointer to SystemJob
-func (p *SystemJobPool) hasJobForProject(job *SystemJob) bool {
-	for _, v := range p.running {
-		if v.Project.ID == job.Project.ID {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *SystemJobPool) DetachFromRunning(id bson.ObjectId) bool {
-	for k, v := range p.running {
-		if v.Job.ID == id {
-			p.running = append(p.running[:k], p.running[k+1:]...)
-			return true
-		}
-	}
-	return false
-}
-
-// Run
-func (p *SystemJobPool) Run() {
-	ticker := time.NewTicker(2 * time.Second)
-
-	defer func() {
-		ticker.Stop()
-	}()
-
-	for {
-		select {
-		case job := <-p.Register:
-			// check whether a existing
-			// job running for the project update
-			go job.run()
-		case <-ticker.C:
-			if len(p.queue) == 0 {
-				continue
-			}
-
-			job := p.queue[0]
-			// if has running jobs
-			if p.hasRunningJob(job) {
-				continue
-			}
-
-			fmt.Println("Running a system task.")
-			go p.queue[0].run()
-			p.queue = p.queue[1:]
-		}
-	}
-}
-
-// SystemJob inlcudes current information about current job,
-// project, scm credential, credential path and
-// achannel to send a kill signal to running job
-// if true passed to SigKill the job will be terminated
-type SystemJob struct {
-	Job            models.SystemJob
-	Project        models.Project
-	Credential     models.Credential
-	CredentialPath string
-	SigKill        chan bool
-}
-
-func (j *SystemJob) run() {
-
-	//create a boolean channel to send the kill signal
-	j.SigKill = make(chan bool)
-
-	SystemPool.running = append(SystemPool.running, j)
-
+func systemRun(j QueueJob) {
 	j.start()
 	// create job directories
 	j.createJobDirs()
@@ -128,36 +28,36 @@ func (j *SystemJob) run() {
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
-	if len(j.Credential.SshKeyData) > 0 {
-		if len(j.Credential.SshKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)), util.CipherDecrypt(j.Credential.SshKeyUnlock))
+	if len(j.MachineCred.SshKeyData) > 0 {
+		if len(j.MachineCred.SshKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
 				log.Errorln("Error while decrypting Credential", err)
 				j.Job.JobExplanation = err.Error()
-				j.fail()
+				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
 				log.Errorln("Error while adding decrypted Key", err)
 				j.Job.JobExplanation = err.Error()
-				j.fail()
+				j.jobFail()
 				return
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Credential.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 
 		if err != nil {
 			log.Errorln("Error while decrypting Credential", err)
 			j.Job.JobExplanation = err.Error()
-			j.fail()
+			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
 			log.Errorln("Error while adding decrypted Key to SSH Agent", err)
 			j.Job.JobExplanation = err.Error()
-			j.fail()
+			j.jobFail()
 			return
 		}
 
@@ -165,7 +65,6 @@ func (j *SystemJob) run() {
 
 	defer func() {
 		log.Infoln("Stopped running update system jobs", j.Job.Name, "["+j.Job.ID.Hex()+"]")
-		SystemPool.DetachFromRunning(j.Job.ID)
 		// cleanup the mess
 		cleanup()
 	}()
@@ -175,42 +74,23 @@ func (j *SystemJob) run() {
 	if err != nil {
 		log.Errorln("Running Project update task failed", err)
 		j.Job.JobExplanation = err.Error()
-		j.fail()
+		j.jobFail()
 		return
 	}
-
-	// listen to channel
-	// if true kill the channel and exit
-	go func() {
-		for {
-			select {
-			case kill := <-j.SigKill:
-				log.Infoln("Received update job kill signal:", kill)
-				// kill true then kill the job
-				if kill {
-					if err := cmd.Process.Kill(); err != nil {
-						log.Errorln("Could not cancel the job")
-						return // exit from goroutine
-					}
-					j.jobCancel() // update cancelled status
-				}
-			}
-		}
-	}()
 
 	output, err := cmd.CombinedOutput()
 	j.Job.ResultStdout = string(output)
 	if err != nil {
 		log.Errorln("Running Project update task failed", err)
 		j.Job.JobExplanation = err.Error()
-		j.fail()
+		j.jobFail()
 		return
 	}
 	//success
-	j.success()
+	j.jobSuccess()
 }
 
-func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
+func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
@@ -248,7 +128,7 @@ func (j *SystemJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *SystemJob) createJobDirs() {
+func (j *QueueJob) createJobDirs() {
 	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
 		log.Errorln("Unable to create directory: ", util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex())
 	}
@@ -256,24 +136,26 @@ func (j *SystemJob) createJobDirs() {
 
 // UpdateProject will create and start a update system job
 // using ansible playbook project_update.yml
-func UpdateProject(p models.Project) (*SystemJob, error) {
-	job := models.SystemJob{
-		ID:          bson.NewObjectId(),
-		Name:        p.Name + " update Job",
-		Description: "Updates " + p.Name + " Project",
-		LaunchType:  models.JOB_LAUNCH_TYPE_MANUAL,
-		CancelFlag:  false,
-		Status:      "pending",
-		JobType:     models.JOBTYPE_UPDATE_JOB,
-		Playbook:    "project_update.yml",
-		Verbosity:   0,
-		ProjectID:   p.ID,
-		Created:     time.Now(),
-		Modified:    time.Now(),
+func UpdateProject(p models.Project) (*QueueJob, error) {
+	job := models.Job{
+		ID:           bson.NewObjectId(),
+		Name:         p.Name + " update Job",
+		Description:  "Updates " + p.Name + " Project",
+		LaunchType:   models.JOB_LAUNCH_TYPE_MANUAL,
+		CancelFlag:   false,
+		Status:       "pending",
+		JobType:      models.JOBTYPE_UPDATE_JOB,
+		Playbook:     "project_update.yml",
+		Verbosity:    0,
+		ProjectID:    p.ID,
+		Created:      time.Now(),
+		Modified:     time.Now(),
+		CreatedByID:  p.CreatedByID,
+		ModifiedByID: p.ModifiedByID,
 	}
 
 	if p.ScmCredentialID != nil {
-		job.CredentialID = *p.ScmCredentialID
+		job.SCMCredentialID = p.ScmCredentialID
 	}
 
 	extras := map[string]interface{}{
@@ -299,21 +181,27 @@ func UpdateProject(p models.Project) (*SystemJob, error) {
 	}
 
 	// create new background job
-	runnerJob := SystemJob{
+	runnerJob := QueueJob{
 		Job:     job,
 		Project: p,
 	}
 
-	if len(job.CredentialID) == 12 {
+	if job.SCMCredentialID != nil {
 		var credential models.Credential
-		if err := db.Credentials().FindId(job.CredentialID).One(&credential); err != nil {
+		if err := db.Credentials().FindId(*job.SCMCredentialID).One(&credential); err != nil {
 			log.Errorln("Error while getting SCM Credential", err)
 			return nil, errors.New("Error while getting SCM Credential")
 		}
-		runnerJob.Credential = credential
+		runnerJob.SCMCred = credential
 	}
 
-	SystemPool.Register <- &runnerJob
+	// Add the job to queue
+	jobQueue := queue.OpenJobQueue()
+	jobBytes, err := json.Marshal(runnerJob)
+	if err != nil {
+		return nil, err
+	}
+	jobQueue.PublishBytes(jobBytes)
 
 	return &runnerJob, nil
 }
