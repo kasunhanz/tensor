@@ -512,7 +512,7 @@ func Playbooks(c *gin.Context) {
 
 	err := filepath.Walk(project.LocalPath, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
-			r, err := regexp.MatchString(".yml", f.Name())
+			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
 				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
 			}
