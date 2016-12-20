@@ -23,7 +23,10 @@ func systemRun(j QueueJob) {
 	// create job directories
 	j.createJobDirs()
 
-	log.Infoln("Started system job", "["+j.Job.ID.Hex()+"]", j.Job.Name)
+	log.WithFields(log.Fields{
+		"Job ID": j.Job.ID.Hex(),
+		"Name":   j.Job.Name,
+	}).Infoln("Started system job")
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
@@ -32,13 +35,17 @@ func systemRun(j QueueJob) {
 		if len(j.MachineCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
-				log.Errorln("Error while decrypting Credential", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while decrypting Credential")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Errorln("Error while adding decrypted Key", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while adding decrypted Key")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
@@ -48,14 +55,18 @@ func systemRun(j QueueJob) {
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 
 		if err != nil {
-			log.Errorln("Error while decrypting Credential", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while decrypting Credential")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Errorln("Error while adding decrypted Key to SSH Agent", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while adding decrypted Key to SSH Agent")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -64,7 +75,10 @@ func systemRun(j QueueJob) {
 	}
 
 	defer func() {
-		log.Infoln("Stopped running update system jobs", j.Job.Name, "["+j.Job.ID.Hex()+"]")
+		log.WithFields(log.Fields{
+			"Job ID": j.Job.ID.Hex(),
+			"Name":   j.Job.Name,
+		}).Infoln("Stopped running update system jobs")
 		// cleanup the mess
 		cleanup()
 	}()
@@ -72,7 +86,9 @@ func systemRun(j QueueJob) {
 	cmd, err := j.getSystemCmd(socket, pid)
 
 	if err != nil {
-		log.Errorln("Running Project update task failed", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
 		j.jobFail()
 		return
@@ -81,7 +97,9 @@ func systemRun(j QueueJob) {
 	output, err := cmd.CombinedOutput()
 	j.Job.ResultStdout = string(output)
 	if err != nil {
-		log.Errorln("Running Project update task failed", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
 		j.jobFail()
 		return
@@ -94,7 +112,9 @@ func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
-		log.Errorln("Could not marshal extra vars", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Could not marshal extra vars")
 	}
 	// ansible-playbook parameters
 	arguments := []string{"-i", "localhost,", "-v", "-e", string(vars), j.Job.Playbook}
@@ -130,7 +150,10 @@ func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 func (j *QueueJob) createJobDirs() {
 	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
-		log.Errorln("Unable to create directory: ", util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex())
+		log.WithFields(log.Fields{
+			"Dir":   util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(),
+			"Error": err.Error(),
+		}).Errorln("Unable to create directory: ")
 	}
 }
 
@@ -176,7 +199,9 @@ func UpdateProject(p models.Project) (*QueueJob, error) {
 
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.Errorln("Error while creating update Job:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while creating update Job")
 		return nil, errors.New("Error while creating update Job")
 	}
 
@@ -189,7 +214,9 @@ func UpdateProject(p models.Project) (*QueueJob, error) {
 	if job.SCMCredentialID != nil {
 		var credential models.Credential
 		if err := db.Credentials().FindId(*job.SCMCredentialID).One(&credential); err != nil {
-			log.Errorln("Error while getting SCM Credential", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while getting SCM Credential")
 			return nil, errors.New("Error while getting SCM Credential")
 		}
 		runnerJob.SCMCred = credential
@@ -199,6 +226,9 @@ func UpdateProject(p models.Project) (*QueueJob, error) {
 	jobQueue := queue.OpenJobQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Unable to marshal Job")
 		return nil, err
 	}
 	jobQueue.PublishBytes(jobBytes)

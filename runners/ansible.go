@@ -57,6 +57,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	jb := QueueJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
+		log.Warningln("Job delivery rejected")
 		delivery.Reject()
 		jb.jobFail()
 		return
@@ -64,9 +65,17 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 
 	// perform task
 	delivery.Ack()
+	log.WithFields(log.Fields{
+		"Job ID": jb.Job.ID.Hex(),
+		"Name":   jb.Job.Name,
+	}).Infoln("Job successfuly received")
 
 	jb.status("pending")
-	log.Infoln("Job [" + jb.Job.ID.Hex() + "] changed status to pending")
+
+	log.WithFields(log.Fields{
+		"Job ID": jb.Job.ID.Hex(),
+		"Name":   jb.Job.Name,
+	}).Infoln("Job changed status to pending")
 
 	if jb.Job.JobType == models.JOBTYPE_UPDATE_JOB {
 		systemRun(jb)
@@ -84,13 +93,20 @@ func AnsibleRun() {
 }
 
 func ansibleRun(j QueueJob) {
-	log.Infoln("Starting job:", j.Job.Name, "["+j.Job.ID.Hex()+"]")
+	log.WithFields(log.Fields{
+		"Job ID": j.Job.ID.Hex(),
+		"Name":   j.Job.Name,
+	}).Infoln("Job starting")
 
 	// update if requested
 	if j.PreviousJob != nil {
 		// wait for scm update
 		j.status("waiting")
-		log.Infoln("Job [" + j.Job.ID.Hex() + "] is waiting")
+
+		log.WithFields(log.Fields{
+			"Job ID": j.Job.ID.Hex(),
+			"Name":   j.Job.Name,
+		}).Infoln("Job changed status to waiting")
 
 		ticker := time.NewTicker(time.Second * 2)
 
@@ -110,7 +126,10 @@ func ansibleRun(j QueueJob) {
 			}
 			if j.PreviousJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
-				log.Infoln("Update job successful", j.PreviousJob.Job.Name, "["+j.PreviousJob.Job.ID.Hex()+"]")
+				log.WithFields(log.Fields{
+					"Job ID": j.PreviousJob.Job.ID.Hex(),
+					"Name":   j.PreviousJob.Job.Name,
+				}).Infoln("Update job successful")
 				ticker.Stop()
 				break
 			}
@@ -120,13 +139,20 @@ func ansibleRun(j QueueJob) {
 	j.start()
 
 	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
-	log.Infoln("Started Job", "["+j.Job.ID.Hex()+"]")
+	log.WithFields(log.Fields{
+		"Job ID": j.Job.ID.Hex(),
+		"Name":   j.Job.Name,
+	}).Infoln("Job started")
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
 	defer func() {
-		log.Infoln("Stopped running Job:", j.Job.Name, "["+j.Job.ID.Hex()+"]", "Status:", j.Job.Status)
+		log.WithFields(log.Fields{
+			"Job ID": j.Job.ID.Hex(),
+			"Name":   j.Job.Name,
+			"Status": j.Job.Status,
+		}).Infoln("Stopped running Job")
 		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
 		cleanup()
 	}()
@@ -135,13 +161,17 @@ func ansibleRun(j QueueJob) {
 		if len(j.MachineCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
 			if err != nil {
-				log.Errorln("Error while decyrpting Machine Credential", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while decyrpting Machine Credential")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
@@ -150,14 +180,18 @@ func ansibleRun(j QueueJob) {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
-			log.Errorln("Error while decyrpting Machine Credential", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while decyrpting Machine Credential")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -169,13 +203,17 @@ func ansibleRun(j QueueJob) {
 		if len(j.NetworkCred.SshKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
 			if err != nil {
-				log.Errorln("Error while decyrpting Machine Credential", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while decyrpting Machine Credential")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
 			}
 			if client.Add(key); err != nil {
-				log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
 				j.jobFail()
 				return
@@ -184,14 +222,18 @@ func ansibleRun(j QueueJob) {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
 		if err != nil {
-			log.Errorln("Error while decyrpting Machine Credential", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while decyrpting Machine Credential")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
 		}
 
 		if client.Add(key); err != nil {
-			log.Errorln("Error while adding decyrpted Machine Credential to SSH Agent", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -201,7 +243,9 @@ func ansibleRun(j QueueJob) {
 
 	cmd, err := j.getCmd(socket, pid)
 	if err != nil {
-		log.Errorln("Running playbook failed", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running playbook failed")
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
 		j.jobFail()
@@ -211,7 +255,9 @@ func ansibleRun(j QueueJob) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if err != nil {
-			log.Errorln("Running playbook failed", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Running playbook failed")
 			j.Job.JobExplanation = err.Error()
 			j.jobFail()
 			return
@@ -315,8 +361,10 @@ func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	j.Job.JobENV = cmd.Env
 
-	log.Infoln("Job Directory", cmd.Dir)
-	log.Infoln("Job Environment", append([]string{}, cmd.Env...))
+	log.WithFields(log.Fields{
+		"Dir":         cmd.Dir,
+		"Environment": append([]string{}, cmd.Env...),
+	}).Infoln("Job Directory and Environment")
 
 	return cmd, nil
 }
@@ -359,7 +407,9 @@ func (j *QueueJob) buildParams(params []string) []string {
 	if len(j.Job.ExtraVars) > 0 {
 		vars, err := json.Marshal(j.Job.ExtraVars)
 		if err != nil {
-			log.Errorln("Could not marshal extra vars", err)
+			log.WithFields(log.Fields{
+				"Error": err,
+			}).Errorln("Could not marshal extra vars")
 		}
 		params = append(params, "-e", string(vars))
 	}
