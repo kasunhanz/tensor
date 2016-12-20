@@ -41,7 +41,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 ENV TENSOR_PORT=8010 PROJECTS_HOME="/data" \
     TENSOR_DB_USER=tensor TENSOR_DB_PASSWORD=tensor TENSOR_DB_NAME=tensordb \
     TENSOR_DB_REPLICA="" TENSOR_DB_HOSTS="mongo:27017" KRB5_CONFIG="/data/krb5.conf" \
-    ANSIBLE_CONFIG="/etc/ansible/ansible.cfg"
+    ANSIBLE_CONFIG="/etc/ansible/ansible.cfg" TENSOR_REDIS_HOST="redis:6379"
 
 VOLUME /data
 

@@ -17,11 +17,22 @@ services:
       tensornet:
         aliases:
           - mongo
+  redis:
+    image: redis
+    ports:
+      - '6379:6379'
+    restart: always
+    tty: true
+    stdin_open: true
+    networks:
+      tensornet:
+        aliases:
+          - redis
 
   tensor:
     image: gamunu/tensor:latest
     volumes:
-      - ../../data:/data
+      - ../../data/tensor:/data
     ports:
       - '8010:8010'
     restart: always
@@ -33,6 +44,7 @@ services:
       TENSOR_DB_NAME: tensordb
       TENSOR_DB_REPLICA: ""
       TENSOR_DB_HOSTS: "mongo:27017"
+      TENSOR_REDIS_HOST: "redis:6379"
       TENSOR_SALT: "8m86pie1ef8bghbq41ru!de4"
     tty: true
     stdin_open: true

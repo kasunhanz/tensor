@@ -1,16 +1,16 @@
 package runners
 
 import (
+	"time"
+
+	"gopkg.in/mgo.v2/bson"
+
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
-const _CTX_JOB = "job"
-
-func (t *AnsibleJob) start() {
+func (t *QueueJob) start() {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -27,7 +27,7 @@ func (t *AnsibleJob) start() {
 	}
 }
 
-func (t *AnsibleJob) status(s string) {
+func (t *QueueJob) status(s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -40,7 +40,7 @@ func (t *AnsibleJob) status(s string) {
 	}
 }
 
-func (t *AnsibleJob) jobFail() {
+func (t *QueueJob) jobFail() {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -67,10 +67,15 @@ func (t *AnsibleJob) jobFail() {
 	}
 
 	t.updateProject()
-	t.updateJobTemplate()
+	switch t.Job.JobType {
+	case models.JOBTYPE_UPDATE_JOB:
+		{
+			t.updateJobTemplate()
+		}
+	}
 }
 
-func (t *AnsibleJob) jobCancel() {
+func (t *QueueJob) jobCancel() {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -98,10 +103,15 @@ func (t *AnsibleJob) jobCancel() {
 	}
 
 	t.updateProject()
-	t.updateJobTemplate()
+	switch t.Job.JobType {
+	case models.JOBTYPE_UPDATE_JOB:
+		{
+			t.updateJobTemplate()
+		}
+	}
 }
 
-func (t *AnsibleJob) jobError() {
+func (t *QueueJob) jobError() {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -131,7 +141,7 @@ func (t *AnsibleJob) jobError() {
 	t.updateJobTemplate()
 }
 
-func (t *AnsibleJob) jobSuccess() {
+func (t *QueueJob) jobSuccess() {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -158,25 +168,48 @@ func (t *AnsibleJob) jobSuccess() {
 	}
 
 	t.updateProject()
-	t.updateJobTemplate()
-}
 
-func (t *AnsibleJob) updateProject() {
-
-	d := bson.M{
-		"$set": bson.M{
-			"last_job_run":    t.Job.Started,
-			"last_job_failed": t.Job.Failed,
-			"status":          t.Job.Status,
-		},
-	}
-
-	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
-		log.Errorln("Failed to update project", err)
+	switch t.Job.JobType {
+	case models.JOBTYPE_UPDATE_JOB:
+		{
+			t.updateJobTemplate()
+		}
 	}
 }
 
-func (t *AnsibleJob) updateJobTemplate() {
+func (t *QueueJob) updateProject() {
+	switch t.Job.JobType {
+	case models.JOBTYPE_UPDATE_JOB:
+		{
+			d := bson.M{
+				"$set": bson.M{
+					"last_updated":       t.Job.Finished,
+					"last_update_failed": t.Job.Failed,
+					"status":             t.Job.Status,
+				},
+			}
+
+			if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
+				log.Errorln("Failed to update project", err)
+			}
+		}
+	case models.JOBTYPE_ANSIBLE_JOB:
+		{
+			d := bson.M{
+				"$set": bson.M{
+					"last_job_run":    t.Job.Started,
+					"last_job_failed": t.Job.Failed,
+					"status":          t.Job.Status,
+				},
+			}
+			if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
+				log.Errorln("Failed to update project", err)
+			}
+		}
+	}
+}
+
+func (t *QueueJob) updateJobTemplate() {
 
 	d := bson.M{
 		"$set": bson.M{
@@ -191,12 +224,12 @@ func (t *AnsibleJob) updateJobTemplate() {
 	}
 }
 
-func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string) {
+func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype string) {
 
 	a := models.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     userID,
-		Type:        _CTX_JOB,
+		Type:        jobtype,
 		ObjectID:    crdID,
 		Description: desc,
 		Created:     time.Now(),

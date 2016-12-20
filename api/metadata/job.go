@@ -10,7 +10,7 @@ import (
 func JobMetadata(job *models.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
-	job.Url = "/v1/jobs/" + ID + "/"
+	job.URL = "/v1/jobs/" + ID + "/"
 	related := gin.H{
 		"labels":             "/v1/jobs/" + ID + "/labels/",
 		"project":            "/v1/projects/" + job.ProjectID.Hex() + "/",

@@ -3,6 +3,7 @@ package runners
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -10,220 +11,115 @@ import (
 	"strings"
 	"time"
 
+	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/queue"
 	"bitbucket.pearson.com/apseng/tensor/ssh"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/gamunu/rmq"
 )
 
-type AnsibleJobPool struct {
-	queue    []*AnsibleJob
-	Register chan *AnsibleJob
-	running  []*AnsibleJob
+// QueueJob contains all the information required to start a job
+type QueueJob struct {
+	Job            models.Job
+	Template       models.JobTemplate
+	MachineCred    models.Credential
+	NetworkCred    models.Credential
+	SCMCred        models.Credential
+	CloudCred      models.Credential
+	Inventory      models.Inventory
+	Project        models.Project
+	User           models.User
+	PreviousJob    *QueueJob
+	Token          string
+	CredentialPath string // for system jobs
 }
 
-var AnsiblePool = AnsibleJobPool{
-	queue:    make([]*AnsibleJob, 0),
-	Register: make(chan *AnsibleJob),
-	running:  make([]*AnsibleJob, 0),
+// Consumer is implementation of rmq.Consumer interface
+type Consumer struct {
+	name   string
+	count  int
+	before time.Time
 }
 
-func (p *AnsibleJobPool) hasRunningJob(job *AnsibleJob) bool {
-	for _, v := range p.running {
-		if v.Template.ID == job.Template.ID {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *AnsibleJobPool) Run() {
-	ticker := time.NewTicker(2 * time.Second)
-
-	defer func() {
-		ticker.Stop()
-	}()
-
-	for {
-		select {
-		case job := <-p.Register:
-
-			log.Infoln("Ansible Job registered:", job.Job.Name, "["+job.Job.ID.Hex()+"]")
-			if job.Job.AllowSimultaneous {
-				go job.run()
-				continue
-			}
-
-			log.Infoln("Adding Ansible Job to queue:", job.Job.Name, "["+job.Job.ID.Hex()+"]")
-			p.queue = append(p.queue, job)
-		case <-ticker.C:
-			if len(p.queue) == 0 {
-				continue
-			}
-
-			job := p.queue[0]
-			log.Infoln("Selecting ", job.Job.Name, "["+job.Job.ID.Hex()+"]", "from Job queue")
-			// if has running jobs and allow simultaneous
-			// because if the job is running and AllowSimultaneous false
-			// we need to make sure another instance of the same job will not run
-			if p.hasRunningJob(job) && !job.Job.AllowSimultaneous {
-				continue
-			}
-			go p.queue[0].run()
-			p.queue = p.queue[1:]
-		}
+// NewConsumer is the entrypoint for runners.Consumer
+func NewConsumer(tag int) *Consumer {
+	return &Consumer{
+		name:   fmt.Sprintf("consumer%d", tag),
+		count:  0,
+		before: time.Now(),
 	}
 }
 
-func (p *AnsibleJobPool) DetachFromRunning(id bson.ObjectId) bool {
-	for k, v := range p.running {
-		if v.Job.ID == id {
-			p.running = append(p.running[:k], p.running[k+1:]...)
-			return true
-		}
-	}
-	return false
-}
-
-// KillJob will loop through Ansible job queue and Running job queue and
-// kills the job
-func (p *AnsibleJobPool) KillJob(id bson.ObjectId) bool {
-	// check the queue if the job is the queue then remove it
-	// and update the database with cancel status
-	for k, v := range p.queue {
-		if v.Job.ID == id {
-			// remove from job queue
-			p.queue = append(p.queue[:k], p.queue[k+1:]...)
-			v.jobCancel() // update job in database
-			return true
-		}
+// Consume will deligate jobs to appropriate runners
+func (consumer *Consumer) Consume(delivery rmq.Delivery) {
+	jb := QueueJob{}
+	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
+		// handle error
+		delivery.Reject()
+		jb.jobFail()
+		return
 	}
 
-	for k, v := range p.running {
-		if v.Job.ID == id {
-			// if scm update is configured on launch
-			if v.Project.ScmUpdateOnLaunch && v.Job.Status == "waiting" {
-				log.Infoln("Sending update kill signal to job:", id.Hex())
-				v.UpdateSigKill <- true
-			} else {
-				log.Infoln("Sending kill signal to job:", id.Hex())
-				v.SigKill <- true //send kill signal
-			}
-			p.running = append(p.running[:k], p.running[k+1:]...)
-			v.jobCancel() // update job in database
-			return true
-		}
+	// perform task
+	delivery.Ack()
+
+	jb.status("pending")
+	log.Infoln("Job [" + jb.Job.ID.Hex() + "] changed status to pending")
+
+	if jb.Job.JobType == models.JOBTYPE_UPDATE_JOB {
+		systemRun(jb)
+		return
 	}
-
-	return false
+	ansibleRun(jb)
 }
 
-func (p *AnsibleJobPool) CanCancel(id bson.ObjectId) bool {
-	for _, v := range p.queue {
-		if v.Job.ID == id {
-			return true
-		}
-	}
+// AnsibleRun starts consuming jobs into a channel of size prefetchLimit
+func AnsibleRun() {
+	q := queue.OpenJobQueue()
 
-	for _, v := range p.running {
-		if v.Job.ID == id {
-			return true
-		}
-	}
-
-	return false
+	q.StartConsuming(1, 500*time.Millisecond)
+	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func CancelJob(id bson.ObjectId) bool {
-	return AnsiblePool.KillJob(id)
-}
-
-func CanCancel(id bson.ObjectId) bool {
-	return AnsiblePool.CanCancel(id)
-}
-
-type AnsibleJob struct {
-	Job           models.Job
-	Template      models.JobTemplate
-	MachineCred   models.Credential
-	NetworkCred   models.Credential
-	CloudCred     models.Credential
-	Inventory     models.Inventory
-	Project       models.Project
-	User          models.User
-	Token         string
-	SigKill       chan bool
-	UpdateSigKill chan bool
-}
-
-func (j *AnsibleJob) run() {
+func ansibleRun(j QueueJob) {
 	log.Infoln("Starting job:", j.Job.Name, "["+j.Job.ID.Hex()+"]")
-	//create a boolean channel to send the kill signal
-	j.SigKill = make(chan bool)
-	j.UpdateSigKill = make(chan bool)
 
-	AnsiblePool.running = append(AnsiblePool.running, j)
-
-	j.status("pending")
-	log.Infoln("Job [" + j.Job.ID.Hex() + "] changed status to pending")
 	// update if requested
-	if j.Project.ScmUpdateOnLaunch {
+	if j.PreviousJob != nil {
 		// wait for scm update
 		j.status("waiting")
-		log.Infoln("Job [" + j.Job.ID.Hex() + "] is waiting:")
-		updateJob, err := UpdateProject(j.Project)
-
-		// listen to channel
-		// if true kill the channel and exit
-		log.Infoln("Waiting for kill signal of update job:", updateJob.Job.ID.Hex())
-		go func() {
-			for {
-				select {
-				case kill := <-j.UpdateSigKill:
-					log.Infoln("Received update kill signal:", kill, "["+j.Job.ID.Hex()+"]")
-					// kill true then kill the update job
-					if kill {
-						log.Infoln("Sending received update kill signal to updatejob:", kill)
-						updateJob.SigKill <- true
-					}
-				}
-			}
-		}()
-
-		if err != nil {
-			e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
-			log.Errorln(e)
-			j.Job.JobExplanation = e
-			j.Job.ResultStdout = "stdout capture is missing"
-			j.jobError()
-			return
-		}
+		log.Infoln("Job [" + j.Job.ID.Hex() + "] is waiting")
 
 		ticker := time.NewTicker(time.Second * 2)
 
 		for range ticker.C {
-			if updateJob.Job.Status == "failed" || updateJob.Job.Status == "error" {
-				e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + updateJob.Job.ID.Hex() + "\"}"
+			if err := db.Jobs().FindId(j.PreviousJob.Job.ID).One(&j.PreviousJob.Job); err != nil {
+				log.Warningln("Cound not find Previous Job", err)
+				continue
+			}
+
+			if j.PreviousJob.Job.Status == "failed" || j.PreviousJob.Job.Status == "error" {
+				e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + j.PreviousJob.Job.ID.Hex() + "\"}"
 				log.Errorln(e)
 				j.Job.JobExplanation = e
 				j.Job.ResultStdout = "stdout capture is missing"
 				j.jobError()
 				return
 			}
-			if updateJob.Job.Status == "successful" {
+			if j.PreviousJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
-				log.Infoln("Update job successful", updateJob.Job.Name, "["+updateJob.Job.ID.Hex()+"]")
+				log.Infoln("Update job successful", j.PreviousJob.Job.Name, "["+j.PreviousJob.Job.ID.Hex()+"]")
 				ticker.Stop()
 				break
 			}
-
 		}
 	}
 
 	j.start()
 
-	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running")
+	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
 	log.Infoln("Started Job", "["+j.Job.ID.Hex()+"]")
 
 	// Start SSH agent
@@ -231,8 +127,7 @@ func (j *AnsibleJob) run() {
 
 	defer func() {
 		log.Infoln("Stopped running Job:", j.Job.Name, "["+j.Job.ID.Hex()+"]", "Status:", j.Job.Status)
-		AnsiblePool.DetachFromRunning(j.Job.ID)
-		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished")
+		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
 		cleanup()
 	}()
 
@@ -313,12 +208,8 @@ func (j *AnsibleJob) run() {
 		return
 	}
 
-	// To make sure the SigKill not execute before job starts
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
-
-	if err := cmd.Start(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		if err != nil {
 			log.Errorln("Running playbook failed", err)
 			j.Job.JobExplanation = err.Error()
@@ -327,40 +218,14 @@ func (j *AnsibleJob) run() {
 		}
 	}
 
-	// listen to channel
-	// if true kill the channel and exit
-	go func() {
-		for {
-			select {
-			case kill := <-j.SigKill:
-				// kill true then kill the job
-				if kill {
-					if err := cmd.Process.Kill(); err != nil {
-						log.Errorln("Could not cancel the job")
-						return // exit from goroutine
-					}
-					j.jobCancel() // update cancelled status
-				}
-			}
-		}
-	}()
-
-	waitErr := cmd.Wait()
-	// set stdout if
-	j.Job.ResultStdout = string(b.Bytes())
-	if waitErr != nil {
-		log.Errorln("Running playbook failed", waitErr)
-		j.Job.JobExplanation = waitErr.Error()
-		j.jobFail()
-		return
-	}
-
+	// set stdout
+	j.Job.ResultStdout = string(output)
 	//success
 	j.jobSuccess()
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
+func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
@@ -456,7 +321,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *AnsibleJob) buildParams(params []string) []string {
+func (j *QueueJob) buildParams(params []string) []string {
 
 	if j.Job.JobType == "check" {
 		params = append(params, "--check")
@@ -537,7 +402,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	return params
 }
 
-func (j *AnsibleJob) kinit() error {
+func (j *QueueJob) kinit() error {
 
 	// Create two command structs for echo and kinit
 	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))
