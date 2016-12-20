@@ -6,6 +6,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/api"
 	"bitbucket.pearson.com/apseng/tensor/api/sockets"
 	"bitbucket.pearson.com/apseng/tensor/db"
+	"bitbucket.pearson.com/apseng/tensor/queue"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/util"
 	log "github.com/Sirupsen/logrus"
@@ -24,6 +25,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// connect to redis queues. this can panic if redis server not available make sure
+	// the redis is up and running before running Tensor
+	queue.Connect()
+
 	defer func() {
 		db.MongoDb.Session.Close()
 	}()
@@ -39,8 +44,7 @@ func main() {
 
 	controllers.Route(r)
 
-	go runners.AnsiblePool.Run()
-	go runners.SystemPool.Run()
+	go runners.AnsibleRun()
 
 	r.Run(util.Config.Port)
 }

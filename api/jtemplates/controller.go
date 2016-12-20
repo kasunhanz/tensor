@@ -1,6 +1,7 @@
 package jtemplate
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"bitbucket.pearson.com/apseng/tensor/db"
 	"bitbucket.pearson.com/apseng/tensor/jwt"
 	"bitbucket.pearson.com/apseng/tensor/models"
+	"bitbucket.pearson.com/apseng/tensor/queue"
 	"bitbucket.pearson.com/apseng/tensor/roles"
 	"bitbucket.pearson.com/apseng/tensor/runners"
 	"bitbucket.pearson.com/apseng/tensor/util"
@@ -804,6 +806,7 @@ func Launch(c *gin.Context) {
 		BecomeEnabled:       template.BecomeEnabled,
 		NetworkCredentialID: template.NetworkCredentialID,
 		CloudCredentialID:   template.CloudCredentialID,
+		SCMCredentialID:     nil,
 		CreatedByID:         user.ID,
 		ModifiedByID:        user.ID,
 		Created:             time.Now(),
@@ -880,7 +883,7 @@ func Launch(c *gin.Context) {
 	}
 
 	// create new Ansible runner Job
-	runnerJob := runners.AnsibleJob{
+	runnerJob := runners.QueueJob{
 		Job:      job,
 		Template: template,
 		User:     user,
@@ -993,8 +996,32 @@ func Launch(c *gin.Context) {
 		return
 	}
 
-	// Add the job to channel
-	runners.AnsiblePool.Register <- &runnerJob
+	// update if requested
+	if runnerJob.Project.ScmUpdateOnLaunch {
+		tj, err := runners.UpdateProject(project)
+		runnerJob.PreviousJob = tj
+		if err != nil {
+			log.Errorln("Error while adding the job to job queue:", err)
+			c.JSON(http.StatusInternalServerError, models.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Error while creating Job"},
+			})
+			return
+		}
+	}
+
+	// Add the job to queue
+	jobQueue := queue.OpenJobQueue()
+	jobBytes, err := json.Marshal(runnerJob)
+	if err != nil {
+		log.Errorln("Error while adding the job to job queue:", err)
+		c.JSON(http.StatusInternalServerError, models.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while creating Job"},
+		})
+		return
+	}
+	jobQueue.PublishBytes(jobBytes)
 
 	// set additianl information to Job
 	metadata.JobMetadata(&job)
