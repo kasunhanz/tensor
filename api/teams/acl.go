@@ -1,4 +1,4 @@
-package projects
+package teams
 
 import (
 	"net/http"
@@ -15,10 +15,10 @@ import (
 )
 
 func AccessList(c *gin.Context) {
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	team := c.MustGet(CTXTeam).(models.Team)
 
 	var organization models.Organization
-	err := db.Organizations().FindId(project.OrganizationID).One(&organization)
+	err := db.Organizations().FindId(team.OrganizationID).One(&organization)
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -102,47 +102,47 @@ func AccessList(c *gin.Context) {
 
 	// direct access
 
-	for _, v := range project.Roles {
+	for _, v := range team.Roles {
 		if v.Type == "user" {
 			// if an job template admin
 			switch v.Role {
-			case roles.JOB_TEMPLATE_ADMIN:
+			case roles.TEAM_ADMIN:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"admin",
-							"execute",
-							"read",
+							roles.TEAM_ADMIN,
+							roles.TEAM_MEMBER,
+							roles.TEAM_READ,
 						},
 						"role": gin.H{
-							"resource_name": project.Name,
-							"description":   "May run the job template",
+							"resource_name": team.Name,
+							"description":   "Can manage all aspects of the team",
 							"related": gin.H{
-								"job_template": "/v1/job_templates/" + project.ID.Hex() + "/",
+								"team": "/v1/teams/" + team.ID.Hex() + "/",
 							},
-							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_ADMIN,
+							"resource_type": "team",
+							"name":          roles.TEAM_ADMIN,
 						},
 					}
 
 					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
 				}
 			// if an job template execute
-			case roles.JOB_TEMPLATE_EXECUTE:
+			case roles.TEAM_MEMBER:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"execute",
+							"member",
 							"read",
 						},
 						"role": gin.H{
-							"resource_name": project.Name,
-							"description":   "Can manage all aspects of the job template",
+							"resource_name": team.Name,
+							"description":   "User is a member of the team",
 							"related": gin.H{
-								"job_template": "/v1/job_templates/" + project.ID.Hex() + "/",
+								"team": "/api/v1/teams/" + team.ID.Hex() + "/",
 							},
-							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_EXECUTE,
+							"resource_type": "team",
+							"name":          roles.TEAM_MEMBER,
 						},
 					}
 					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)

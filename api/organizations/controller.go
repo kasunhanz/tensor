@@ -18,18 +18,24 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_ORGANIZATION = "organization"
-const _CTX_ORGANIZATION_ID = "organization_id"
-const _CTX_USER = "user"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXOrganization   = "organization"
+	CTXOrganizationID = "organization_id"
+	CTXUser           = "user"
+)
 
-// Middleware takes _CTX_ORGANIZATION_ID parameter from gin.Context and
-// retrieves Organization data from the collection
-// it set Organization data under key organization in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXOrganizationID from Gin Context and retrieves organization data from the collection
+// and store organization data under key CTXOrganization in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_ORGANIZATION_ID, c)
+	ID, err := util.GetIdParam(CTXOrganizationID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Organization:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Organization ID": ID,
+			"Error":           err.Error(),
+		}).Errorln("Error while getting Organization ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Organization Not Found"},
@@ -39,10 +45,11 @@ func Middleware(c *gin.Context) {
 	}
 
 	var organization models.Organization
-	err = db.Organizations().FindId(bson.ObjectIdHex(ID)).One(&organization)
-
-	if err != nil {
-		log.Errorln("Error while getting the Organization:", err) // log error to the system log
+	if err = db.Organizations().FindId(bson.ObjectIdHex(ID)).One(&organization); err != nil {
+		log.WithFields(log.Fields{
+			"Organization ID": ID,
+			"Error":           err.Error(),
+		}).Errorln("Error while retriving Organization form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Organization Not Found"},
@@ -51,7 +58,7 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	// reject the request if the user doesn't have permissions
 	if !roles.OrganizationRead(user, organization) {
@@ -63,22 +70,23 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_ORGANIZATION, organization)
+	c.Set(CTXOrganization, organization)
 	c.Next()
 }
 
-// GetOrganization returns the Organization as a JSON object
+// GetOrganization is a Gin handler function which returns the organization as a JSON object
 func GetOrganization(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	metadata.OrganizationMetadata(&organization)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, organization)
 }
 
-// GetOrganizations returns a JSON array of Organizations
+// GetOrganizations is a Gin handler function which returns list of organization
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetOrganizations(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -88,6 +96,10 @@ func GetOrganizations(c *gin.Context) {
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
+
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
 
 	var organizations []models.Organization
 	// new mongodb iterator
@@ -106,7 +118,9 @@ func GetOrganizations(c *gin.Context) {
 		organizations = append(organizations, tmpOrganization)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Organization data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Organization data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organization"},
@@ -118,9 +132,20 @@ func GetOrganizations(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -130,13 +155,16 @@ func GetOrganizations(c *gin.Context) {
 	})
 }
 
-// AddOrganization creates a new Organization
+// AddOrganization is a Gin handler function which creates a new organization using request payload.
+// This accepts Organization model.
 func AddOrganization(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Organization
-	err := binding.JSON.Bind(c.Request, &req)
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:     http.StatusBadRequest,
@@ -164,9 +192,10 @@ func AddOrganization(c *gin.Context) {
 	req.Modified = time.Now()
 	req.ModifiedByID = user.ID
 
-	err = db.Organizations().Insert(req)
-	if err != nil {
-		log.Errorln("Error while creating Organization:", err)
+	if err := db.Organizations().Insert(req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while creating Organization")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Organization"},
@@ -175,20 +204,30 @@ func AddOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Organization "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXOrganization,
+		ObjectID:    req.ID,
+		Description: "Organization " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.OrganizationMetadata(&req)
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
 }
 
-// RemoveOrganization will remove and Organization
-// from the db.ORGANIZATIONS collection
+// RemoveOrganization is a Gin handler function which removes a organization object from the database
 func RemoveOrganization(c *gin.Context) {
 	// get Organization from the gin.Context
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	// remove all projects
 	orgIter := db.Projects().Find(bson.M{"organization_id": organization.ID}).Iter()
@@ -197,7 +236,10 @@ func RemoveOrganization(c *gin.Context) {
 		// remove all jobs for the project
 		changes, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID})
 		if err != nil {
-			log.Errorln("Error while removing Project Jobs:", err)
+			log.WithFields(log.Fields{
+				"Project ID": project.ID.Hex(),
+				"Error":      err.Error(),
+			}).Errorln("Error while deleting Project Jobs")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while removing Project Jobs"},
@@ -209,7 +251,10 @@ func RemoveOrganization(c *gin.Context) {
 		// remove all job templates
 		changes, err = db.JobTemplates().RemoveAll(bson.M{"project_id": project.ID})
 		if err != nil {
-			log.Errorln("Error while removing Project Job Templates:", err)
+			log.WithFields(log.Fields{
+				"Project ID": project.ID.Hex(),
+				"Error":      err.Error(),
+			}).Errorln("Error while deleting Project Job Templates")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while removing Project Job Templates"},
@@ -221,7 +266,10 @@ func RemoveOrganization(c *gin.Context) {
 		// remove the project as well
 		err = db.Projects().RemoveId(project.ID)
 		if err != nil {
-			log.Errorln("Error while removing Project:", err)
+			log.WithFields(log.Fields{
+				"Project ID": project.ID.Hex(),
+				"Error":      err.Error(),
+			}).Errorln("Error while deleting Project")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while removing Project"},
@@ -233,7 +281,10 @@ func RemoveOrganization(c *gin.Context) {
 	// remove all inventories associated with organization
 	changes, err := db.Inventories().RemoveAll(bson.M{"organization_id": organization.ID})
 	if err != nil {
-		log.Errorln("Error while removing Inventories:", err)
+		log.WithFields(log.Fields{
+			"Organization ID": organization.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while removing Inventories")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventories"},
@@ -245,7 +296,10 @@ func RemoveOrganization(c *gin.Context) {
 	// remove the organization as well
 	err = db.Organizations().RemoveId(organization.ID)
 	if err != nil {
-		log.Errorln("Error while removing Organization:", err)
+		log.WithFields(log.Fields{
+			"Organization ID": organization.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while removing Organization")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Organization"},
@@ -254,17 +308,30 @@ func RemoveOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(organization.ID, user.ID, "Organization "+organization.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXOrganization,
+		ObjectID:    user.ID,
+		Description: "Organization " + organization.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-// UpdateOrganization will update an Organization
+// UpdateOrganization is a Gin handler function which updates a organization using request payload.
+// This replaces all the fields in the database, empty "" fields and
+// unspecified fields will be removed from the database object.
 func UpdateOrganization(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Organization
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -293,7 +360,10 @@ func UpdateOrganization(c *gin.Context) {
 	organization.ModifiedByID = user.ID
 
 	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
-		log.Errorln("Error while updating Organization:", err)
+		log.WithFields(log.Fields{
+			"Organization ID": req.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while updating Organization")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Organization"},
@@ -302,21 +372,37 @@ func UpdateOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Organization "+organization.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXOrganization,
+		ObjectID:    req.ID,
+		Description: "Organization " + organization.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.OrganizationMetadata(&organization)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, organization)
 }
 
-// PatchOrganization will update selected feilds from an Organization
+// PatchOrganization is a Gin handler function which partially updates a organization using request payload.
+// This replaces specifed fields in the data, empty "" fields will be
+// removed from the database object. Unspecified fields will be ignored.
 func PatchOrganization(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchOrganization
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:     http.StatusBadRequest,
@@ -351,7 +437,10 @@ func PatchOrganization(c *gin.Context) {
 	organization.ModifiedByID = user.ID
 
 	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
-		log.Errorln("Error while updating Organization:", err)
+		log.WithFields(log.Fields{
+			"Organization ID": organization.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while updating Organization")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Organization"},
@@ -360,7 +449,18 @@ func PatchOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(organization.ID, user.ID, "Organization "+organization.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXOrganization,
+		ObjectID:    organization.ID,
+		Description: "Organization " + organization.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.OrganizationMetadata(&organization)
 	// send response with JSON rendered data
@@ -369,14 +469,16 @@ func PatchOrganization(c *gin.Context) {
 
 // GetUsers Returns all Organization users
 func GetUsers(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var usrs []models.User
 
 	err := db.Users().Find(bson.M{"organization_id": organization.ID}).All(&usrs)
 
 	if err != nil {
-		log.Errorln("Error while getting Organization users:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Organization users")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organization users"},
@@ -392,6 +494,9 @@ func GetUsers(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Users page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
@@ -406,7 +511,7 @@ func GetUsers(c *gin.Context) {
 
 // GetAdmins returns an Organization admins
 func GetAdmins(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var usrs []models.User
 
@@ -467,7 +572,7 @@ func GetAdmins(c *gin.Context) {
 
 // GetTeams will return an Organization Teams
 func GetTeams(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var tms []models.Team
 	err := db.Teams().Find(bson.M{"organization_id": organization.ID}).All(&tms)
@@ -503,7 +608,7 @@ func GetTeams(c *gin.Context) {
 
 // GetProjects returns all projects of an Organization
 func GetProjects(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var projts []models.Project
 
@@ -540,7 +645,7 @@ func GetProjects(c *gin.Context) {
 
 // GetInventories returns all inventories an Organization
 func GetInventories(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var invs []models.Inventory
 
@@ -577,7 +682,7 @@ func GetInventories(c *gin.Context) {
 
 // GetCredentials returns credentials associated with an Organization
 func GetCredentials(c *gin.Context) {
-	organization := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var creds []models.Credential
 
@@ -614,10 +719,10 @@ func GetCredentials(c *gin.Context) {
 
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	organizatin := c.MustGet(_CTX_ORGANIZATION).(models.Organization)
+	organization := c.MustGet(CTXOrganization).(models.Organization)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": organizatin.ID, "type": _CTX_ORGANIZATION}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": organization.ID, "type": CTXOrganization}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)

@@ -18,16 +18,19 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_GROUP = "group"
-const _CTX_USER = "user"
-const _CTX_GROUP_ID = "group_id"
+// Keys for group releated items stored in the Gin Context
+const (
+	CTXGroup   = "group"
+	CTXUser    = "user"
+	CTXGroupID = "group_id"
+)
 
-// GroupMiddleware takes host_id parameter from gin.Context and
-// fetches host data from the database
-// it set host data under key host in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes host_id parameter from the Gin Context and fetches host data from the database
+// it will set host data under key host in the Gin Context.
 func Middleware(c *gin.Context) {
 
-	ID, err := util.GetIdParam(_CTX_GROUP_ID, c)
+	ID, err := util.GetIdParam(CTXGroupID, c)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -58,22 +61,23 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_GROUP, group)
+	c.Set(CTXGroup, group)
 	c.Next()
 }
 
-// GetHost returns the host as a serialized JSON object
+// GetGroup is a Gin handler function which returns the host as a JSON object.
 func GetGroup(c *gin.Context) {
-	group := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(CTXGroup).(models.Group)
 
 	metadata.GroupMetadata(&group)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, group)
 }
 
-// GetGroups returns groups as a serialized JSON object
+// GetGroups is a Gin handler function which returns list of Groups
+// This takes lookup parameters and order parameters to filder and sort output data.
 func GetGroups(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -132,6 +136,7 @@ func GetGroups(c *gin.Context) {
 		"Skip":     pgi.Skip(),
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
+
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -141,11 +146,12 @@ func GetGroups(c *gin.Context) {
 	})
 }
 
-// AddGroup creates a new group
+// AddGroup is a Gin handler function which creates a new group using request payload.
+// This accepts Group model.
 func AddGroup(c *gin.Context) {
 	var req models.Group
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
@@ -208,19 +214,33 @@ func AddGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Group "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXGroup,
+		ObjectID:    req.ID,
+		Description: "Group " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+
 	metadata.GroupMetadata(&req)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
 }
 
-// UpdateGroup will update the Group
+// UpdateGroup is a handler function which updates a group using request payload.
+// This replaces all the fields in the database. empty "" fields and
+// unspecified fields will be removed from the database object.
 func UpdateGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(CTXGroup).(models.Group)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Group
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -283,7 +303,18 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(group.ID, user.ID, "Group "+group.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXGroup,
+		ObjectID:    group.ID,
+		Description: "Group " + group.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.GroupMetadata(&group)
@@ -292,12 +323,14 @@ func UpdateGroup(c *gin.Context) {
 	c.JSON(http.StatusOK, group)
 }
 
-// UpdateGroup will update the Group
+// PatchGroup is a Gin handler function which partially updates a group using request payload.
+// This replaces specified fields in the database, empty "" fields will be
+// removed from the database object. Unspecified fields will be ignored.
 func PatchGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(CTXGroup).(models.Group)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchGroup
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -323,14 +356,14 @@ func PatchGroup(c *gin.Context) {
 	// since this is a patch request if the name specified check the
 	// inventory name is unique
 	if req.Name != nil && *req.Name != group.Name {
-		objId := group.InventoryID
+		objID := group.InventoryID
 		// if inventory id specified use it otherwise use
 		// old inventory id
 		if req.InventoryID != nil {
-			objId = *req.InventoryID
+			objID = *req.InventoryID
 		}
 		// if the group exist in the collection it is not unique
-		if helpers.IsNotUniqueGroup(*req.Name, objId) {
+		if helpers.IsNotUniqueGroup(*req.Name, objID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
@@ -387,8 +420,20 @@ func PatchGroup(c *gin.Context) {
 		})
 		return
 	}
+
 	// add new activity to activity stream
-	addActivity(group.ID, user.ID, "Group "+group.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXGroup,
+		ObjectID:    group.ID,
+		Description: "Group " + group.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` fields
 	metadata.GroupMetadata(&group)
@@ -397,13 +442,12 @@ func PatchGroup(c *gin.Context) {
 	c.JSON(http.StatusOK, group)
 }
 
-// RemoveGroup will remove the Group
-// from the models._CTX_GROUP collection
+// RemoveGroup is a Gin handler function which removes a group object from the database
 func RemoveGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(CTXGroup).(models.Group)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var childgroups []models.Group
 
@@ -453,17 +497,32 @@ func RemoveGroup(c *gin.Context) {
 		})
 		return
 	}
-	log.Infoln("Groups remove info:", changes.Removed)
+
+	log.WithFields(log.Fields{
+		"Removed": changes.Removed,
+	}).Infoln("Groups remove info")
 
 	// add new activity to activity stream
-	addActivity(group.ID, user.ID, "Group "+group.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXGroup,
+		ObjectID:    group.ID,
+		Description: "Group " + group.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// VariableData is Gin handler function which returns host group variables
 func VariableData(c *gin.Context) {
-	group := c.MustGet(_CTX_GROUP).(models.Group)
+	group := c.MustGet(CTXGroup).(models.Group)
 
 	variables := gin.H{}
 

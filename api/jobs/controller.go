@@ -14,23 +14,25 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// _CTX_JOB is the key name of the Job Template in gin.Context
-const _CTX_JOB = "job"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXJob   = "job"
+	CTXUser  = "user"
+	CTXJobID = "job_id"
+)
 
-// _CTX_USER is the key name of the User in gin.Context
-const _CTX_USER = "user"
-
-// _CTX_JOB_ID is the key name of http request Job Template ID
-const _CTX_JOB_ID = "job_id"
-
-// JobMiddleware is the middleware for job. Which
-// takes _CTX_JOB_ID parameter form the request, fetches the Job
-// and set it under key _CTX_JOB in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXJobID from Gin Context and retrives credential data from the collection
+// and store credential data under key CTXJob in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_JOB_ID, c)
+	ID, err := util.GetIdParam(CTXJobID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Job:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Job ID": ID,
+			"Error":  err.Error(),
+		}).Errorln("Error while getting Job ID url parameter")
+
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -40,9 +42,11 @@ func Middleware(c *gin.Context) {
 	}
 
 	var job models.Job
-	err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job)
-	if err != nil {
-		log.Errorln("Error while getting the Job:", err) // log error to the system log
+	if err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job); err != nil {
+		log.WithFields(log.Fields{
+			"Job ID": ID,
+			"Error":  err.Error(),
+		}).Errorln("Error while retriving Job from the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -52,25 +56,23 @@ func Middleware(c *gin.Context) {
 	}
 
 	// set Job to the gin.Context
-	c.Set(_CTX_JOB, job)
+	c.Set(CTXJob, job)
 	c.Next() //move to next pending handler
 }
 
-// GetJob renders the Job as JSON
-// make sure to set this handler next to JobMiddleware handler
+// GetJob is a Gin handler function which returns the job as a JSON object
 func GetJob(c *gin.Context) {
-	//get Job set by the middleware
-	job := c.MustGet(_CTX_JOB).(models.Job)
+	job := c.MustGet(CTXJob).(models.Job)
 
 	metadata.JobMetadata(&job)
 
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, job)
 }
 
-// GetJobs renders the Job as JSON
+// GetJobs is a Gin handler function which returns list of jobs
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetJobs(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -83,6 +85,10 @@ func GetJobs(c *gin.Context) {
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
+
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
 
 	var jobs []models.Job
 
@@ -102,7 +108,9 @@ func GetJobs(c *gin.Context) {
 		jobs = append(jobs, tmpJob)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Credential data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Job data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -114,9 +122,20 @@ func GetJobs(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Job page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -146,7 +165,7 @@ func Cancel(c *gin.Context) {
 // StdOut returns ANSI standard output of a Job
 func StdOut(c *gin.Context) {
 	//get Job set by the middleware
-	job := c.MustGet(_CTX_JOB).(models.Job)
+	job := c.MustGet(CTXJob).(models.Job)
 
 	c.JSON(http.StatusOK, job.ResultStdout)
 }

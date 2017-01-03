@@ -23,18 +23,24 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_PROJECT = "project"
-const _CTX_USER = "user"
-const _CTX_PROJECT_ID = "project_id"
+// Keys for project releated items stored in the Gin Context
+const (
+	CTXProject   = "project"
+	CTXUser      = "user"
+	CTXProjectID = "project_id"
+)
 
-// ProjectMiddleware takes project_id parameter from gin.Context and
-// fetches project data from the database
-// it set project data under key project in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXProjectID from Gin Context and retrieves project data from the collection
+// and store credential data under key CTXProject in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_PROJECT_ID, c)
+	ID, err := util.GetIdParam(CTXProjectID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Project:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Project ID": ID,
+			"Error":      err.Error(),
+		}).Errorln("Error while getting Project ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -46,7 +52,10 @@ func Middleware(c *gin.Context) {
 	var project models.Project
 	err = db.Projects().FindId(bson.ObjectIdHex(ID)).One(&project)
 	if err != nil {
-		log.Errorln("Error while getting the Project:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Project ID": ID,
+			"Error":      err.Error(),
+		}).Errorln("Error while retriving Project form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -55,13 +64,13 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_PROJECT, project)
+	c.Set(CTXProject, project)
 	c.Next()
 }
 
 // GetProject returns the project as a JSON object
 func GetProject(c *gin.Context) {
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 	metadata.ProjectMetadata(&project)
 
 	// send response with JSON rendered data
@@ -70,7 +79,7 @@ func GetProject(c *gin.Context) {
 
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -82,6 +91,10 @@ func GetProjects(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
+
 	var projects []models.Project
 	// new mongodb iterator
 	iter := query.Iter()
@@ -92,6 +105,10 @@ func GetProjects(c *gin.Context) {
 		// if the user doesn't have access to credential
 		// skip to next
 		if !roles.ProjectRead(user, tmpProject) {
+			log.WithFields(log.Fields{
+				"User ID":    user.ID.Hex(),
+				"Project ID": tmpProject.ID.Hex(),
+			}).Debugln("User does not have read permissions")
 			continue
 		}
 		metadata.ProjectMetadata(&tmpProject)
@@ -99,7 +116,9 @@ func GetProjects(c *gin.Context) {
 		projects = append(projects, tmpProject)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Project data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Project data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Project"},
@@ -111,9 +130,20 @@ func GetProjects(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Project page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -123,12 +153,16 @@ func GetProjects(c *gin.Context) {
 	})
 }
 
-// AddProject creates a new project
+// AddProject is a Gin handler function which creates a new project using request payload.
+// This accepts Project model.
 func AddProject(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Project
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:     http.StatusBadRequest,
@@ -178,7 +212,10 @@ func AddProject(c *gin.Context) {
 	req.Modified = time.Now()
 
 	if err := db.Projects().Insert(req); err != nil {
-		log.Errorln("Error while creating Project:", err)
+		log.WithFields(log.Fields{
+			"Project ID": req.ID.Hex(),
+			"Error":      err.Error(),
+		}).Errorln("Error while creating Project")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Project"},
@@ -187,11 +224,25 @@ func AddProject(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Project "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXProject,
+		ObjectID:    req.ID,
+		Description: "Project " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(req); err != nil {
-		log.Errorln("Error while scm update "+sysJobID.Job.ID.Hex(), err)
+		log.WithFields(log.Fields{
+			"SystemJob ID": sysJobID.Job.ID.Hex(),
+			"Error":        err.Error(),
+		}).Errorln("Error while scm update")
 	}
 
 	metadata.ProjectMetadata(&req)
@@ -200,12 +251,14 @@ func AddProject(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
-// UpdateProject will update the Project
+// UpdateProject is a Gin handler function which updates a project using request payload.
+// This replaces all the fields in the database, empty "" fields and
+// unspecified fields will be removed from the database object.
 func UpdateProject(c *gin.Context) {
 	// get Project from the gin.Context
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Project
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -266,7 +319,10 @@ func UpdateProject(c *gin.Context) {
 
 	// update object
 	if err := db.Projects().UpdateId(project.ID, project); err != nil {
-		log.Errorln("Error while updating Project:", err)
+		log.WithFields(log.Fields{
+			"Project ID": req.ID.Hex(),
+			"Error":      err.Error(),
+		}).Errorln("Error while updating Project")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Project"},
@@ -275,11 +331,25 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project "+project.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXProject,
+		ObjectID:    project.ID,
+		Description: "Project " + project.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(project); err != nil {
-		log.Errorln("Error while scm update "+sysJobID.Job.ID.Hex(), err)
+		log.WithFields(log.Fields{
+			"SystemJob ID": sysJobID.Job.ID.Hex(),
+			"Error":        err.Error(),
+		}).Errorln("Error while scm update")
 	}
 
 	// set `related` and `summary` feilds
@@ -289,12 +359,13 @@ func UpdateProject(c *gin.Context) {
 	c.JSON(http.StatusOK, project)
 }
 
-// UpdateProject will update the Project
+// PatchProject partially updates a project
+// this only updates given files in the request playload
 func PatchProject(c *gin.Context) {
 	// get Project from the gin.Context
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchProject
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -407,7 +478,10 @@ func PatchProject(c *gin.Context) {
 
 	// update object
 	if err := db.Projects().UpdateId(project.ID, project); err != nil {
-		log.Errorln("Error while updating Project:", err)
+		log.WithFields(log.Fields{
+			"Project ID": project.ID.Hex(),
+			"Error":      err.Error(),
+		}).Errorln("Error while updating Project")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Project"},
@@ -416,11 +490,25 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project "+project.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXProject,
+		ObjectID:    project.ID,
+		Description: "Project " + project.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// before set metadata update the project
 	if sysJobID, err := runners.UpdateProject(project); err != nil {
-		log.Errorln("Error while scm update "+sysJobID.Job.ID.Hex(), err)
+		log.WithFields(log.Fields{
+			"SystemJob ID": sysJobID.Job.ID.Hex(),
+			"Error":        err.Error(),
+		}).Errorln("Error while scm update")
 	}
 
 	// set `related` and `summary` feilds
@@ -429,17 +517,19 @@ func PatchProject(c *gin.Context) {
 	c.JSON(http.StatusOK, project)
 }
 
-// RemoveProject will remove the Project
-// from the db.DBC_PROJECTS collection
+// RemoveProject is a Gin handler function which removes a project object from the database
 func RemoveProject(c *gin.Context) {
 	// get Project from the gin.Context
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	changes, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID})
 	if err != nil {
-		log.Errorln("Error while removing Project Jobs:", err)
+		log.WithFields(log.Fields{
+			"Project ID": project.ID.Hex(),
+			"Error":      err.Error(),
+		}).Errorln("Error while removing Project Jobs")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Project Jobs"},
@@ -479,7 +569,18 @@ func RemoveProject(c *gin.Context) {
 	}()
 
 	// add new activity to activity stream
-	addActivity(project.ID, user.ID, "Project "+project.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXProject,
+		ObjectID:    user.ID,
+		Description: "Project " + project.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -488,13 +589,15 @@ func RemoveProject(c *gin.Context) {
 // Playbooks returs array of playbooks contains in project directory
 func Playbooks(c *gin.Context) {
 	// get Project from the gin.Context
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 
 	files := []string{}
 
 	if _, err := os.Stat(project.LocalPath); err != nil {
 		if os.IsNotExist(err) {
-			log.Errorln("Project directory does not exist", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Project directory does not exist")
 			c.JSON(http.StatusNoContent, models.Error{
 				Code:     http.StatusNoContent,
 				Messages: []string{"Project directory does not exist"},
@@ -502,7 +605,9 @@ func Playbooks(c *gin.Context) {
 			return
 		}
 
-		log.Errorln("Could not read project directory", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Could not read project directory")
 		c.JSON(http.StatusNoContent, models.Error{
 			Code:     http.StatusNoContent,
 			Messages: []string{"Could not read project directory"},
@@ -521,7 +626,9 @@ func Playbooks(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Errorln("Error while getting Playbooks:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Playbooks")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Playbooks"},
@@ -532,8 +639,10 @@ func Playbooks(c *gin.Context) {
 	c.JSON(http.StatusOK, files)
 }
 
+// Teams returns the list of teams that has permission to access
+// project object in the gin.Context
 func Teams(c *gin.Context) {
-	team := c.MustGet(_CTX_PROJECT).(models.Project)
+	team := c.MustGet(CTXProject).(models.Project)
 
 	var tms []models.Team
 
@@ -542,7 +651,9 @@ func Teams(c *gin.Context) {
 		if v.Type == "team" {
 			err := db.Teams().FindId(v.TeamID).One(&tmpTeam)
 			if err != nil {
-				log.Errorln("Error while getting Teams:", err)
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while getting Teams")
 				c.JSON(http.StatusInternalServerError, models.Error{
 					Code:     http.StatusInternalServerError,
 					Messages: []string{"Error while getting Teams"},
@@ -571,15 +682,19 @@ func Teams(c *gin.Context) {
 	})
 }
 
+// ActivityStream returns list of activities associated with
+// project object that is in the gin.Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": project.ID, "type": _CTX_PROJECT}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": project.ID, "type": CTXProject}).All(&activities)
 
 	if err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Activity data from the db")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -590,9 +705,21 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
+
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -602,9 +729,9 @@ func ActivityStream(c *gin.Context) {
 	})
 }
 
-// GetJobs renders the Job as JSON
+// ProjectUpdates is a Gin handler function which returns project update jobs
 func ProjectUpdates(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -622,6 +749,10 @@ func ProjectUpdates(c *gin.Context) {
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
+
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
 
 	var jobs []models.Job
 
@@ -641,7 +772,9 @@ func ProjectUpdates(c *gin.Context) {
 		jobs = append(jobs, tmpJob)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Credential data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -653,6 +786,9 @@ func ProjectUpdates(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Project Updates page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
@@ -665,13 +801,15 @@ func ProjectUpdates(c *gin.Context) {
 	})
 }
 
+// SCMUpdateInfo returns whether a project can be updated or not
 func SCMUpdateInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"can_update": true})
 }
 
+// SCMUpdate creates a new system job to update a project
 func SCMUpdate(c *gin.Context) {
 	// get Project from the gin.Context
-	project := c.MustGet(_CTX_PROJECT).(models.Project)
+	project := c.MustGet(CTXProject).(models.Project)
 
 	var req models.SCMUpdate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -686,7 +824,7 @@ func SCMUpdate(c *gin.Context) {
 		return
 	}
 
-	updateId, err := runners.UpdateProject(project)
+	updateID, err := runners.UpdateProject(project)
 
 	if err != nil {
 		c.JSON(http.StatusMethodNotAllowed, models.Error{
@@ -696,5 +834,5 @@ func SCMUpdate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{"project_update": updateId.Job.ID.Hex()})
+	c.JSON(http.StatusAccepted, gin.H{"project_update": updateID.Job.ID.Hex()})
 }

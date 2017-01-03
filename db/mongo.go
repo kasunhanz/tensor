@@ -8,26 +8,31 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+// MongoDb store the name an session to mongodb
+// database or database cluster
 var MongoDb *mgo.Database
 
-const AD_HOC_COMMANDS = "ad_hoc_commands"
-const CREDENTIALS = "credentials"
-const GROUPS = "groups"
-const HOSTS = "hosts"
-const INVENTORIES = "inventories"
-const INVENTORY_SCRIPT = "inventory_scripts"
-const INVENTORY_SOURCES = "inventory_sources"
-const JOBS = "jobs"
-const JOB_TEMPLATES = "job_templates"
-const NOTIFICATIONS = "notifications"
-const NOTIFICATION_TEMPLATES = "notification_templates"
-const ORGANIZATIONS = "organizations"
-const PROJECTS = "projects"
-const TEAMS = "teams"
-const USERS = "users"
-const ACTIVITY_STREAM = "ativity_stream"
+// MongoDB collection names
+const (
+	CAdHocCommands         = "ad_hoc_commands"
+	CCredentials           = "credentials"
+	CGroups                = "groups"
+	CHosts                 = "hosts"
+	CInventories           = "inventories"
+	CInventoryScripts      = "inventory_scripts"
+	CInventorySources      = "inventory_sources"
+	CJobs                  = "jobs"
+	CJobTemplates          = "job_templates"
+	CNotifications         = "notifications"
+	CNotificationTemplates = "notification_templates"
+	COrganizations         = "organizations"
+	CProjects              = "projects"
+	CTeams                 = "teams"
+	CUsers                 = "users"
+	CActivityStream        = "ativity_stream"
+)
 
-// Mongodb database
+// Connect will create a session to Mongodb database given in the Config file or env
 func Connect() error {
 
 	cfg := util.Config.MongoDB
@@ -56,24 +61,30 @@ func Connect() error {
 	// session.SetMode(mgo.Monotonic, true)
 
 	if err := session.Ping(); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Println("Unable to ping mongodb session")
 		return err
 	}
 
 	MongoDb = session.DB(cfg.DbName)
 
 	//Create indexes for each collection
-	CreateIndexes()
+	createIndexes()
 
 	return nil
 }
 
+// C returns the mongodb collection for the given name
 func C(c string) *mgo.Collection {
 	return MongoDb.C(c)
 }
 
-func CreateIndexes() {
+// createIndexes optimzes the performance of database writes and read by
+// ensuring correct collection indexes are created
+func createIndexes() {
 	// Collection People
-	c := MongoDb.C(USERS)
+	c := MongoDb.C(CUsers)
 
 	// Unique index username
 	if err := c.EnsureIndex(mgo.Index{
@@ -81,7 +92,7 @@ func CreateIndexes() {
 		Unique:     true,
 		Background: true,
 	}); err != nil {
-		log.Errorln("Failed to create Unique Index for username of ", USERS, "Collection")
+		log.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
 	}
 
 	// Unique index email
@@ -90,52 +101,62 @@ func CreateIndexes() {
 		Unique:     true,
 		Background: true,
 	}); err != nil {
-		log.Errorln("Failed to create Unique Index for username of ", USERS, "Collection")
+		log.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
 	}
 
 }
 
-// collection shortcut methods
+// Organizations returns a mgo.Collection for organizations
 func Organizations() *mgo.Collection {
-	return MongoDb.C(ORGANIZATIONS)
+	return MongoDb.C(COrganizations)
 }
 
+// Credentials returns a mgo.Collection for credentials
 func Credentials() *mgo.Collection {
-	return MongoDb.C(CREDENTIALS)
+	return MongoDb.C(CCredentials)
 }
 
+// Users returns a mgo.Collection for users
 func Users() *mgo.Collection {
-	return MongoDb.C(USERS)
+	return MongoDb.C(CUsers)
 }
 
+// Teams returns a mgo.Collection for teams
 func Teams() *mgo.Collection {
-	return MongoDb.C(TEAMS)
+	return MongoDb.C(CTeams)
 }
 
+// Jobs returns a mgo.Collection for jobs
 func Jobs() *mgo.Collection {
-	return MongoDb.C(JOBS)
+	return MongoDb.C(CJobs)
 }
 
+// JobTemplates returns mgo.Collection for job_templates
 func JobTemplates() *mgo.Collection {
-	return MongoDb.C(JOB_TEMPLATES)
+	return MongoDb.C(CJobTemplates)
 }
 
+// Hosts returns mgo.Collection for hosts
 func Hosts() *mgo.Collection {
-	return MongoDb.C(HOSTS)
+	return MongoDb.C(CHosts)
 }
 
+// Inventories returns mgo.Collection for inventories
 func Inventories() *mgo.Collection {
-	return MongoDb.C(INVENTORIES)
+	return MongoDb.C(CInventories)
 }
 
+// Groups returns mgo.Collection for groups
 func Groups() *mgo.Collection {
-	return MongoDb.C(GROUPS)
+	return MongoDb.C(CGroups)
 }
 
+// Projects returns mgo.Collection for projects
 func Projects() *mgo.Collection {
-	return MongoDb.C(PROJECTS)
+	return MongoDb.C(CProjects)
 }
 
+// ActivityStream returns mgo.Collection for activity_stream
 func ActivityStream() *mgo.Collection {
-	return MongoDb.C(ACTIVITY_STREAM)
+	return MongoDb.C(CActivityStream)
 }

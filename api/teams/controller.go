@@ -18,20 +18,24 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_TEAM = "team"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXTeam   = "team"
+	CTXUser   = "user"
+	CTXTeamID = "team_id"
+)
 
-// _CTX_USER is the key name of the User in gin.Context
-const _CTX_USER = "user"
-const _CTX_TEAM_ID = "team_id"
-
-// TeamMiddleware takes project_id parameter from gin.Context and
-// fetches project data from the database
-// this set the team data under key _CTX_TEAM in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXCCTXTeamIDredentialID from Gin Context and retrieves team data from the collection
+// and store team data under key CTXTeam in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_TEAM, c)
+	ID, err := util.GetIdParam(CTXTeam, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Team:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Team ID": ID,
+			"Error":   err.Error(),
+		}).Errorln("Error while getting Team ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -43,7 +47,10 @@ func Middleware(c *gin.Context) {
 	var team models.Team
 	err = db.Teams().FindId(bson.ObjectIdHex(ID)).One(&team)
 	if err != nil {
-		log.Errorln("Error while getting the Team:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Team ID": ID,
+			"Error":   err.Error(),
+		}).Errorln("Error while retriving Team form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -52,22 +59,23 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_TEAM, team)
+	c.Set(CTXTeam, team)
 	c.Next()
 }
 
-// GetTeam returns the team as a JSON object
+// GetTeam is a Gin handler function which returns the team as a JSON object
 func GetTeam(c *gin.Context) {
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 	metadata.TeamMetadata(&team)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, team)
 }
 
-// GetTeams returns a JSON array of teams
+// GetTeams is a Gin handler function which returns list of teams
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetTeams(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -79,6 +87,10 @@ func GetTeams(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
+
 	var teams []models.Team
 	// new mongodb iterator
 	iter := query.Iter()
@@ -89,6 +101,10 @@ func GetTeams(c *gin.Context) {
 		// if the user doesn't have access to credential
 		// skip to next
 		if !roles.TeamRead(user, tmpTeam) {
+			log.WithFields(log.Fields{
+				"User ID": user.ID.Hex(),
+				"Team ID": tmpTeam.ID.Hex(),
+			}).Debugln("User does not have read permissions")
 			continue
 		}
 		metadata.TeamMetadata(&tmpTeam)
@@ -96,7 +112,9 @@ func GetTeams(c *gin.Context) {
 		teams = append(teams, tmpTeam)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Team data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Team data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Team"},
@@ -108,9 +126,13 @@ func GetTeams(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Team page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -122,10 +144,13 @@ func GetTeams(c *gin.Context) {
 
 // AddTeam creates a new team
 func AddTeam(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Team
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:     http.StatusBadRequest,
@@ -160,16 +185,29 @@ func AddTeam(c *gin.Context) {
 
 	err := db.Teams().Insert(req)
 	if err != nil {
-		log.Errorln("Error while creating Team:", err)
+		log.WithFields(log.Fields{
+			"Team ID": req.ID.Hex(),
+			"Error":   err.Error(),
+		}).Errorln("Error while creating Team")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Team"},
 		})
 		return
 	}
-
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Group "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXTeam,
+		ObjectID:    req.ID,
+		Description: "Group " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.TeamMetadata(&req)
 	// send response with JSON rendered data
@@ -179,9 +217,9 @@ func AddTeam(c *gin.Context) {
 // UpdateTeam will update the Job Template
 func UpdateTeam(c *gin.Context) {
 	// get Team from the gin.Context
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Team
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -221,7 +259,10 @@ func UpdateTeam(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
-		log.Errorln("Error while updating Team:", err)
+		log.WithFields(log.Fields{
+			"Team ID": req.ID.Hex(),
+			"Error":   err.Error(),
+		}).Errorln("Error while updating Team")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Team"},
@@ -230,7 +271,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Team "+team.Name+" updated")
+	//addActivity(req.ID, user.ID, "Team "+team.Name+" updated")
 
 	// set `related` and `summary` feilds
 	metadata.TeamMetadata(&team)
@@ -239,12 +280,14 @@ func UpdateTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, team)
 }
 
-// UpdateTeam will update the Job Template
+// PatchTeam is a Gin handler function which partially updates a team using request payload.
+// This replaces specifed fields in the data, empty "" fields will be
+// removed from the database object. Unspecified fields will be ignored.
 func PatchTeam(c *gin.Context) {
 	// get Team from the gin.Context
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchTeam
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -283,13 +326,13 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	if req.Name != nil {
-		objId := team.OrganizationID
+		objID := team.OrganizationID
 		if req.OrganizationID != nil {
-			objId = *req.OrganizationID
+			objID = *req.OrganizationID
 		}
 		// check wheather the team exist in the collection, if not fail.
 		// if the team unique then it is not in the collection, abort any updates
-		if helpers.IsUniqueTeam(*req.Name, objId) {
+		if helpers.IsUniqueTeam(*req.Name, objID) {
 			c.JSON(http.StatusBadRequest, models.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Team with this Name and Organization does not exists."},
@@ -319,7 +362,10 @@ func PatchTeam(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
-		log.Errorln("Error while updating Team:", err)
+		log.WithFields(log.Fields{
+			"Team ID": team.ID.Hex(),
+			"Error":   err.Error(),
+		}).Errorln("Error while updating Team")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Team"},
@@ -328,7 +374,18 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(team.ID, user.ID, "Team "+team.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXTeam,
+		ObjectID:    team.ID,
+		Description: "Team " + team.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.TeamMetadata(&team)
@@ -337,13 +394,12 @@ func PatchTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, team)
 }
 
-// RemoveTeam will remove the Team
-// from the db.DBC_TEAMS collection
+// RemoveTeam is a Gin handler function which removes a team object from the database
 func RemoveTeam(c *gin.Context) {
 	// get Team from the gin.Context
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	// remove object from the collection
 	err := db.Teams().RemoveId(team.ID)
@@ -355,16 +411,27 @@ func RemoveTeam(c *gin.Context) {
 		})
 		return
 	}
-
 	// add new activity to activity stream
-	addActivity(team.ID, user.ID, "Team "+team.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXTeam,
+		ObjectID:    user.ID,
+		Description: "Team " + team.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// Users is a Gin handler function which returns users associated with a team
 func Users(c *gin.Context) {
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 
 	var usrs []models.User
 
@@ -373,7 +440,10 @@ func Users(c *gin.Context) {
 			var user models.User
 			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
-				log.Errorln("Error while getting owner users for credential", team.ID, err)
+				log.WithFields(log.Fields{
+					"Team ID": team.ID,
+					"Error":   err.Error(),
+				}).Errorln("Error while getting owner users for credential")
 				continue //skip iteration
 			}
 			// set additional info and append to slice
@@ -386,9 +456,21 @@ func Users(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("User page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
+	// send response with JSON rendered data
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -398,9 +480,10 @@ func Users(c *gin.Context) {
 	})
 }
 
+// Credentials is Gin handler function which returns credentials associated with a team
 func Credentials(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	user := c.MustGet(CTXUser).(models.User)
+	team := c.MustGet(CTXTeam).(models.Team)
 
 	var credentials []models.Credential
 	// new mongodb iterator
@@ -421,7 +504,9 @@ func Credentials(c *gin.Context) {
 		credentials = append(credentials, tmpCred)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Credential data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
@@ -433,9 +518,20 @@ func Credentials(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -445,9 +541,10 @@ func Credentials(c *gin.Context) {
 	})
 }
 
+// Projects is a Gin handler function which returns projects associated with a team
 func Projects(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	user := c.MustGet(CTXUser).(models.User)
+	team := c.MustGet(CTXTeam).(models.Team)
 
 	var projects []models.Project
 	// new mongodb iterator
@@ -466,7 +563,9 @@ func Projects(c *gin.Context) {
 		projects = append(projects, tmpProject)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Projects data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Projects data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Projects"},
@@ -478,6 +577,9 @@ func Projects(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Project page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
@@ -490,15 +592,19 @@ func Projects(c *gin.Context) {
 	})
 }
 
+// ActivityStream is a Gin handler function which returns list of activities associated with
+// credential object that is in the Gin Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	team := c.MustGet(_CTX_TEAM).(models.Team)
+	team := c.MustGet(CTXTeam).(models.Team)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": team.ID, "type": _CTX_TEAM}).All(activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": team.ID, "type": CTXTeam}).All(activities)
 
 	if err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Activity data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -509,9 +615,20 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -519,4 +636,15 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
+}
+
+// hideEncrypted is replace encrypted fields by $encrypted$
+func hideEncrypted(c *models.Credential) {
+	encrypted := "$encrypted$"
+	c.Password = encrypted
+	c.SshKeyData = encrypted
+	c.SshKeyUnlock = encrypted
+	c.BecomePassword = encrypted
+	c.VaultPassword = encrypted
+	c.AuthorizePassword = encrypted
 }

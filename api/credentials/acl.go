@@ -1,4 +1,4 @@
-package jtemplate
+package credentials
 
 import (
 	"net/http"
@@ -14,27 +14,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// AccessList is a Gin handler function, returns access list
+// for specifed credential object
 func AccessList(c *gin.Context) {
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
-
-	var project models.Project
-	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
-	if err != nil {
-		log.Errorln("Error while retriving Project:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
-		})
-		return
-	}
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var organization models.Organization
-	err = db.Organizations().FindId(project.OrganizationID).One(&organization)
+	err := db.Organizations().FindId(credential.OrganizationID).One(&organization)
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
+			Messages: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -51,7 +42,7 @@ func AccessList(c *gin.Context) {
 					access := gin.H{
 						"descendant_roles": []string{
 							"admin",
-							"execute",
+							"use",
 							"read",
 						},
 						"role": gin.H{
@@ -72,12 +63,12 @@ func AccessList(c *gin.Context) {
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"execute",
 							"read",
+							"use",
 						},
 						"role": gin.H{
 							"resource_name": organization.Name,
-							"description":   "Can manage all aspects of the organization",
+							"description":   "User is a member of the Organization",
 							"related": gin.H{
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
@@ -97,7 +88,7 @@ func AccessList(c *gin.Context) {
 						},
 						"role": gin.H{
 							"resource_name": organization.Name,
-							"description":   "Can manage all aspects of the organization",
+							"description":   "Can view all aspects of the organization",
 							"related": gin.H{
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
@@ -113,47 +104,47 @@ func AccessList(c *gin.Context) {
 
 	// direct access
 
-	for _, v := range jobTemplate.Roles {
+	for _, v := range credential.Roles {
 		if v.Type == "user" {
-			// if an job template admin
+			// if an inventory admin
 			switch v.Role {
-			case roles.JOB_TEMPLATE_ADMIN:
+			case roles.CREDENTIAL_ADMIN:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
 							"admin",
-							"execute",
+							"use",
 							"read",
 						},
 						"role": gin.H{
-							"resource_name": jobTemplate.Name,
-							"description":   "May run the job template",
+							"resource_name": credential.Name,
+							"description":   "Can manage all aspects of the credential",
 							"related": gin.H{
-								"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
 							},
-							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_ADMIN,
+							"resource_type": "credential",
+							"name":          roles.INVENTORY_ADMIN,
 						},
 					}
 
 					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
 				}
-			// if an job template execute
-			case roles.JOB_TEMPLATE_EXECUTE:
+			// if an inventory
+			case roles.INVENTORY_USE:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"execute",
+							"use",
 							"read",
 						},
 						"role": gin.H{
-							"resource_name": jobTemplate.Name,
-							"description":   "Can manage all aspects of the job template",
+							"resource_name": credential.Name,
+							"description":   "Can use the credential in a job template",
 							"related": gin.H{
-								"job_template": "/api/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
 							},
-							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_EXECUTE,
+							"resource_type": "credential",
+							"name":          roles.INVENTORY_USE,
 						},
 					}
 					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)

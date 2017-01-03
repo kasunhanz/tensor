@@ -2,6 +2,7 @@ package dashboard
 
 import "github.com/gin-gonic/gin"
 
+// GetInfo is a Gin handler function which returns summary data for UI dashboard
 func GetInfo(c *gin.Context) {
 	info := gin.H{
 		"related": gin.H{
