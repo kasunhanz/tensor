@@ -1,0 +1,29 @@
+---
+# tasks file for mongodb
+
+- name: Install dependencies packages
+  yum: name={{ item }} state=installed
+  with_items: "{{ mongodb_packages_dependencies }}"
+
+- name: Ensure python mongo driver installed
+  easy_install:
+    name: pymongo
+    state: latest
+
+- name: "Copy mongoDB repo"
+  template: src=mongodb-org.repo.j2 dest=/etc/yum.repos.d/mongodb-org-{{ mongodb_version }}.repo
+
+- name: Allow port 27017 through firewalld
+  firewalld:
+    port: 27017/tcp
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: "Install required packages"
+  yum: name={{ item }} state=present
+  with_items:
+    - mongodb-org
+  notify:
+    - "Start MongoDB"
+    - "Enable MongoDB"

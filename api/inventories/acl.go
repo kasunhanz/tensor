@@ -1,4 +1,4 @@
-package credentials
+package inventories
 
 import (
 	"net/http"
@@ -15,10 +15,10 @@ import (
 )
 
 func AccessList(c *gin.Context) {
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 
 	var organization models.Organization
-	err := db.Organizations().FindId(credential.OrganizationID).One(&organization)
+	err := db.Organizations().FindId(inventory.OrganizationID).One(&organization)
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, models.Error{
@@ -39,9 +39,11 @@ func AccessList(c *gin.Context) {
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"admin",
+							"adhoc",
 							"use",
 							"read",
+							"admin",
+							"update",
 						},
 						"role": gin.H{
 							"resource_name": organization.Name,
@@ -62,11 +64,10 @@ func AccessList(c *gin.Context) {
 					access := gin.H{
 						"descendant_roles": []string{
 							"read",
-							"use",
 						},
 						"role": gin.H{
 							"resource_name": organization.Name,
-							"description":   "User is a member of the Organization",
+							"description":   "Can view all aspects of the organization",
 							"related": gin.H{
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
@@ -102,29 +103,72 @@ func AccessList(c *gin.Context) {
 
 	// direct access
 
-	for _, v := range credential.Roles {
+	for _, v := range inventory.Roles {
 		if v.Type == "user" {
 			// if an inventory admin
 			switch v.Role {
-			case roles.CREDENTIAL_ADMIN:
+			case roles.INVENTORY_ADMIN:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
-							"admin",
+							"adhoc",
 							"use",
 							"read",
+							"admin",
+							"update",
 						},
 						"role": gin.H{
-							"resource_name": credential.Name,
-							"description":   "Can manage all aspects of the credential",
+							"resource_name": inventory.Name,
+							"description":   "Can manage all aspects of the Inventory",
 							"related": gin.H{
-								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
+								"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
 							},
-							"resource_type": "credential",
+							"resource_type": "inventory",
 							"name":          roles.INVENTORY_ADMIN,
 						},
 					}
 
+					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+				}
+			// if an inventory execute
+			case roles.INVENTORY_UPDATE:
+				{
+					access := gin.H{
+						"descendant_roles": []string{
+							"read",
+							"update",
+						},
+						"role": gin.H{
+							"resource_name": inventory.Name,
+							"description":   "Can update the Inventory",
+							"related": gin.H{
+								"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
+							},
+							"resource_type": "inventory",
+							"name":          roles.INVENTORY_UPDATE,
+						},
+					}
+					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+				}
+			// if an inventory execute
+			case roles.INVENTORY_ADD_HOC:
+				{
+					access := gin.H{
+						"descendant_roles": []string{
+							"adhoc",
+							"use",
+							"read",
+						},
+						"role": gin.H{
+							"resource_name": inventory.Name,
+							"description":   "May run ad hoc commands on an inventory",
+							"related": gin.H{
+								"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
+							},
+							"resource_type": "inventory",
+							"name":          roles.INVENTORY_ADD_HOC,
+						},
+					}
 					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
 				}
 			// if an inventory
@@ -136,12 +180,12 @@ func AccessList(c *gin.Context) {
 							"read",
 						},
 						"role": gin.H{
-							"resource_name": credential.Name,
-							"description":   "Can use the credential in a job template",
+							"resource_name": inventory.Name,
+							"description":   "Can use the inventory in a job template",
 							"related": gin.H{
-								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
+								"inventory": "/v1/inventories/" + inventory.ID.Hex() + "/",
 							},
-							"resource_type": "credential",
+							"resource_type": "inventory",
 							"name":          roles.INVENTORY_USE,
 						},
 					}

@@ -1,0 +1,58 @@
+---
+
+# Variable setup.
+- name: Include OS-specific variables.
+  include_vars: "{{ ansible_os_family }}.yml"
+
+# Setup/install tasks.
+- include: "setup-RedHat.yml"
+  when: ansible_os_family == 'RedHat'
+
+- include: setup-Debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Create mongodb data dir
+  file: path={{ mongodb_data_dir }} state=directory owner={{ mongodb_daemon_user }} group={{ mongodb_daemon_user }}
+
+- name: Ensure MongoDB is configured.
+  template:
+    src: mongodb.conf.j2
+    dest: "{{ mongodb_conf_path }}"
+    mode: 0644
+  notify: "Restart MongoDB"
+
+- meta: flush_handlers
+
+- name: create MongoDB admin user
+  mongodb_user:
+    user: '{{ mongodb_root_user }}'
+    password: '{{ mongodb_root_password }}'
+    database: 'admin'
+    roles:
+      - db: 'admin'
+        role: 'root'
+    state: present
+  notify: "Restart MongoDB"
+
+- meta: flush_handlers
+
+- name: create MongoDB app user
+  mongodb_user:
+    user: '{{ mongodb_app_user }}'
+    password: '{{ mongodb_app_password }}'
+    database: '{{ mongodb_app_database }}'
+    login_user: '{{ mongodb_root_user }}'
+    login_password: '{{ mongodb_root_password }}'
+    roles:
+      - db: '{{ mongodb_app_database }}'
+        role: 'readWrite'
+      - db: 'local'
+        role: 'read'
+    state: present
+
+- name: Enable MongoDB authentication.
+  template:
+    src: mongodb.auth.conf.j2
+    dest: "{{ mongodb_conf_path }}"
+    mode: 0644
+  notify: "Restart MongoDB"

@@ -1,0 +1,18 @@
+
+---
+# defaults file for mongodb
+mongodb_version: 3.4
+
+mongodb_bind_address: '0.0.0.0'
+
+mongodb_root_user: dbroot
+mongodb_root_password: root
+
+mongodb_app_database: tensordb
+mongodb_app_user: tensor
+mongodb_app_password: tensor
+
+mongodb_data_dir: /data/mongodb
+
+mongodb_keyserver: hkp://keyserver.ubuntu.com:80
+mongodb_key_id: 0C49F3730359A14518585931BC711F9BA15703C6

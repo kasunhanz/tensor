@@ -23,23 +23,24 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// _CTX_JOB_TEMPLATE is the key name of the Job Template in gin.Context
-const _CTX_JOB_TEMPLATE = "job_template"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXJobTemplate   = "job_template"
+	CTXUser          = "user"
+	CTXJobTemplateID = "job_template_id"
+)
 
-// _CTX_USER is the key name of the User in gin.Context
-const _CTX_USER = "user"
-
-// _CTX_JOB_TEMPLATE_ID is the key name of http request Job Template ID
-const _CTX_JOB_TEMPLATE_ID = "job_template_id"
-
-// Middleware is the middleware for job templates. Which
-// takes _CTX_JOB_TEMPLATE_ID parameter form the request, fetches the Job Template
-// and set it under key _CTX_JOB_TEMPLATE in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXJobTemplateID from Gin Context and retrieves job template data from the collection
+// and store job template data under key CTXJobTemplate in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_JOB_TEMPLATE_ID, c)
+	ID, err := util.GetIdParam(CTXJobTemplateID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Job Template:", err) // log error to the system log
+		log.WithFields(log.Fields{
+			"Job Template ID": ID,
+			"Error":           err.Error(),
+		}).Errorln("Error while getting Job Template ID url parameter")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -49,10 +50,11 @@ func Middleware(c *gin.Context) {
 	}
 
 	var jobTemplate models.JobTemplate
-	err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate)
-
-	if err != nil {
-		log.Errorln("Error while getting the Job Template:", err) // log error to the system log
+	if err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate); err != nil {
+		log.WithFields(log.Fields{
+			"Job Template ID": ID,
+			"Error":           err.Error(),
+		}).Errorln("Error while retriving Job Template form the database")
 		c.JSON(http.StatusNotFound, models.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
@@ -62,24 +64,22 @@ func Middleware(c *gin.Context) {
 	}
 
 	// Set the Job Template to the gin.Context
-	c.Set(_CTX_JOB_TEMPLATE, jobTemplate)
+	c.Set(CTXJobTemplate, jobTemplate)
 	c.Next() //move to next pending handler
 }
 
-// GetJTemplate returns a single Job Template as serialized JSON
+// GetJTemplate is a Gin handler function which returns the Job Template as a JSON object
 // A success will return 200 status code
 // A failure will return 500 status code
 func GetJTemplate(c *gin.Context) {
-	//get template set by the middleware
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 
 	metadata.JTemplateMetadata(&jobTemplate)
 
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
-// GetJTemplates returns Job Templates as a serialized JSON
+// GetJTemplates is a Gin handler function which returns list of Job Templates
 // The resulting data structure contains:
 // {
 //  "count\": 99,
@@ -94,8 +94,9 @@ func GetJTemplate(c *gin.Context) {
 // `results` list contains zero or more job template records.
 // A success returns 200 status code
 // A failure returns 500 status code
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetJTemplates(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -106,6 +107,10 @@ func GetJTemplates(c *gin.Context) {
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
+
+	log.WithFields(log.Fields{
+		"Query": query,
+	}).Debugln("Parsed query")
 
 	var jobTemplates []models.JobTemplate
 	// new mongodb iterator
@@ -124,10 +129,12 @@ func GetJTemplates(c *gin.Context) {
 		jobTemplates = append(jobTemplates, tmpJobTemplate)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Credential data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Job Template data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+			Messages: []string{"Error while getting Job Template"},
 		})
 		return
 	}
@@ -136,9 +143,20 @@ func GetJTemplates(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"Count":    count,
+		"Next":     pgi.NextPage(),
+		"Previous": pgi.PreviousPage(),
+		"Skip":     pgi.Skip(),
+		"Limit":    pgi.Limit(),
+	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, models.Response{
 		Count:    count,
@@ -148,7 +166,8 @@ func GetJTemplates(c *gin.Context) {
 	})
 }
 
-// AddJTemplate creates a new Job Template
+// AddJTemplate is Gin handler function which creates a new Credential using request payload
+// This accepts Job Template model.
 // fields to create a new job template:
 // name: Name of this job template. string, required
 // description: Optional description of this job template. string, default=""
@@ -189,10 +208,13 @@ func GetJTemplates(c *gin.Context) {
 func AddJTemplate(c *gin.Context) {
 	var req models.JobTemplate
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, models.Error{
 			Code:     http.StatusBadRequest,
@@ -266,9 +288,11 @@ func AddJTemplate(c *gin.Context) {
 	req.ModifiedByID = user.ID
 
 	// insert new object
-	err = db.JobTemplates().Insert(req)
-	if err != nil {
-		log.Errorln("Error while creating Job Template:", err)
+	if err = db.JobTemplates().Insert(req); err != nil {
+		log.WithFields(log.Fields{
+			"Job Template ID": req.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while creating Job Template")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating  Job Template"},
@@ -277,8 +301,18 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Job Template "+req.Name+" created")
-
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXJobTemplate,
+		ObjectID:    req.ID,
+		Description: "Job Template " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&req)
 
@@ -286,15 +320,15 @@ func AddJTemplate(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
-// UpdateJTemplate updates the Job Template and returns updated JSON serialized Job Template
+// UpdateJTemplate is a Gin handler function which updates a Job Template using request payload
 // A success returns 200 status code
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
 func UpdateJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -389,7 +423,10 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.Errorln("Error while updating Job Template:", err)
+		log.WithFields(log.Fields{
+			"Job Template ID": req.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while updating Job Template")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
@@ -398,7 +435,18 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Job Template "+jobTemplate.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXJobTemplate,
+		ObjectID:    req.ID,
+		Description: "Job Template " + jobTemplate.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&jobTemplate)
@@ -407,16 +455,16 @@ func UpdateJTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
-// PatchJTemplate updates the Job Template and returns updated JSON serialized Job Template
+// PatchJTemplate is a Gin handler function which partially updates a Job Template using request payload.
 // patch will only update feilds which included in the POST body
 // A success returns 200 status code
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
 func PatchJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -608,15 +656,30 @@ func PatchJTemplate(c *gin.Context) {
 
 	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.Errorln("Error while updating Job Template:", err)
+		log.WithFields(log.Fields{
+			"Job Template ID": jobTemplate.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while updating Job Template")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
 		})
 		return
 	}
+
 	// add new activity to activity stream
-	addActivity(jobTemplate.ID, user.ID, "Job Template "+jobTemplate.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXJobTemplate,
+		ObjectID:    jobTemplate.ID,
+		Description: "Job Template " + jobTemplate.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&jobTemplate)
@@ -625,19 +688,21 @@ func PatchJTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
-// RemoveJTemplate removes the Job Template from the db.DBC_JOB_TEMPLATES collection
+// RemoveJTemplate is a Gin handler function which removes a Job Template object from the database
 // A success returns 204 status code
 // A failure returns 500 status code
 func RemoveJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	// remove object from the collection
-	err := db.JobTemplates().RemoveId(jobTemplate.ID)
-	if err != nil {
-		log.Errorln("Error while removing Job Temlate:", err)
+	if err := db.JobTemplates().RemoveId(jobTemplate.ID); err != nil {
+		log.WithFields(log.Fields{
+			"Job Template ID": jobTemplate.ID.Hex(),
+			"Error":           err.Error(),
+		}).Errorln("Error while removing Job Temlate")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Job Template"},
@@ -646,7 +711,18 @@ func RemoveJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(jobTemplate.ID, user.ID, "Job Template "+jobTemplate.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXJobTemplate,
+		ObjectID:    user.ID,
+		Description: "Job Template " + jobTemplate.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -669,13 +745,15 @@ func RemoveJTemplate(c *gin.Context) {
 // failure reruns 500 status code
 //
 func ActivityStream(c *gin.Context) {
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": _CTX_JOB_TEMPLATE}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": CTXJobTemplate}).All(&activities)
 
 	if err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving Activity data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -687,6 +765,9 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
@@ -713,7 +794,7 @@ func ActivityStream(c *gin.Context) {
 // The `next` and `previous` fields provides links to additional results if there are more than will fit on a single page.
 // The `results` list contains zero or more job records.
 func Jobs(c *gin.Context) {
-	jobTemplate := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 
 	var jbs []models.Job
 	// new mongodb iterator
@@ -728,7 +809,9 @@ func Jobs(c *gin.Context) {
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving jobs data from the db:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while retriving jobs data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Jobs"},
@@ -740,6 +823,9 @@ func Jobs(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
+		log.WithFields(log.Fields{
+			"Page number": pgi.Page(),
+		}).Debugln("Job page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
@@ -761,9 +847,9 @@ func Jobs(c *gin.Context) {
 // if the request body is invalid returns JSON serialized Error model with 400 status code
 func Launch(c *gin.Context) {
 	// get job template that was set by the Middleware
-	template := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	template := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 	// get user object set by the jwt Middleware
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	// create a new Launch model
 	var req models.Launch
@@ -915,7 +1001,9 @@ func Launch(c *gin.Context) {
 		var credential models.Credential
 		err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential)
 		if err != nil {
-			log.Errorln("Error while getting Network Credential:", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while getting Network Credential")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting Network Credential"},
@@ -929,7 +1017,9 @@ func Launch(c *gin.Context) {
 		var credential models.Credential
 		err := db.Credentials().FindId(*job.CloudCredentialID).One(&credential)
 		if err != nil {
-			log.Errorln("Error while getting Cloud Credential:", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while getting Cloud Credential")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting Cloud Credential"},
@@ -942,7 +1032,9 @@ func Launch(c *gin.Context) {
 	// get inventory information
 	var inventory models.Inventory
 	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
-		log.Errorln("Error while getting Inventory:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Inventory")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Inventory"},
@@ -953,7 +1045,9 @@ func Launch(c *gin.Context) {
 
 	var credential models.Credential
 	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-		log.Errorln("Error while getting Machine Credential:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Machine Credential")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Machine Credential"},
@@ -965,7 +1059,9 @@ func Launch(c *gin.Context) {
 	// get project information
 	var project models.Project
 	if err := db.Projects().FindId(job.ProjectID).One(&project); err != nil {
-		log.Errorln("Error while getting Project:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Project")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Project"},
@@ -977,7 +1073,9 @@ func Launch(c *gin.Context) {
 	// Get jwt token for authorize Ansible inventory plugin
 	var token jwt.LocalToken
 	if err := jwt.NewAuthToken(&token); err != nil {
-		log.Errorln("Error while getting Token:", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while getting Token")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Token"},
@@ -988,7 +1086,10 @@ func Launch(c *gin.Context) {
 
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.Errorln("Error while creating Job:", err)
+		log.WithFields(log.Fields{
+			"Job ID": job.ID,
+			"Error":  err.Error(),
+		}).Errorln("Error while creating Job")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Job"},
@@ -1001,7 +1102,9 @@ func Launch(c *gin.Context) {
 		tj, err := runners.UpdateProject(project)
 		runnerJob.PreviousJob = tj
 		if err != nil {
-			log.Errorln("Error while adding the job to job queue:", err)
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while adding the job to job queue")
 			c.JSON(http.StatusInternalServerError, models.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while creating Job"},
@@ -1014,7 +1117,10 @@ func Launch(c *gin.Context) {
 	jobQueue := queue.OpenJobQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
-		log.Errorln("Error while adding the job to job queue:", err)
+		log.WithFields(log.Fields{
+			"Error":    err.Error(),
+			"Job Info": jobBytes,
+		}).Errorln("Error while adding the job to job queue")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Job"},
@@ -1048,7 +1154,7 @@ func Launch(c *gin.Context) {
 // If not then one should be supplied when launching the job
 func LaunchInfo(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(_CTX_JOB_TEMPLATE).(models.JobTemplate)
+	jt := c.MustGet(CTXJobTemplate).(models.JobTemplate)
 
 	var isCredentialNeeded bool
 	var isInventoryNeeded bool
@@ -1068,7 +1174,9 @@ func LaunchInfo(c *gin.Context) {
 	var cred models.Credential
 
 	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.Errorln("Cound not find Credential", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Cound not find Credential")
 		defaults["credential"] = nil
 		isCredentialNeeded = true
 	} else {
@@ -1081,7 +1189,9 @@ func LaunchInfo(c *gin.Context) {
 	var inven models.Inventory
 
 	if err := db.Inventories().FindId(jt.InventoryID).One(&inven); err != nil {
-		log.Errorln("Cound not find Inventory", err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Cound not find Inventory")
 		defaults["inventory"] = nil
 		isInventoryNeeded = true
 	} else {
@@ -1112,4 +1222,69 @@ func LaunchInfo(c *gin.Context) {
 
 	// render JSON with 200 status code
 	c.JSON(http.StatusOK, resp)
+}
+
+// ObjectRoles is a Gin handler function
+// This returns available roles can be associated with a Job Template model
+func ObjectRoles(c *gin.Context) {
+	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+
+	roles := []gin.H{
+		{
+			"type": "role",
+			"related": gin.H{
+				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			},
+			"summary_fields": gin.H{
+				"resource_name":              jobTemplate.Name,
+				"resource_type":              "job template",
+				"resource_type_display_name": "Job Template",
+			},
+			"name":        "admin",
+			"description": "Can manage all aspects of the job template",
+		},
+		{
+			"type": "role",
+			"related": gin.H{
+				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			},
+			"summary_fields": gin.H{
+				"resource_name":              jobTemplate.Name,
+				"resource_type":              "job template",
+				"resource_type_display_name": "Job Template",
+			},
+			"name":        "read",
+			"description": "May view settings for the job template",
+		},
+		{
+			"type": "role",
+			"related": gin.H{
+				"users":        "/api/v1/roles/22/users/",
+				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			},
+			"summary_fields": gin.H{
+				"resource_name":              jobTemplate.Name,
+				"resource_type":              "job template",
+				"resource_type_display_name": "Job Template",
+			},
+			"name":        "execute",
+			"description": "May run the job template",
+		},
+	}
+
+	count := len(roles)
+	pgi := util.NewPagination(c, count)
+	//if page is incorrect return 404
+	if pgi.HasPage() {
+		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		return
+	}
+	// send response with JSON rendered data
+	c.JSON(http.StatusOK, models.Response{
+		Count:    count,
+		Next:     pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Results:  roles[pgi.Skip():pgi.End()],
+	})
+
 }

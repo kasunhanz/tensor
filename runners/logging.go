@@ -23,7 +23,10 @@ func (t *QueueJob) start() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 }
 
@@ -36,7 +39,10 @@ func (t *QueueJob) status(s string) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 }
 
@@ -63,7 +69,10 @@ func (t *QueueJob) jobFail() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 
 	t.updateProject()
@@ -99,7 +108,10 @@ func (t *QueueJob) jobCancel() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 
 	t.updateProject()
@@ -134,7 +146,10 @@ func (t *QueueJob) jobError() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 
 	t.updateProject()
@@ -164,7 +179,10 @@ func (t *QueueJob) jobSuccess() {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.Errorln("Failed to update job status, status was", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update job status")
 	}
 
 	t.updateProject()
@@ -190,7 +208,9 @@ func (t *QueueJob) updateProject() {
 			}
 
 			if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
-				log.Errorln("Failed to update project", err)
+				log.WithFields(log.Fields{
+					"Error": err,
+				}).Errorln("Failed to update project")
 			}
 		}
 	case models.JOBTYPE_ANSIBLE_JOB:
@@ -203,7 +223,9 @@ func (t *QueueJob) updateProject() {
 				},
 			}
 			if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
-				log.Errorln("Failed to update project", err)
+				log.WithFields(log.Fields{
+					"Error": err,
+				}).Errorln("Failed to update project")
 			}
 		}
 	}
@@ -220,7 +242,10 @@ func (t *QueueJob) updateJobTemplate() {
 	}
 
 	if err := db.JobTemplates().UpdateId(t.Template.ID, d); err != nil {
-		log.Errorln("Failed to update JobTemplate", t.Job.Status, err)
+		log.WithFields(log.Fields{
+			"Status": t.Job.Status,
+			"Error":  err,
+		}).Errorln("Failed to update JobTemplate")
 	}
 }
 
@@ -236,6 +261,8 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype
 	}
 
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.Errorln("Failed to add new Activity", err)
+		log.WithFields(log.Fields{
+			"Error": err,
+		}).Errorln("Failed to add new Activity")
 	}
 }

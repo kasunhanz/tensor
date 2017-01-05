@@ -1,0 +1,104 @@
+# Setup docker repository
+- name: "Add docker key"
+  apt_key:
+    keyserver: hkp://ha.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+
+- apt_repository:
+    repo: "deb https://apt.dockerproject.org/repo ubuntu-xenial main"
+    state: present
+    filename: "docker.list"
+
+- apt_repository:
+    repo: 'ppa:ansible/ansible'
+
+- name: 'Install dependencies'
+  tags: 'golang'
+  apt: pkg={{ item }} state=present update_cache=yes
+  with_items:
+    - 'mercurial'  # For cloning the Golang repository
+    - 'git'        # For getting Go dependencies from GitHub
+    - 'python-setuptools'
+    - 'docker-engine'
+    - 'make'
+    - 'ruby'
+    - 'devscripts'
+    - 'build-essential'
+    - 'cdbs'
+    - 'debhelper'
+    - 'lintian'
+    - 'dh-make'
+    - 'cdbs'
+    - 'ansible'
+
+- name: Install docker compose
+  get_url: 
+    url: "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-Linux-x86_64"
+    dest: /usr/local/bin/docker-compose
+    mode: 0775
+
+- name: Register the current Go version (if any)
+  command: /usr/local/go/bin/go version
+  ignore_errors: yes
+  register: go_version
+  changed_when: false
+
+- name: Download the Go tarball
+  get_url:
+    url: "{{ go_download_location }}"
+    dest: /usr/local/src/{{ go_tarball }}
+    checksum: "{{ go_tarball_checksum }}"
+
+- name: Extract the Go tarball if Go is not yet installed or not the desired version
+  unarchive:
+    src: /usr/local/src/{{ go_tarball }}
+    dest: /usr/local
+    copy: no
+  when: go_version|failed or go_version.stdout != go_version_target
+
+- name: Add the Go bin directory to the PATH environment variable for all users
+  copy:
+    src: go-bin.sh
+    dest: /etc/profile.d
+
+- name: Set GOPATH for all users
+  copy:
+    src: go-path.sh
+    dest: /etc/profile.d
+  when: set_go_path
+
+- name: Set permissions for go path
+  file:
+    path: /go
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    recurse: yes
+
+- name: Create tensor data dir
+  file:
+    path: /data
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+
+- name: Ensure Tensor is configured.
+  template:
+    src: tensor.conf.j2
+    dest: "{{ tensor_conf_path }}"
+    mode: 0644
+  notify: "Restart MongoDB"
+
+- name: Install reflex
+  become: false
+  shell: go get -v github.com/cespare/reflex
+  environment:
+    GOPATH: /go
+    PATH : "{{ ansible_env.PATH }}:/go/bin:/usr/local/go/bin"
+
+- name: Update go libraries
+  become: false
+  shell: cd /go/src/bitbucket.pearson.com/apseng/tensor/ && go get -v ./...
+  environment:
+    GOPATH: /go
+    PATH : "{{ ansible_env.PATH }}:/go/bin:/usr/local/go/bin"

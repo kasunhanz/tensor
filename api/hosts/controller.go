@@ -18,15 +18,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_HOST = "host"
-const _CTX_USER = "user"
-const _CTX_HOST_ID = "host_id"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXHost   = "host"
+	CTXUser   = "user"
+	CTXHostID = "host_id"
+)
 
-// Middleware takes host_id parameter from gin.Context and
-// fetches host data from the database
-// it set host data under key host in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// Middleware takes CTXHostID parameter from the Gin Context and fetches host data from the database
+// it set host data under key CTXHost in the Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_HOST_ID, c)
+	ID, err := util.GetIdParam(CTXHostID, c)
 
 	if err != nil {
 		log.Errorln("Error while getting the Host:", err) // log error to the system log
@@ -49,20 +52,21 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_HOST, h)
+	c.Set(CTXHost, h)
 	c.Next()
 }
 
-// GetHost returns the hsot as a JSON object
+// GetHost is a Gin Handler function, returns the host as a JSON object
 func GetHost(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
 }
 
-// GetHosts returns a JSON array of projects
+// GetHosts is Gin handler function which returns list of hosts
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetHosts(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
@@ -113,10 +117,11 @@ func GetHosts(c *gin.Context) {
 	})
 }
 
-// AddHost creates a new project
+// AddHost is a Gin handler function which creates a new host using request payload
+// This accepts Host model.
 func AddHost(c *gin.Context) {
 	var req models.Host
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
@@ -173,18 +178,30 @@ func AddHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Host "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXHost,
+		ObjectID:    req.ID,
+		Description: "Host " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.HostMetadata(&req)
 
 	c.JSON(http.StatusCreated, req)
 }
 
-// UpdateHost will update a Host
-// from request values
+// UpdateHost is a handler function which updates a credential using request payload.
+// This replaces all the fields in the database, empty "" fields and
+// unspecified fields will be removed from the database object
 func UpdateHost(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
-	user := c.MustGet(_CTX_USER).(models.User)
+	host := c.MustGet(CTXHost).(models.Host)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Host
 
@@ -246,8 +263,18 @@ func UpdateHost(c *gin.Context) {
 		})
 	}
 
-	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Host "+host.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXHost,
+		ObjectID:    req.ID,
+		Description: "Host " + req.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.HostMetadata(&host)
 
@@ -255,11 +282,12 @@ func UpdateHost(c *gin.Context) {
 	c.JSON(http.StatusOK, host)
 }
 
-// Patch will patch a Host
-// from request values
+// PatchHost is a Gin handler function which partially updates a credential using request payload.
+// This replaces specified fields in the database, empty "" fields will be
+// removed from the database object. Unspecified fields will ignored.
 func PatchHost(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
-	user := c.MustGet(_CTX_USER).(models.User)
+	host := c.MustGet(CTXHost).(models.Host)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchHost
 
@@ -355,7 +383,18 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(host.ID, user.ID, "Host "+host.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXHost,
+		ObjectID:    host.ID,
+		Description: "Host " + host.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.HostMetadata(&host)
@@ -364,11 +403,12 @@ func PatchHost(c *gin.Context) {
 	c.JSON(http.StatusOK, host)
 }
 
+// RemoveHost is a Gin handler function which removes a host object from the database
 func RemoveHost(c *gin.Context) {
 	// get Host from the gin.Context
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
 		log.Errorln("Error while removing Host:", err)
@@ -380,13 +420,26 @@ func RemoveHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(host.ID, user.ID, "Group "+host.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXHost,
+		ObjectID:    host.ID,
+		Description: "Host " + host.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	c.AbortWithStatus(204)
 }
 
+// VariableData is a Gin Handler function which returns variables for
+// the host as JSON formatted object.
 func VariableData(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 
 	variables := gin.H{}
 
@@ -403,9 +456,10 @@ func VariableData(c *gin.Context) {
 
 }
 
+// Groups is a Gin handler function which returns parent group of the host
 // TODO: not implemented
 func Groups(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 
 	var group models.Group
 
@@ -433,9 +487,10 @@ func Groups(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
+// AllGroups is a Gin handler function which returns parent groups of a host
 // TODO: not implemented
 func AllGroups(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 
 	var outobjects []models.Group
 	var group models.Group
@@ -507,12 +562,14 @@ func AllGroups(c *gin.Context) {
 	})
 }
 
+// ActivityStream is a Gin handler function which returns list of activities associated with
+// credential object that is in the Gin Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	host := c.MustGet(_CTX_HOST).(models.Host)
+	host := c.MustGet(CTXHost).(models.Host)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": _CTX_HOST}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": CTXHost}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)

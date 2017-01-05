@@ -1,0 +1,10 @@
+---
+
+__mongodb_package: mongodb-org
+mongodb_daemon: mongod
+mongodb_conf_path: /etc/mongod.conf
+mongodb_daemon_user: mongodb
+
+mongodb_packages_dependencies:
+  - gcc
+  - python-setuptools

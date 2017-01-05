@@ -18,15 +18,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_CREDENTIAL = "credential"
-const _CTX_CREDENTIAL_ID = "credential_id"
-const _CTX_USER = "user"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXCredential   = "credential"
+	CTXCredentialID = "credential_id"
+	CTXUser         = "user"
+)
 
-// Middleware takes _CTX_CREDENTIAL_ID from gin.Context and
-// retrieves credential data from the collection
-// and store credential data under key _CTX_CREDENTIAL in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes CTXCredentialID from Gin Context and retrieves credential data from the collection
+// and store credential data under key CTXCredential in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_CREDENTIAL_ID, c)
+	ID, err := util.GetIdParam(CTXCredentialID, c)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -40,7 +43,7 @@ func Middleware(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var credential models.Credential
 	if err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
@@ -66,13 +69,13 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_CREDENTIAL, credential)
+	c.Set(CTXCredential, credential)
 	c.Next()
 }
 
-// GetProject returns the project as a JSON object
+// GetCredential is a Gin handler function which returns the credential as a JSON object
 func GetCredential(c *gin.Context) {
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
@@ -80,8 +83,10 @@ func GetCredential(c *gin.Context) {
 	c.JSON(http.StatusOK, credential)
 }
 
+// GetCredentials is a Gin handler function which returns list of credentials
+// This takes lookup parameters and order parameters to filter and sort output data
 func GetCredentials(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -159,8 +164,10 @@ func GetCredentials(c *gin.Context) {
 	})
 }
 
+// AddCredential is a Gin handler function which creates a new credential using request payload.
+// This accepts Credential model.
 func AddCredential(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Credential
 
@@ -241,8 +248,21 @@ func AddCredential(c *gin.Context) {
 	}
 
 	roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN)
+
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Credential "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXCredential,
+		ObjectID:    req.ID,
+		Description: "Credential " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+
 	hideEncrypted(&req)
 	metadata.CredentialMetadata(&req)
 
@@ -250,10 +270,13 @@ func AddCredential(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
+// UpdateCredential is a Gin handler function which updates a credential using request payload.
+// This replaces all the fields in the database, empty "" fields and
+// unspecified fields will be removed from the database object.
 func UpdateCredential(c *gin.Context) {
 
-	user := c.MustGet(_CTX_USER).(models.User)
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	user := c.MustGet(CTXUser).(models.User)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var req models.Credential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -346,7 +369,18 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Credential "+credential.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXCredential,
+		ObjectID:    req.ID,
+		Description: "Credential " + req.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	hideEncrypted(&req)
 	metadata.CredentialMetadata(&req)
@@ -354,9 +388,12 @@ func UpdateCredential(c *gin.Context) {
 	c.JSON(http.StatusOK, req)
 }
 
+// PatchCredential is a Gin handler function which partially updates a credential using request payload.
+// This replaces specifed fields in the data, empty "" fields will be
+// removed from the database object. Unspecified fields will be ignored.
 func PatchCredential(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	user := c.MustGet(CTXUser).(models.User)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var req models.PatchCredential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -505,7 +542,18 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(credential.ID, user.ID, "Credential "+credential.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXCredential,
+		ObjectID:    credential.ID,
+		Description: "Credential " + credential.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
@@ -513,9 +561,10 @@ func PatchCredential(c *gin.Context) {
 	c.JSON(http.StatusOK, credential)
 }
 
+// RemoveCredential is a Gin handler function which removes a credential object from the database
 func RemoveCredential(c *gin.Context) {
-	crd := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
-	u := c.MustGet(_CTX_USER).(models.User)
+	crd := c.MustGet(CTXCredential).(models.Credential)
+	u := c.MustGet(CTXUser).(models.User)
 
 	if err := db.Credentials().RemoveId(crd.ID); err != nil {
 		log.WithFields(log.Fields{
@@ -531,13 +580,26 @@ func RemoveCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(crd.ID, u.ID, "Credential "+crd.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     u.ID,
+		Type:        CTXCredential,
+		ObjectID:    u.ID,
+		Description: "Credential " + crd.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// OwnerTeams is a Gin hander function which returns the access control list of Teams that has permissions to access
+// specifed credential object.
 func OwnerTeams(c *gin.Context) {
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var tms []models.Team
 
@@ -585,8 +647,10 @@ func OwnerTeams(c *gin.Context) {
 	})
 }
 
+// OwnerUsers is a Gin handler function which returns the access control list of Users that has access to
+// specifed credential object.
 func OwnerUsers(c *gin.Context) {
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var usrs []models.User
 	for _, v := range credential.Roles {
@@ -633,17 +697,19 @@ func OwnerUsers(c *gin.Context) {
 	})
 }
 
+// ActivityStream is a Gin handler function which returns list of activities associated with
+// credential object that is in the Gin Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	credential := c.MustGet(_CTX_CREDENTIAL).(models.Credential)
+	credential := c.MustGet(CTXCredential).(models.Credential)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": _CTX_CREDENTIAL}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": CTXCredential}).All(&activities)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
-		}).Errorln("Error while retriving Activity data from the db")
+		}).Errorln("Error while retriving Activity data from the database")
 		c.JSON(http.StatusInternalServerError, models.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
@@ -676,4 +742,16 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
+}
+
+// hideEncrypted is replaces encrypted fields by $encrypted$ string
+func hideEncrypted(c *models.Credential) {
+	encrypted := "$encrypted$"
+	c.Password = encrypted
+	c.SshKeyData = encrypted
+	c.SshKeyUnlock = encrypted
+	c.BecomePassword = encrypted
+	c.VaultPassword = encrypted
+	c.AuthorizePassword = encrypted
+	c.Secret = encrypted
 }

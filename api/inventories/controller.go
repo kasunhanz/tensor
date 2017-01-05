@@ -19,15 +19,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const _CTX_INVENTORY = "inventory"
-const _CTX_USER = "user"
-const _CTX_INVENTORY_ID = "inventory_id"
+// Keys for credential releated items stored in the Gin Context
+const (
+	CTXInventory   = "inventory"
+	CTXUser        = "user"
+	CTXInventoryID = "inventory_id"
+)
 
-// InventoryMiddleware takes project_id parameter from gin.Context and
-// fetches project data from the database
-// this set project data under key project in gin.Context
+// Middleware generates a middleware handler function that works inside of a Gin request.
+// This function takes project_id parameter from Gin Context and fetches project data from the database
+// this set project data under key project in Gin Context.
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(_CTX_INVENTORY_ID, c)
+	ID, err := util.GetIdParam(CTXInventoryID, c)
 
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
@@ -52,13 +55,13 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_INVENTORY, inventory)
+	c.Set(CTXInventory, inventory)
 	c.Next()
 }
 
-// GetInventory returns the project as a JSON object
+// GetInventory is a Gin handler function which returns the project as a JSON object
 func GetInventory(c *gin.Context) {
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 
 	metadata.InventoryMetadata(&inventory)
 
@@ -66,7 +69,8 @@ func GetInventory(c *gin.Context) {
 	c.JSON(http.StatusOK, inventory)
 }
 
-// GetInventories returns a JSON array of projects
+// GetInventories is a Gin handler function which returns list of inventories
+// This takes lookup parameters and order parameters to filter and sort output data.
 func GetInventories(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
@@ -115,10 +119,11 @@ func GetInventories(c *gin.Context) {
 	})
 }
 
-// AddInventory creates a new project
+// AddInventory is a Gin handler function which creates a new inventory using request payload.
+// This accepts Inventory model.
 func AddInventory(c *gin.Context) {
 	var req models.Inventory
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
@@ -164,7 +169,18 @@ func AddInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Inventory "+req.Name+" created")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXInventory,
+		ObjectID:    req.ID,
+		Description: "Inventory " + req.Name + " created",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	metadata.InventoryMetadata(&req)
 
@@ -172,13 +188,14 @@ func AddInventory(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
-// UpdateInventory will update existing Inventory with
-// request parameters
+// UpdateInventory is a Gin handler function which updates a credential using request payload.
+// This replaces all the fields in the database, empty "" fiels and unspecified fields will be
+// removed from the database.
 func UpdateInventory(c *gin.Context) {
 	// get Inventory from the gin.Context
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.Inventory
 	err := binding.JSON.Bind(c.Request, &req)
@@ -230,7 +247,18 @@ func UpdateInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(req.ID, user.ID, "Inventory "+inventory.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXInventory,
+		ObjectID:    req.ID,
+		Description: "Inventory " + req.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.InventoryMetadata(&inventory)
@@ -238,13 +266,14 @@ func UpdateInventory(c *gin.Context) {
 	c.JSON(http.StatusOK, inventory)
 }
 
-// PatchInventory will update existing Inventory with
-// request parameters
+// PatchInventory is a Gin handler function which partially updates a inventory using request payload.
+// This replaces specified fields in the data, empty "" fields will be
+// removed from the database object. unspecified fields will be ignored.
 func PatchInventory(c *gin.Context) {
 	// get Inventory from the gin.Context
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var req models.PatchInventory
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -311,7 +340,18 @@ func PatchInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(inventory.ID, user.ID, "Inventory "+inventory.Name+" updated")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXInventory,
+		ObjectID:    inventory.ID,
+		Description: "Inventory " + inventory.Name + " updated",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// set `related` and `summary` feilds
 	metadata.InventoryMetadata(&inventory)
@@ -320,10 +360,11 @@ func PatchInventory(c *gin.Context) {
 	c.JSON(http.StatusOK, inventory)
 }
 
+// RemoveInventory is a Gin handler function which removes a inventory object from the database
 func RemoveInventory(c *gin.Context) {
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	changes, err := db.Hosts().RemoveAll(bson.M{"inventory_id": inventory.ID})
 	if err != nil {
@@ -355,16 +396,29 @@ func RemoveInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	addActivity(inventory.ID, user.ID, "Inventory "+inventory.Name+" deleted")
+	if err := db.ActivityStream().Insert(models.Activity{
+		ID:          bson.NewObjectId(),
+		ActorID:     user.ID,
+		Type:        CTXInventory,
+		ObjectID:    inventory.ID,
+		Description: "Inventory " + inventory.Name + " deleted",
+		Created:     time.Now(),
+	}); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
+// Script is a Gin Handler function which generates a ansible compatible
+// inventory output
 // note: we are not using var varname []string specially because
 // output json must include [] for each array and {} for each object
 func Script(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 
 	// query variables
 	//qall := c.Query("all")
@@ -559,10 +613,12 @@ func Script(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// JobTemplates is a Gin Handler function which returns list of Job Templates
+// that includes the inventory.
 func JobTemplates(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var jobTemplate []models.JobTemplate
 	// new mongodb iterator
@@ -605,10 +661,12 @@ func JobTemplates(c *gin.Context) {
 	})
 }
 
+// RootGroups is a Gin handler function which returns list of root groups
+// of the inventory.
 func RootGroups(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var groups []models.Group
 	query := bson.M{
@@ -658,10 +716,12 @@ func RootGroups(c *gin.Context) {
 	})
 }
 
+// Groups is a Gin Handler function which returns all the groups of
+// an Inventory.
 func Groups(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var groups []models.Group
 	query := bson.M{
@@ -707,10 +767,12 @@ func Groups(c *gin.Context) {
 	})
 }
 
+// Hosts is a Gin handler function which returns all hosts
+// associated with the inventory.
 func Hosts(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(CTXUser).(models.User)
 
 	var hosts []models.Host
 	query := bson.M{
@@ -756,12 +818,14 @@ func Hosts(c *gin.Context) {
 	})
 }
 
+// ActivityStream is a Gin handler function which returns list of activities associated with
+// inventory object that is in the Gin Context.
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 
 	var activities []models.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": inventory.ID, "type": _CTX_INVENTORY}).All(&activities)
+	err := db.ActivityStream().Find(bson.M{"object_id": inventory.ID, "type": CTXInventory}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
@@ -788,9 +852,11 @@ func ActivityStream(c *gin.Context) {
 	})
 }
 
+// Tree is a Gin handler function which generete a json tree of the
+// inventory.
 // TODO: complete
 func Tree(c *gin.Context) {
-	inv := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(models.Inventory)
 
 	var groups []models.Group
 	query := bson.M{
@@ -834,8 +900,9 @@ func Tree(c *gin.Context) {
 	})
 }
 
+// VariableData is a Gin Handler function which returns variable data for the inventory.
 func VariableData(c *gin.Context) {
-	inventory := c.MustGet(_CTX_INVENTORY).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(models.Inventory)
 
 	variables := gin.H{}
 

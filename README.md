@@ -23,3 +23,9 @@ go get -u github.com/jteeuwen/go-bindata/...
 go get github.com/mitchellh/gox
 go get github.com/cespare/reflex
 ```
+
+# Vagrant
+vagrant up --provider=libvirt
+export VAGRANT_DEFAULT_PROVIDER=libvirt
+
+VAGRANT_VAGRANTFILE=Vagrantfile.centos VAGRANT_DOTFILE_PATH=.vagrant_centos vagrant up

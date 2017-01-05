@@ -1,0 +1,10 @@
+---
+
+- name: "Restart MongoDB"
+  systemd: name={{ mongodb_daemon }} state=restarted
+
+- name: "Start MongoDB"
+  systemd: name={{ mongodb_daemon }} state=started
+
+- name: "Enable MongoDB"
+  systemd: name={{ mongodb_daemon }} state=started enabled=yes
