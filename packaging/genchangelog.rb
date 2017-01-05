@@ -1,14 +1,6 @@
 #!/usr/bin/ruby
 require 'erb'
 
-# Determines package name from the origin url on github. It's hackish, but it
-# works (mostly).
-def pkgname
-  originurl = `git config --get remote.origin.url`.strip
-  _, pkgname = originurl.match(/\/([a-z0-9\-_]+).git/i).to_a
-  pkgname
-end
-
 # Accepts a hash of git log data and returns a properly formatted debian 
 # changelog entry.
 def debchangelog(logdata)
@@ -41,8 +33,8 @@ def cleanup_temporary_tag
   `git tag -d #{TEMPTAG}`
 end
 
-# Get the name of this repository
-PKGNAME = pkgname.downcase
+# Set the name of this repository
+PKGNAME = "tensor"
 
 # Name for the temporary tag (only used if the repository has no tags)
 TEMPTAG = 'initial'

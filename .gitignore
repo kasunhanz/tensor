@@ -32,3 +32,8 @@ packaging/docker/tensor/tensor.deb
 #ignore project vs code
 .vscode/
 .idea/
+
+# Ignore vagrant
+packaging/vagrant/*.log
+packaging/vagrant/*.retry
+packaging/vagrant/.vagrant*

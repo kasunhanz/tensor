@@ -1,0 +1,155 @@
+tensor (%VERSION%-%RELEASE%~%DIST%) %DIST%; urgency=low
+
+  * %VERSION% release
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  %DATE%
+
+tensor (0.1.4-8-g8008988) unstable; urgency=low
+
+  * Added comments to handler function few improvements
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 3 Jan 2017 22:22:40 +0530
+
+tensor (0.1.4-7-g3caccdb) unstable; urgency=low
+
+  * Add additional playbook formats .yaml and json
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 20 Dec 2016 22:07:52 +0530
+
+tensor (0.1.4-6-g484eed8) unstable; urgency=low
+
+  * Bump version & improve logging in runners package
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 20 Dec 2016 21:43:03 +0530
+
+tensor (0.1.4-5-gecaff40) unstable; urgency=low
+
+  * Merged branch queue-redis into develop
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 20 Dec 2016 19:17:36 +0530
+
+tensor (0.1.4-4-gfa22d9e) unstable; urgency=low
+
+  * Redis JobQueue to enable Tensor Cluster
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 20 Dec 2016 19:10:50 +0530
+
+tensor (0.1.4-3-gb3ff3da) unstable; urgency=low
+
+  * Update control description
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Tue, 29 Nov 2016 13:28:04 +0530
+
+tensor (0.1.4-2-g987d305) unstable; urgency=low
+
+  * Version bump 0.1.5
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Fri, 25 Nov 2016 21:04:40 +0530
+
+tensor (0.1.4-1-g2a158f2) unstable; urgency=low
+
+  * Update LICENSE and NOTICE
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Fri, 25 Nov 2016 20:55:40 +0530
+
+tensor (0.1.4) unstable; urgency=low
+
+  * Release v0.1.4
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Wed, 23 Nov 2016 20:39:27 +0530
+
+tensor (0.1.3-3-gc33005d) unstable; urgency=low
+
+  * Windows support and New build environment
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Wed, 23 Nov 2016 20:36:36 +0530
+
+tensor (0.1.3-2-gc8c35c1) unstable; urgency=low
+
+  * Fix self-assignment host in updatehost
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Mon, 21 Nov 2016 12:31:44 +0530
+
+tensor (0.1.3-1-g01408c3) unstable; urgency=low
+
+  * Fix self-assignment of inventory update
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Mon, 21 Nov 2016 12:29:49 +0530
+
+tensor (0.1.3) unstable; urgency=low
+
+  * Release v0.1.3
+
+ -- Gamunu Balagalla <gamunu.balagalla@outlook.com>  Mon, 21 Nov 2016 12:23:24 +0530
+
+tensor (0.0.12-4-g395af1d) unstable; urgency=low
+
+  * Removing Quotes from extravars marshal
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Fri, 18 Nov 2016 14:01:28 +0530
+
+tensor (0.0.12-3-gdc15238) unstable; urgency=low
+
+  * Use addition log fields
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Tue, 15 Nov 2016 15:47:10 +0530
+
+tensor (0.0.12-2-gf35cc1d) unstable; urgency=low
+
+  * Use use salt value from the config
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Fri, 11 Nov 2016 12:07:45 +0530
+
+tensor (0.0.12-1-gbe33692) unstable; urgency=low
+
+  * Replaced panics with logrus logging.
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Fri, 11 Nov 2016 12:06:26 +0530
+
+tensor (0.0.12) unstable; urgency=low
+
+  * Remove metadata return error to reduce API errors
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Thu, 10 Nov 2016 19:32:48 +0530
+
+tensor (0.1.0-1-gcf2bc6e) unstable; urgency=low
+
+  * Improve loging using https://github.com/Sirupsen/logrus
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Tue, 8 Nov 2016 20:10:45 +0530
+
+tensor (0.1.0) unstable; urgency=low
+
+  * Using pointers to handle PATCH request
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Tue, 8 Nov 2016 16:40:55 +0530
+
+tensor (0.0.11) unstable; urgency=low
+
+  * Setting  HOME as root
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Thu, 3 Nov 2016 16:48:24 +0530
+
+tensor (0.0.10) unstable; urgency=low
+
+  * Fix ansible jobs not running
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Thu, 3 Nov 2016 16:34:31 +0530
+
+tensor (0.0.9) unstable; urgency=low
+
+  * Support for multiple Project Updates jobs and Job Kill
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Wed, 2 Nov 2016 18:41:37 +0530
+
+tensor (0.0.8) unstable; urgency=low
+
+  * Bump version v0.0.8
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Tue, 1 Nov 2016 10:45:40 +0530
+
+tensor (0.0.7) unstable; urgency=low
+
+  * Use domain if exisit add argument if the job type is check
+
+ -- Gamunu Balagalla <udaya.balagalla@pearson.com>  Mon, 31 Oct 2016 19:22:30 +0530

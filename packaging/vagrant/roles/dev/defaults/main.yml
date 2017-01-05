@@ -1,0 +1,19 @@
+#Golang
+
+go_tarball: "go1.7.4.linux-amd64.tar.gz"
+go_tarball_checksum: "sha256:47fda42e46b4c3ec93fa5d4d4cc6a748aa3f9411a2a2b7e08e3a6d80d753ec8b"
+go_version_target: "go version go1.7.1 linux/amd64"
+set_go_path: true
+
+mongodb_host: "127.0.0.1:27017"
+mongodb_user: "tensor"
+mongodb_password: "tensor"
+mongodb_database: "tensordb"
+mongodb_replica_set: ""
+redis_host: "127.0.0.1:6379"
+tensor_port: ":8010"
+tensor_projects_home: "/data"
+tensor_salt: "dEaxmDC3EDxNfcZ6+98mfDaesDdkwhbcsw+ELrEjfe4="
+
+
+tensor_conf_path: /etc/tensor.conf

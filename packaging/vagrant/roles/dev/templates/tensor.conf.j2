@@ -1,0 +1,12 @@
+mongodb:
+   hosts:
+      - "{{ mongodb_host }}"
+   user: "{{ mongodb_user }}"
+   pass: "{{ mongodb_password }}"
+   name: "{{ mongodb_database }}"
+   replica_set: "{{ mongodb_replica_set }}"
+redis:
+    host: "{{ redis_host }}"
+port: "{{ tensor_port }}"
+projects_home: "{{ tensor_projects_home }}"
+salt: "{{ tensor_salt }}"
