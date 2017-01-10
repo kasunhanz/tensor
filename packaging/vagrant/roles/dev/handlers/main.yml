@@ -1,1 +1,10 @@
 ---
+
+- name: "Restart Docker"
+  systemd: name={{ docker_daemon }} state=restarted
+
+- name: "Start Docker"
+  systemd: name={{ docker_daemon }} state=started
+
+- name: "Enable Docker"
+  systemd: name={{ docker_daemon }} state=started enabled=yes

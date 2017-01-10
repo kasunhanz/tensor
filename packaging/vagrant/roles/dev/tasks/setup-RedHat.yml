@@ -19,16 +19,9 @@
     state: present
   when: not epel_repofile_result.stat.exists
 
-- name: Allow port 6379 through firewalld
-  firewalld:
-    port: 6379/tcp
-    permanent: true
-    immediate: true
-    state: enabled
-  ignore_errors: yes # If firealld is not enabled
-
-- name: Ensure Redis is installed.
-  package:
-    name: "{{ redis_package }}"
-    state: present
-    enablerepo: "{{ redis_enablerepo }}"
+- name: Install dependencies packages
+  dnf: name={{ item }} state=present
+  with_items: "{{ tensor_packages_dependencies }}"
+  notify:
+    - "Start Docker"
+    - "Enable Docker"

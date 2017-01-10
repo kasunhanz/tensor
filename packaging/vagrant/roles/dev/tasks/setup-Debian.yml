@@ -1,0 +1,20 @@
+# Setup docker repository
+- name: "Add docker key"
+  apt_key:
+    keyserver: hkp://ha.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+
+- apt_repository:
+    repo: "deb https://apt.dockerproject.org/repo ubuntu-xenial main"
+    state: present
+    filename: "docker.list"
+
+- apt_repository:
+    repo: 'ppa:ansible/ansible'
+
+- name: Install dependencies packages
+  apt: name={{ item }} state=present
+  with_items: "{{ tensor_packages_dependencies }}"
+  notify:
+    - "Start Docker"
+    - "Enable Docker"

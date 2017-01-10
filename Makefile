@@ -53,23 +53,32 @@ PBUILDER_CACHE_DIR = /var/cache/pbuilder
 PBUILDER_BIN ?= pbuilder
 PBUILDER_OPTS ?= --debootstrapopts --variant=buildd --architecture $(PBUILDER_ARCH) --debbuildopts -b
 
+# RPM build parameters
+RPMSPECDIR= packaging/rpm
+RPMSPEC = $(RPMSPECDIR)/ansible.spec
+RPMDIST = $(shell rpm --eval '%{?dist}')
+RPMRELEASE = $(RELEASE)
+ifneq ($(OFFICIAL),yes)
+    RPMRELEASE = 100.git$(DATE)$(GITINFO)
+endif
+RPMNVR = "$(NAME)-$(VERSION)-$(RPMRELEASE)$(RPMDIST)"
+
 sdist: vet
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/bin/
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/systemd/
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/etc/
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/debian/
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/lib/plugins/inventory
-	mkdir -p build/deb-build/$(NAME)-$(VERSION)/lib/playbooks
-	cp packaging/config/tensor.conf build/deb-build/$(NAME)-$(VERSION)/etc/
-	cp packaging/systemd/tensord.service build/deb-build/$(NAME)-$(VERSION)/systemd/
-	cp -a docs build/deb-build/$(NAME)-$(VERSION)/
-	go build -v -o build/deb-build/$(NAME)-$(VERSION)/bin/tensord ./tensord/...
-	go build -v -o build/deb-build/$(NAME)-$(VERSION)/bin/tensor ./cmd/...
-	cp -a packaging/ansible/playbooks/* build/deb-build/$(NAME)-$(VERSION)/lib/playbooks/
-	cp -a packaging/ansible/playbooks/* build/deb-build/$(NAME)-$(VERSION)/lib/playbooks/
-	cp -a packaging/ansible/plugins/inventory/* build/deb-build/$(NAME)-$(VERSION)/lib/plugins/inventory/
-	chmod 774 build/deb-build/$(NAME)-$(VERSION)/lib/plugins/inventory/*
-	cd build/deb-build/ && env GZIP=-9 tar -cvzf $(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)
+	mkdir -p build/dist/$(NAME)-$(VERSION)/bin/
+	mkdir -p build/dist/$(NAME)-$(VERSION)/systemd/
+	mkdir -p build/dist/$(NAME)-$(VERSION)/etc/
+	mkdir -p build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory
+	mkdir -p build/dist/$(NAME)-$(VERSION)/lib/playbooks
+	cp packaging/config/tensor.conf build/dist/$(NAME)-$(VERSION)/etc/
+	cp packaging/systemd/tensord.service build/dist/$(NAME)-$(VERSION)/systemd/
+	cp -a docs build/dist/$(NAME)-$(VERSION)/
+	go build -v -o build/dist/$(NAME)-$(VERSION)/bin/tensord ./tensord/...
+	go build -v -o build/dist$(NAME)-$(VERSION)/bin/tensor ./cmd/...
+	cp -a packaging/ansible/playbooks/* build/dist/$(NAME)-$(VERSION)/lib/playbooks/
+	cp -a packaging/ansible/playbooks/* build/dist/$(NAME)-$(VERSION)/lib/playbooks/
+	cp -a packaging/ansible/plugins/inventory/* build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory/
+	chmod 774 build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory/*
+	cd build/dist/ && env GZIP=-9 tar -cvzf $(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)
 
 clean:
 	@echo "Cleaning up distutils stuff"
@@ -80,7 +89,8 @@ debian:	sdist
 	@echo "Creating destribution specific build directories"
 	@for DIST in $(DEB_DIST) ; do \
 		mkdir -p build/deb-build/$${DIST} ; \
-		tar -C build/deb-build/$${DIST} -xvf build/deb-build/$(NAME)-$(VERSION).tar.gz ; \
+		tar -C build/deb-build/$${DIST} -xvf build/sdist/$(NAME)-$(VERSION).tar.gz ; \
+		mkdir -p build/dist/$(NAME)-$(VERSION)/debian/ ; \
 		cp -a packaging/debian/* build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/ ; \
 		sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$${DIST}|g;s|%DATE%|$(DEB_DATE)|g" build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/changelog ; \
 	done
@@ -122,6 +132,40 @@ local_deb: debian
 	@for DIST in $(DEB_DIST) ; do \
 	    echo build/deb-build/$${DIST}/$(NAME)_$(VERSION)-$(DEB_RELEASE)~$${DIST}_amd64.changes ; \
 	done
+
+rpmcommon: sdist
+	@mkdir -p /build/rpm-build
+	@cp dist/*.gz /build/rpm-build/
+	@sed -e 's#^Version:.*#Version: $(VERSION)#' -e 's#^Release:.*#Release: $(RPMRELEASE)%{?dist}#' $(RPMSPEC) >/build/rpm-build/$(NAME).spec
+
+srpm: rpmcommon
+	@rpmbuild --define "_topdir %(pwd)/build/rpm-build" \
+	--define "_builddir %{_topdir}" \
+	--define "_rpmdir %{_topdir}" \
+	--define "_srcrpmdir %{_topdir}" \
+	--define "_specdir $(RPMSPECDIR)" \
+	--define "_sourcedir %{_topdir}" \
+	-bs /build/rpm-build/$(NAME).spec
+	@rm -f /build/rpm-build/$(NAME).spec
+	@echo "#############################################"
+	@echo "Tensor SRPM is built:"
+	@echo "    /build/rpm-build/$(RPMNVR).src.rpm"
+	@echo "#############################################"
+
+rpm: rpmcommon
+	@rpmbuild --define "_topdir %(pwd)/build/rpm-build" \
+	--define "_builddir %{_topdir}" \
+	--define "_rpmdir %{_topdir}" \
+	--define "_srcrpmdir %{_topdir}" \
+	--define "_specdir $(RPMSPECDIR)" \
+	--define "_sourcedir %{_topdir}" \
+	--define "_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" \
+	-ba /build/rpm-build/$(NAME).spec
+	@rm -f /build/rpm-build/$(NAME).spec
+	@echo "#############################################"
+	@echo "Python RPM is built:"
+	@echo "    /build/rpm-build/$(RPMNVR).noarch.rpm"
+	@echo "#############################################"
 
 # Build tensor docker image and tag with current version
 docker-build-image: deb

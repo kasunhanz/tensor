@@ -9,3 +9,4 @@ mongodb_packages_dependencies:
   - libselinux-python
   - gcc
   - python-devel
+  - python-firewall

@@ -1,35 +1,15 @@
-# Setup docker repository
-- name: "Add docker key"
-  apt_key:
-    keyserver: hkp://ha.pool.sks-keyservers.net:80
-    id: 58118E89F3A912897C070ADBF76221572C52609D
+---
 
-- apt_repository:
-    repo: "deb https://apt.dockerproject.org/repo ubuntu-xenial main"
-    state: present
-    filename: "docker.list"
+# Variable setup.
+- name: Include OS-specific variables.
+  include_vars: "{{ ansible_os_family }}.yml"
 
-- apt_repository:
-    repo: 'ppa:ansible/ansible'
+# Setup/install tasks.
+- include: "setup-RedHat.yml"
+  when: ansible_os_family == 'RedHat'
 
-- name: 'Install dependencies'
-  tags: 'golang'
-  apt: pkg={{ item }} state=present update_cache=yes
-  with_items:
-    - 'mercurial'  # For cloning the Golang repository
-    - 'git'        # For getting Go dependencies from GitHub
-    - 'python-setuptools'
-    - 'docker-engine'
-    - 'make'
-    - 'ruby'
-    - 'devscripts'
-    - 'build-essential'
-    - 'cdbs'
-    - 'debhelper'
-    - 'lintian'
-    - 'dh-make'
-    - 'cdbs'
-    - 'ansible'
+- include: setup-Debian.yml
+  when: ansible_os_family == 'Debian'
 
 - name: Install docker compose
   get_url: 
@@ -71,16 +51,16 @@
   file:
     path: /go
     state: directory
-    owner: ubuntu
-    group: ubuntu
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
     recurse: yes
 
 - name: Create tensor data dir
   file:
     path: /data
     state: directory
-    owner: ubuntu
-    group: ubuntu
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
 
 - name: Ensure Tensor is configured.
   template:
