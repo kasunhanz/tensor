@@ -3,12 +3,12 @@ package main
 import (
 	"time"
 
-	"bitbucket.pearson.com/apseng/tensor/api"
-	"bitbucket.pearson.com/apseng/tensor/api/sockets"
-	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/queue"
-	"bitbucket.pearson.com/apseng/tensor/runners"
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"github.com/gamunu/tensor/api"
+	"github.com/gamunu/tensor/api/sockets"
+	"github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/queue"
+	"github.com/gamunu/tensor/runners"
+	"github.com/gamunu/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"

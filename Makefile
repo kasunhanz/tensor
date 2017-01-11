@@ -89,7 +89,7 @@ debian:	sdist
 	@echo "Creating destribution specific build directories"
 	@for DIST in $(DEB_DIST) ; do \
 		mkdir -p build/deb-build/$${DIST} ; \
-		tar -C build/deb-build/$${DIST} -xvf build/sdist/$(NAME)-$(VERSION).tar.gz ; \
+		tar -C build/deb-build/$${DIST} -xvf build/dist/$(NAME)-$(VERSION).tar.gz ; \
 		mkdir -p build/dist/$(NAME)-$(VERSION)/debian/ ; \
 		cp -a packaging/debian/* build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/ ; \
 		sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$${DIST}|g;s|%DATE%|$(DEB_DATE)|g" build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/changelog ; \

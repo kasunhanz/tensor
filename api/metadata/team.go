@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
+	"github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 )

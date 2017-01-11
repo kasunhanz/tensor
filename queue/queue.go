@@ -6,7 +6,7 @@ import (
 	"github.com/adjust/uniuri"
 	"github.com/gamunu/rmq"
 
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"github.com/gamunu/tensor/util"
 	log "github.com/Sirupsen/logrus"
 )
 

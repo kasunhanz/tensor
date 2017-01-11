@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/db"
+	"github.com/gamunu/tensor/db"
 	"gopkg.in/mgo.v2/bson"
 )
 

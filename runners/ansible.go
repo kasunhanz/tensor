@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.pearson.com/apseng/tensor/db"
-	"bitbucket.pearson.com/apseng/tensor/models"
-	"bitbucket.pearson.com/apseng/tensor/queue"
-	"bitbucket.pearson.com/apseng/tensor/ssh"
-	"bitbucket.pearson.com/apseng/tensor/util"
+	"github.com/gamunu/tensor/db"
+	"github.com/gamunu/tensor/models"
+	"github.com/gamunu/tensor/queue"
+	"github.com/gamunu/tensor/ssh"
+	"github.com/gamunu/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 )

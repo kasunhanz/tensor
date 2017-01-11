@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"sync"
 
-	"bitbucket.pearson.com/apseng/tensor/models"
+	"github.com/gamunu/tensor/models"
 	"fmt"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"

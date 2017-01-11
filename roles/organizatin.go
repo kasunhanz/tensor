@@ -1,7 +1,7 @@
 package roles
 
 import (
-	"bitbucket.pearson.com/apseng/tensor/models"
+	"github.com/gamunu/tensor/models"
 )
 
 func OrganizationRead(user models.User, organization models.Organization) bool {
