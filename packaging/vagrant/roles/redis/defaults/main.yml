@@ -6,7 +6,7 @@ redis_timeout: 300
 redis_loglevel: "notice"
 redis_logfile: /var/log/redis/redis-server.log
 
-redis_databases: 16
+redis_databases: 5
 
 # Set to an empty set to disable persistence (saving the DB to disk).
 redis_save:
@@ -16,7 +16,7 @@ redis_save:
 
 redis_rdbcompression: "yes"
 redis_dbfilename: tensor.rdb
-redis_dbdir: /data/redis
+redis_dbdir: /data/redis/
 
 redis_maxmemory: 0
 redis_maxmemory_policy: "noeviction"
