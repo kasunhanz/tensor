@@ -215,6 +215,12 @@ doc:
 fmt:
 	go fmt ./...
 
+# Vet examines Go source code and reports suspicious constructs
+# http://godoc.org/code.google.com/p/go.tools/cmd/vet
+# go get code.google.com/p/go.tools/cmd/vet
+vet:
+	go vet ./...
+
 # https://github.com/golang/lint
 # go get github.com/golang/lint/golint
 lint:
@@ -229,8 +235,3 @@ run:
 test:
 	go test ./...
 
-# Vet examines Go source code and reports suspicious constructs
-# http://godoc.org/code.google.com/p/go.tools/cmd/vet
-# go get code.google.com/p/go.tools/cmd/vet
-vet:
-	go vet ./...
