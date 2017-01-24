@@ -1,6 +1,8 @@
-**Tensor: Comprehensive web-based automation framework and Centralized infrastructure management platform** [![Release](https://img.shields.io/github/release/pearsonappeng/tensor.svg)](https://github.com/pearsonappeng/tensor/releases/latest)
-
+Tensor: Comprehensive web-based automation framework and Centralized infrastructure management platform
 ---
+[![Release](https://img.shields.io/github/release/pearsonappeng/tensor.svg)](https://github.com/pearsonappeng/tensor/releases/latest) | 
+[![Issues](https://img.shields.io/github/issues/pearsonappeng/tensor.svg)](https://github.com/pearsonappeng/tensor/releases/latest)
+
 Centralized infrastructure management REST API, based on ansible, provides role-based access control, job scheduling, inventory management.
 Currently, the REST API supports the only ansible. Our expectation is to support other CI-CD automation tools like Chef,Puppet in the near future.
 
