@@ -4,33 +4,33 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pearsonappeng/tensor/api/metadata"
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/api/metadata"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
+	"github.com/pearsonappeng/tensor/roles"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // AccessList is a Gin handler function, returns access list
 // for specifed credential object
 func AccessList(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var organization models.Organization
+	var organization common.Organization
 	err := db.Organizations().FindId(credential.OrganizationID).One(&organization)
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Access List"},
 		})
 		return
 	}
 
-	var allaccess map[bson.ObjectId]*models.AccessType
+	var allaccess map[bson.ObjectId]*common.AccessType
 
 	// indirect access from organization
 	for _, v := range organization.Roles {
@@ -154,14 +154,14 @@ func AccessList(c *gin.Context) {
 
 	}
 
-	var usrs []models.AccessUser
+	var usrs []common.AccessUser
 
 	for k, v := range allaccess {
-		var user models.AccessUser
+		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting Access List"},
 			})
@@ -181,7 +181,7 @@ func AccessList(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),

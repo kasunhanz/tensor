@@ -2,16 +2,18 @@ package jwt
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/util"
-	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/appleboy/gin-jwt.v2"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"net/mail"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/util"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/appleboy/gin-jwt.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var HeaderAuthMiddleware *jwt.GinJWTMiddleware
@@ -36,7 +38,7 @@ func init() {
 				q = bson.M{"username": login}
 			}
 
-			var user models.User
+			var user common.User
 
 			if err := db.Users().Find(q).One(&user); err != nil {
 				log.Warningln("Auth: User not found", q)
@@ -52,7 +54,7 @@ func init() {
 
 		},
 		Authorizator: func(userID string, c *gin.Context) bool {
-			var user models.User
+			var user common.User
 			if err := db.Users().FindId(bson.ObjectIdHex(userID)).One(&user); err != nil {
 				log.Warningln("Auth: User not found", userID)
 				return false

@@ -1,9 +1,11 @@
-package models
+package ansible
 
 import (
-	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type JobTemplate struct {
@@ -61,11 +63,11 @@ type JobTemplate struct {
 	Modified time.Time `bson:"modified" json:"modified" binding:"omitempty,naproperty"`
 
 	Type    string `bson:"-" json:"type"`
-	Url     string `bson:"-" json:"url"`
+	URL     string `bson:"-" json:"url"`
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles []common.AccessControl `bson:"roles" json:"-"`
 }
 
 type PatchJobTemplate struct {

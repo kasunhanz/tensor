@@ -7,14 +7,14 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -36,22 +36,22 @@ func Middleware(c *gin.Context) {
 			"Credential ID": ID,
 			"Error":         err.Error(),
 		}).Errorln("Error while getting Credential ID url parameter")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
 		c.Abort()
 		return
 	}
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var credential models.Credential
+	var credential common.Credential
 	if err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
 		log.WithFields(log.Fields{
 			"Credential ID": ID,
 			"Error":         err.Error(),
 		}).Errorln("Error while retriving Credential form the database")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -61,7 +61,7 @@ func Middleware(c *gin.Context) {
 
 	// reject the request if the user doesn't have permissions
 	if !roles.CredentialRead(user, credential) {
-		c.JSON(http.StatusUnauthorized, models.Error{
+		c.JSON(http.StatusUnauthorized, common.Error{
 			Code:     http.StatusUnauthorized,
 			Messages: []string{"Unauthorized"},
 		})
@@ -75,7 +75,7 @@ func Middleware(c *gin.Context) {
 
 // GetCredential is a Gin handler function which returns the credential as a JSON object
 func GetCredential(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
@@ -86,7 +86,7 @@ func GetCredential(c *gin.Context) {
 // GetCredentials is a Gin handler function which returns list of credentials
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetCredentials(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -104,11 +104,11 @@ func GetCredentials(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
-	var credentials []models.Credential
+	var credentials []common.Credential
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpCred models.Credential
+	var tmpCred common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCred) {
 		// if the user doesn't have access to credential
@@ -130,7 +130,7 @@ func GetCredentials(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Credential data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
 		})
@@ -156,7 +156,7 @@ func GetCredentials(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -167,15 +167,15 @@ func GetCredentials(c *gin.Context) {
 // AddCredential is a Gin handler function which creates a new credential using request payload.
 // This accepts Credential model.
 func AddCredential(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.Credential
+	var req common.Credential
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Invlid JSON request")
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -185,7 +185,7 @@ func AddCredential(c *gin.Context) {
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
 		if !helpers.OrganizationExist(*req.OrganizationID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
 			})
@@ -195,7 +195,7 @@ func AddCredential(c *gin.Context) {
 
 	// if the Credential exist in the collection it is not unique
 	if helpers.IsNotUniqueCredential(req.Name) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Credential with this Name already exists."},
 		})
@@ -216,11 +216,11 @@ func AddCredential(c *gin.Context) {
 		req.Password = util.CipherEncrypt(req.Password)
 	}
 
-	if len(req.SshKeyData) > 0 {
-		req.SshKeyData = util.CipherEncrypt(req.SshKeyData)
+	if len(req.SSHKeyData) > 0 {
+		req.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
 
-		if len(req.SshKeyUnlock) > 0 {
-			req.SshKeyUnlock = util.CipherEncrypt(req.SshKeyUnlock)
+		if len(req.SSHKeyUnlock) > 0 {
+			req.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
 		}
 	}
 
@@ -240,7 +240,7 @@ func AddCredential(c *gin.Context) {
 			"Credential ID": req.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while creating Credential")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Credential"},
 		})
@@ -250,7 +250,7 @@ func AddCredential(c *gin.Context) {
 	roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN)
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXCredential,
@@ -275,13 +275,13 @@ func AddCredential(c *gin.Context) {
 // unspecified fields will be removed from the database object.
 func UpdateCredential(c *gin.Context) {
 
-	user := c.MustGet(CTXUser).(models.User)
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	user := c.MustGet(CTXUser).(common.User)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var req models.Credential
+	var req common.Credential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -291,7 +291,7 @@ func UpdateCredential(c *gin.Context) {
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
 		if !helpers.OrganizationExist(*req.OrganizationID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
 			})
@@ -302,7 +302,7 @@ func UpdateCredential(c *gin.Context) {
 	if req.Name != credential.Name {
 		// if the Credential exist in the collection it is not unique
 		if helpers.IsNotUniqueCredential(req.Name) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential with this Name already exists."},
 			})
@@ -336,11 +336,11 @@ func UpdateCredential(c *gin.Context) {
 		credential.Password = util.CipherEncrypt(req.Password)
 	}
 
-	if req.SshKeyData != "$encrypted$" && len(req.SshKeyData) > 0 {
-		credential.SshKeyData = util.CipherEncrypt(req.SshKeyData)
+	if req.SSHKeyData != "$encrypted$" && len(req.SSHKeyData) > 0 {
+		credential.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
 
-		if req.SshKeyUnlock != "$encrypted$" && len(req.SshKeyUnlock) > 0 {
-			credential.SshKeyUnlock = util.CipherEncrypt(req.SshKeyUnlock)
+		if req.SSHKeyUnlock != "$encrypted$" && len(req.SSHKeyUnlock) > 0 {
+			credential.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
 		}
 	}
 
@@ -361,7 +361,7 @@ func UpdateCredential(c *gin.Context) {
 			"Credential ID": req.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while updating Credential")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
 		})
@@ -369,7 +369,7 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXCredential,
@@ -392,13 +392,13 @@ func UpdateCredential(c *gin.Context) {
 // This replaces specifed fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func PatchCredential(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	user := c.MustGet(CTXUser).(common.User)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var req models.PatchCredential
+	var req common.PatchCredential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -408,7 +408,7 @@ func PatchCredential(c *gin.Context) {
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
 		if !helpers.OrganizationExist(*req.OrganizationID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
 			})
@@ -419,7 +419,7 @@ func PatchCredential(c *gin.Context) {
 	if req.Name != nil && *req.Name != credential.Name {
 		// if the Credential exist in the collection it is not unique
 		if helpers.IsNotUniqueCredential(*req.Name) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential with this Name already exists."},
 			})
@@ -431,11 +431,11 @@ func PatchCredential(c *gin.Context) {
 		credential.Password = util.CipherEncrypt(*req.Password)
 	}
 
-	if req.SshKeyData != nil && *req.SshKeyData != "$encrypted$" {
-		credential.SshKeyData = util.CipherEncrypt(*req.SshKeyData)
+	if req.SSHKeyData != nil && *req.SSHKeyData != "$encrypted$" {
+		credential.SSHKeyData = util.CipherEncrypt(*req.SSHKeyData)
 
-		if req.SshKeyUnlock != nil && *req.SshKeyUnlock != "$encrypted$" {
-			credential.SshKeyUnlock = util.CipherEncrypt(*req.SshKeyUnlock)
+		if req.SSHKeyUnlock != nil && *req.SSHKeyUnlock != "$encrypted$" {
+			credential.SSHKeyUnlock = util.CipherEncrypt(*req.SSHKeyUnlock)
 		}
 	}
 
@@ -534,7 +534,7 @@ func PatchCredential(c *gin.Context) {
 			"Credential ID": credential.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while updating Credential")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Credential"},
 		})
@@ -542,7 +542,7 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXCredential,
@@ -563,15 +563,15 @@ func PatchCredential(c *gin.Context) {
 
 // RemoveCredential is a Gin handler function which removes a credential object from the database
 func RemoveCredential(c *gin.Context) {
-	crd := c.MustGet(CTXCredential).(models.Credential)
-	u := c.MustGet(CTXUser).(models.User)
+	crd := c.MustGet(CTXCredential).(common.Credential)
+	u := c.MustGet(CTXUser).(common.User)
 
 	if err := db.Credentials().RemoveId(crd.ID); err != nil {
 		log.WithFields(log.Fields{
 			"Credential ID": crd.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while deleting Credential")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while deleting Credential"},
 		})
@@ -580,7 +580,7 @@ func RemoveCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     u.ID,
 		Type:        CTXCredential,
@@ -599,13 +599,13 @@ func RemoveCredential(c *gin.Context) {
 // OwnerTeams is a Gin hander function which returns the access control list of Teams that has permissions to access
 // specifed credential object.
 func OwnerTeams(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var tms []models.Team
+	var tms []common.Team
 
 	for _, v := range credential.Roles {
 		if v.Type == "team" {
-			var team models.Team
+			var team common.Team
 			err := db.Teams().FindId(v.TeamID).One(&team)
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -639,7 +639,7 @@ func OwnerTeams(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -650,12 +650,12 @@ func OwnerTeams(c *gin.Context) {
 // OwnerUsers is a Gin handler function which returns the access control list of Users that has access to
 // specifed credential object.
 func OwnerUsers(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var usrs []models.User
+	var usrs []common.User
 	for _, v := range credential.Roles {
 		if v.Type == "user" {
-			var user models.User
+			var user common.User
 			err := db.Users().FindId(v.UserID).One(&user)
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -689,7 +689,7 @@ func OwnerUsers(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -701,16 +701,16 @@ func OwnerUsers(c *gin.Context) {
 // credential object that is in the Gin Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(models.Credential)
+	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var activities []models.Activity
+	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": CTXCredential}).All(&activities)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Activity data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
 		})
@@ -736,7 +736,7 @@ func ActivityStream(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -745,11 +745,11 @@ func ActivityStream(c *gin.Context) {
 }
 
 // hideEncrypted is replaces encrypted fields by $encrypted$ string
-func hideEncrypted(c *models.Credential) {
+func hideEncrypted(c *common.Credential) {
 	encrypted := "$encrypted$"
 	c.Password = encrypted
-	c.SshKeyData = encrypted
-	c.SshKeyUnlock = encrypted
+	c.SSHKeyData = encrypted
+	c.SSHKeyUnlock = encrypted
 	c.BecomePassword = encrypted
 	c.VaultPassword = encrypted
 	c.AuthorizePassword = encrypted

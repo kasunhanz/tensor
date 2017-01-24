@@ -7,11 +7,12 @@ import (
 
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -24,7 +25,7 @@ func Middleware(c *gin.Context) {
 
 	if err != nil {
 		log.Errorln("Error while getting the User:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -32,11 +33,11 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var user models.User
+	var user common.User
 	err = db.Users().FindId(bson.ObjectIdHex(userID)).One(&user)
 	if err != nil {
 		log.Errorln("Error while getting the User:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -49,12 +50,12 @@ func Middleware(c *gin.Context) {
 }
 
 func GetUser(c *gin.Context) {
-	var user models.User
+	var user common.User
 
 	if u, exists := c.Get(_CTX_USER); exists {
-		user = u.(models.User)
+		user = u.(common.User)
 	} else {
-		user = c.MustGet("user").(models.User)
+		user = c.MustGet("user").(common.User)
 	}
 
 	metadata.UserMetadata(&user)
@@ -74,11 +75,11 @@ func GetUsers(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var users []models.User
+	var users []common.User
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpUser models.User
+	var tmpUser common.User
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpUser) {
 		metadata.UserMetadata(&tmpUser)
@@ -87,7 +88,7 @@ func GetUsers(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
 		})
@@ -102,7 +103,7 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -112,12 +113,12 @@ func GetUsers(c *gin.Context) {
 
 func AddUser(c *gin.Context) {
 	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var req models.User
+	var req common.User
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -129,7 +130,7 @@ func AddUser(c *gin.Context) {
 
 	if err := db.Users().Insert(user); err != nil {
 		log.Errorln("Error while creating User:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating User"},
 		})
@@ -143,12 +144,12 @@ func AddUser(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
-	oldUser := c.MustGet("_user").(models.User)
+	oldUser := c.MustGet("_user").(common.User)
 
-	var user models.User
+	var user common.User
 	if err := c.BindJSON(&user); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -164,7 +165,7 @@ func UpdateUser(c *gin.Context) {
 }
 
 func DeleteUser(c *gin.Context) {
-	user := c.MustGet("_user").(models.User)
+	user := c.MustGet("_user").(common.User)
 
 	info, err := db.Projects().UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
 	if err != nil {
@@ -181,13 +182,13 @@ func DeleteUser(c *gin.Context) {
 }
 
 func Projects(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var projts []models.Project
+	var projts []common.Project
 	// new mongodb iterator
 	iter := db.Projects().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
-	var tmpProjct models.Project
+	var tmpProjct common.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProjct) {
 		metadata.ProjectMetadata(&tmpProjct)
@@ -197,7 +198,7 @@ func Projects(c *gin.Context) {
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Projects"},
 		})
@@ -212,7 +213,7 @@ func Projects(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -221,13 +222,13 @@ func Projects(c *gin.Context) {
 }
 
 func Credentials(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var creds []models.Credential
+	var creds []common.Credential
 	// new mongodb iterator
 	iter := db.Credentials().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
-	var tmpCredential models.Credential
+	var tmpCredential common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCredential) {
 		metadata.CredentialMetadata(&tmpCredential)
@@ -237,7 +238,7 @@ func Credentials(c *gin.Context) {
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credentials"},
 		})
@@ -252,7 +253,7 @@ func Credentials(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -261,13 +262,13 @@ func Credentials(c *gin.Context) {
 }
 
 func Teams(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var tms []models.Team
+	var tms []common.Team
 	// new mongodb iterator
 	iter := db.Teams().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
-	var tmpTeam models.Team
+	var tmpTeam common.Team
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpTeam) {
 		metadata.TeamMetadata(&tmpTeam)
@@ -277,7 +278,7 @@ func Teams(c *gin.Context) {
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credentials"},
 		})
@@ -292,7 +293,7 @@ func Teams(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -301,13 +302,13 @@ func Teams(c *gin.Context) {
 }
 
 func Organizations(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var orgs []models.Organization
+	var orgs []common.Organization
 	// new mongodb iterator
 	iter := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user"}).Iter()
 	// loop through each result and modify for our needs
-	var tmpOrganization models.Organization
+	var tmpOrganization common.Organization
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpOrganization) {
 		metadata.OrganizationMetadata(&tmpOrganization)
@@ -317,7 +318,7 @@ func Organizations(c *gin.Context) {
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving organization data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organizations"},
 		})
@@ -332,7 +333,7 @@ func Organizations(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -341,13 +342,13 @@ func Organizations(c *gin.Context) {
 }
 
 func AdminsOfOrganizations(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var orgs []models.Organization
+	var orgs []common.Organization
 	// new mongodb iterator
 	iter := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.type": "user", "roles.role": "admin"}).Iter()
 	// loop through each result and modify for our needs
-	var tmpOrganization models.Organization
+	var tmpOrganization common.Organization
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpOrganization) {
 		metadata.OrganizationMetadata(&tmpOrganization)
@@ -357,7 +358,7 @@ func AdminsOfOrganizations(c *gin.Context) {
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving organization data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Organizations"},
 		})
@@ -372,7 +373,7 @@ func AdminsOfOrganizations(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -382,14 +383,14 @@ func AdminsOfOrganizations(c *gin.Context) {
 
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(models.User)
+	user := c.MustGet(_CTX_USER).(common.User)
 
-	var activities []models.Activity
+	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"actor_id": user.ID}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Activities"},
 		})
@@ -404,7 +405,7 @@ func ActivityStream(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),

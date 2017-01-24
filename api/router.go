@@ -19,9 +19,10 @@ import (
 	"github.com/pearsonappeng/tensor/api/users"
 	"github.com/pearsonappeng/tensor/cors"
 	"github.com/pearsonappeng/tensor/jwt"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/util"
 )
 
 // Route defines all API endpoints
@@ -42,7 +43,7 @@ func Route(r *gin.Engine) {
 	// Handle 404
 	// this creates a response with standard error body
 	r.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not found"},
 		})
@@ -273,7 +274,7 @@ func getSystemInfo(c *gin.Context) {
 // notImplemented create a response with Status Not Implemented (501)
 // with standard error response body
 func notImplemented(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, models.Error{
+	c.JSON(http.StatusNotImplemented, common.Error{
 		Code:     http.StatusNotImplemented,
 		Messages: []string{"Method not implemented"},
 	})

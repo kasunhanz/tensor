@@ -1,4 +1,4 @@
-package models
+package ansible
 
 import (
 	"github.com/gin-gonic/gin"
@@ -27,7 +27,7 @@ type InventorySource struct {
 	SourceScriptID     bson.ObjectId `bson:"source_script_id" json:"source_script"`
 
 	Type          string `bson:"-" json:"type"`
-	Url           string `bson:"-" json:"url"`
+	URL           string `bson:"-" json:"url"`
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 }

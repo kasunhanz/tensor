@@ -13,7 +13,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
@@ -33,9 +35,9 @@ func systemRun(j QueueJob) {
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
-	if len(j.SCMCred.SshKeyData) > 0 {
-		if len(j.SCMCred.SshKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCMCred.SshKeyData)), util.CipherDecrypt(j.SCMCred.SshKeyUnlock))
+	if len(j.SCMCred.SSHKeyData) > 0 {
+		if len(j.SCMCred.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCMCred.SSHKeyData)), util.CipherDecrypt(j.SCMCred.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -54,7 +56,7 @@ func systemRun(j QueueJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCMCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCMCred.SSHKeyData)))
 
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -124,7 +126,7 @@ func systemRun(j QueueJob) {
 		cmd.Process.Kill()
 	})
 
-	if len(j.SCMCred.Password) > 0 && len(j.SCMCred.SshKeyData) <= 0 {
+	if len(j.SCMCred.Password) > 0 && len(j.SCMCred.SSHKeyData) <= 0 {
 		log.Println("Using credential instead of SSH key")
 		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
 	}
@@ -197,15 +199,15 @@ func (j *QueueJob) createJobDirs() {
 
 // UpdateProject will create and start a update system job
 // using ansible playbook project_update.yml
-func UpdateProject(p models.Project) (*QueueJob, error) {
-	job := models.Job{
+func UpdateProject(p common.Project) (*QueueJob, error) {
+	job := ansible.Job{
 		ID:           bson.NewObjectId(),
 		Name:         p.Name + " update Job",
 		Description:  "Updates " + p.Name + " Project",
-		LaunchType:   models.JOB_LAUNCH_TYPE_MANUAL,
+		LaunchType:   ansible.JOB_LAUNCH_TYPE_MANUAL,
 		CancelFlag:   false,
 		Status:       "pending",
-		JobType:      models.JOBTYPE_UPDATE_JOB,
+		JobType:      ansible.JOBTYPE_UPDATE_JOB,
 		Playbook:     "project_update.yml",
 		Verbosity:    0,
 		ProjectID:    p.ID,
@@ -224,7 +226,7 @@ func UpdateProject(p models.Project) (*QueueJob, error) {
 		"scm_type":             p.ScmType,
 		"project_path":         util.Config.ProjectsHome + "/" + p.ID.Hex(),
 		"scm_clean":            p.ScmClean,
-		"scm_url":              p.ScmUrl,
+		"scm_url":              p.ScmURL,
 		"scm_delete_on_update": p.ScmDeleteOnUpdate,
 		"scm_accept_hostkey":   true,
 	}
@@ -250,7 +252,7 @@ func UpdateProject(p models.Project) (*QueueJob, error) {
 	}
 
 	if job.SCMCredentialID != nil {
-		var credential models.Credential
+		var credential common.Credential
 		if err := db.Credentials().FindId(*job.SCMCredentialID).One(&credential); err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),

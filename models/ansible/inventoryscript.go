@@ -1,13 +1,13 @@
-package models
+package ansible
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
-// CustomInventoryScript is the model for organization
-// collection
+// InventoryScript is the model for organization collection
 type InventoryScript struct {
 	ID          bson.ObjectId `bson:"_id" json:"id"`
 	Name        string        `bson:"name" json:"name" binding:"required"`
@@ -21,7 +21,7 @@ type InventoryScript struct {
 	Modified time.Time `bson:"modified" json:"modified"`
 
 	Type          string `bson:"-" json:"type"`
-	Url           string `bson:"-" json:"url"`
+	URL           string `bson:"-" json:"url"`
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 }

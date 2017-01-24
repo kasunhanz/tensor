@@ -2,12 +2,14 @@ package roles
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func InventoryRead(user models.User, inventory models.Inventory) bool {
+func InventoryRead(user common.User, inventory ansible.Inventory) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -52,7 +54,7 @@ func InventoryRead(user models.User, inventory models.Inventory) bool {
 	return false
 }
 
-func InventoryWrite(user models.User, inventory models.Inventory) bool {
+func InventoryWrite(user common.User, inventory ansible.Inventory) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -99,7 +101,7 @@ func InventoryWrite(user models.User, inventory models.Inventory) bool {
 	return false
 }
 
-func InventoryUse(user models.User, inventory models.Inventory) bool {
+func InventoryUse(user common.User, inventory ansible.Inventory) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -149,7 +151,7 @@ func InventoryUse(user models.User, inventory models.Inventory) bool {
 	return false
 }
 
-func InventoryAddHoc(user models.User, inventory models.Inventory) bool {
+func InventoryAddHoc(user common.User, inventory ansible.Inventory) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {

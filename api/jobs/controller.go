@@ -6,11 +6,13 @@ import (
 
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/roles"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -33,7 +35,7 @@ func Middleware(c *gin.Context) {
 			"Error":  err.Error(),
 		}).Errorln("Error while getting Job ID url parameter")
 
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -41,13 +43,13 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var job models.Job
+	var job ansible.Job
 	if err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job); err != nil {
 		log.WithFields(log.Fields{
 			"Job ID": ID,
 			"Error":  err.Error(),
 		}).Errorln("Error while retriving Job from the database")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -62,7 +64,7 @@ func Middleware(c *gin.Context) {
 
 // GetJob is a Gin handler function which returns the job as a JSON object
 func GetJob(c *gin.Context) {
-	job := c.MustGet(CTXJob).(models.Job)
+	job := c.MustGet(CTXJob).(ansible.Job)
 
 	metadata.JobMetadata(&job)
 
@@ -72,7 +74,7 @@ func GetJob(c *gin.Context) {
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetJobs(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -90,12 +92,12 @@ func GetJobs(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
-	var jobs []models.Job
+	var jobs []ansible.Job
 
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpJob models.Job
+	var tmpJob ansible.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
 		// if the user doesn't have access to credential
@@ -111,7 +113,7 @@ func GetJobs(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Job data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Credential"},
 		})
@@ -137,7 +139,7 @@ func GetJobs(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -165,7 +167,7 @@ func Cancel(c *gin.Context) {
 // StdOut returns ANSI standard output of a Job
 func StdOut(c *gin.Context) {
 	//get Job set by the middleware
-	job := c.MustGet(CTXJob).(models.Job)
+	job := c.MustGet(CTXJob).(ansible.Job)
 
 	c.JSON(http.StatusOK, job.ResultStdout)
 }

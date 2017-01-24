@@ -1,14 +1,14 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/models"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // Create a new organization
-func UserMetadata(u *models.User) {
+func UserMetadata(u *common.User) {
 	u.Type = "user"
-	u.Url = "/v1/users/" + u.ID.Hex() + "/"
+	u.URL = "/v1/users/" + u.ID.Hex() + "/"
 	u.Related = gin.H{
 		"admin_of_organizations": "/v1/users/" + u.ID.Hex() + "/admin_of_organizations/",
 		"organizations":          "/v1/users/" + u.ID.Hex() + "/organizations/",
@@ -21,9 +21,9 @@ func UserMetadata(u *models.User) {
 	}
 }
 
-func AccessUserMetadata(u *models.AccessUser) {
+func AccessUserMetadata(u *common.AccessUser) {
 	u.Type = "user"
-	u.Url = "/v1/users/" + u.ID.Hex() + "/"
+	u.URL = "/v1/users/" + u.ID.Hex() + "/"
 	u.Related = gin.H{
 		"admin_of_organizations": "/v1/users/" + u.ID.Hex() + "/admin_of_organizations/",
 		"organizations":          "/v1/users/" + u.ID.Hex() + "/organizations/",

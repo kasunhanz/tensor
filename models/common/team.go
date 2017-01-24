@@ -1,9 +1,10 @@
-package models
+package common
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 // team is the model for organization
@@ -12,7 +13,7 @@ type Team struct {
 	ID bson.ObjectId `bson:"_id" json:"id"`
 
 	Type    string `bson:"-" json:"type"`
-	Url     string `bson:"-" json:"url"`
+	URL     string `bson:"-" json:"url"`
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 

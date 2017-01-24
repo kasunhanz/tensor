@@ -1,19 +1,19 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Create a new organization
-func OrganizationMetadata(o *models.Organization) {
+func OrganizationMetadata(o *common.Organization) {
 
 	ID := o.ID.Hex()
 	o.Type = "organization"
-	o.Url = "/v1/organizations/" + ID + "/"
+	o.URL = "/v1/organizations/" + ID + "/"
 	o.Related = gin.H{
 		"created_by":                     "/v1/users/" + o.CreatedByID.Hex() + "/",
 		"modified_by":                    "/v1/users/" + o.ModifiedByID.Hex() + "/",
@@ -35,10 +35,10 @@ func OrganizationMetadata(o *models.Organization) {
 	organizationSummary(o)
 }
 
-func organizationSummary(o *models.Organization) {
+func organizationSummary(o *common.Organization) {
 
-	var modified models.User
-	var created models.User
+	var modified common.User
+	var created common.User
 
 	jcount, err := db.JobTemplates().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {

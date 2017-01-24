@@ -1,18 +1,19 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // Create a new organization
-func InventoryMetadata(i *models.Inventory) {
+func InventoryMetadata(i *ansible.Inventory) {
 
 	ID := i.ID.Hex()
 	i.Type = "inventory"
-	i.Url = "/v1/inventories/" + ID + "/"
+	i.URL = "/v1/inventories/" + ID + "/"
 	i.Related = gin.H{
 		"created_by":         "/v1/users/" + i.CreatedByID.Hex() + "/",
 		"job_templates":      "/v1/inventories/" + ID + "/job_templates/",
@@ -34,10 +35,10 @@ func InventoryMetadata(i *models.Inventory) {
 	inventorySummary(i)
 }
 
-func inventorySummary(i *models.Inventory) {
-	var modified models.User
-	var created models.User
-	var org models.Organization
+func inventorySummary(i *ansible.Inventory) {
+	var modified common.User
+	var created common.User
+	var org common.Organization
 
 	summary := gin.H{
 		"has_active_failures":             i.HasActiveFailures,

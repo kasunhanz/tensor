@@ -12,14 +12,16 @@ import (
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/jwt"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/runners"
 	"github.com/pearsonappeng/tensor/util"
-	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -41,7 +43,7 @@ func Middleware(c *gin.Context) {
 			"Job Template ID": ID,
 			"Error":           err.Error(),
 		}).Errorln("Error while getting Job Template ID url parameter")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -49,13 +51,13 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var jobTemplate models.JobTemplate
+	var jobTemplate ansible.JobTemplate
 	if err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate); err != nil {
 		log.WithFields(log.Fields{
 			"Job Template ID": ID,
 			"Error":           err.Error(),
 		}).Errorln("Error while retriving Job Template form the database")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -72,7 +74,7 @@ func Middleware(c *gin.Context) {
 // A success will return 200 status code
 // A failure will return 500 status code
 func GetJTemplate(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
 	metadata.JTemplateMetadata(&jobTemplate)
 
@@ -96,7 +98,7 @@ func GetJTemplate(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetJTemplates(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -112,11 +114,11 @@ func GetJTemplates(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
-	var jobTemplates []models.JobTemplate
+	var jobTemplates []ansible.JobTemplate
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpJobTemplate models.JobTemplate
+	var tmpJobTemplate ansible.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
 		// if the user doesn't have access to credential
@@ -132,7 +134,7 @@ func GetJTemplates(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Job Template data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Job Template"},
 		})
@@ -158,7 +160,7 @@ func GetJTemplates(c *gin.Context) {
 		"Limit":    pgi.Limit(),
 	}).Debugln("Response info")
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -206,9 +208,9 @@ func GetJTemplates(c *gin.Context) {
 // become_enabled:  boolean, default=False
 // allow_simultaneous:  boolean, default=False
 func AddJTemplate(c *gin.Context) {
-	var req models.JobTemplate
+	var req ansible.JobTemplate
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
@@ -216,7 +218,7 @@ func AddJTemplate(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -225,7 +227,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// check the project exist or not
 	if !helpers.ProjectExist(req.ProjectID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
 		})
@@ -234,7 +236,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// if the JobTemplate exist in the collection it is not unique
 	if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Job Template with this Name already exists."},
 		})
@@ -243,7 +245,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// check the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Inventory does not exists"},
 		})
@@ -252,7 +254,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// check the machine credential exist or not
 	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Machine Credential does not exists"},
 		})
@@ -262,7 +264,7 @@ func AddJTemplate(c *gin.Context) {
 	// check the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Network Credential does not exists"},
 			})
@@ -273,7 +275,7 @@ func AddJTemplate(c *gin.Context) {
 	// check the network credential exist or not
 	if req.CloudCredentialID != nil {
 		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Cloud Credential does not exists"},
 			})
@@ -293,7 +295,7 @@ func AddJTemplate(c *gin.Context) {
 			"Job Template ID": req.ID.Hex(),
 			"Error":           err.Error(),
 		}).Errorln("Error while creating Job Template")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating  Job Template"},
 		})
@@ -301,7 +303,7 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXJobTemplate,
@@ -326,13 +328,13 @@ func AddJTemplate(c *gin.Context) {
 // if the request body is invalid returns serialized Error model with 400 status code
 func UpdateJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.JobTemplate
+	var req ansible.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -341,7 +343,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// check the project exist or not
 	if !helpers.ProjectExist(req.ProjectID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
 		})
@@ -351,7 +353,7 @@ func UpdateJTemplate(c *gin.Context) {
 	if req.Name != jobTemplate.Name {
 		// if the JobTemplate exist in the collection it is not unique
 		if helpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Job Template with this Name already exists."},
 			})
@@ -361,7 +363,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// check whether the machine credential exist or not
 	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Machine Credential does not exists"},
 		})
@@ -371,7 +373,7 @@ func UpdateJTemplate(c *gin.Context) {
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Network Credential does not exists"},
 			})
@@ -382,7 +384,7 @@ func UpdateJTemplate(c *gin.Context) {
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
 		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Cloud Credential does not exists"},
 			})
@@ -427,7 +429,7 @@ func UpdateJTemplate(c *gin.Context) {
 			"Job Template ID": req.ID.Hex(),
 			"Error":           err.Error(),
 		}).Errorln("Error while updating Job Template")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
 		})
@@ -435,7 +437,7 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXJobTemplate,
@@ -462,13 +464,13 @@ func UpdateJTemplate(c *gin.Context) {
 // if the request body is invalid returns serialized Error model with 400 status code
 func PatchJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.PatchJobTemplate
+	var req ansible.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -477,7 +479,7 @@ func PatchJTemplate(c *gin.Context) {
 
 	// check the project exist or not
 	if req.ProjectID != nil && !helpers.ProjectExist(*req.ProjectID) {
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
 		})
@@ -492,7 +494,7 @@ func PatchJTemplate(c *gin.Context) {
 		}
 
 		if helpers.IsNotUniqueJTemplate(*req.Name, projectID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Job Template with this Name already exists."},
 			})
@@ -503,7 +505,7 @@ func PatchJTemplate(c *gin.Context) {
 	if req.MachineCredentialID != nil {
 		// check whether the machine credential exist or not
 		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Machine Credential does not exists."},
 			})
@@ -514,7 +516,7 @@ func PatchJTemplate(c *gin.Context) {
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Network Credential does not exists."},
 			})
@@ -525,7 +527,7 @@ func PatchJTemplate(c *gin.Context) {
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
 		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Cloud Credential does not exists."},
 			})
@@ -660,7 +662,7 @@ func PatchJTemplate(c *gin.Context) {
 			"Job Template ID": jobTemplate.ID.Hex(),
 			"Error":           err.Error(),
 		}).Errorln("Error while updating Job Template")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Job Template"},
 		})
@@ -668,7 +670,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXJobTemplate,
@@ -693,9 +695,9 @@ func PatchJTemplate(c *gin.Context) {
 // A failure returns 500 status code
 func RemoveJTemplate(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	// remove object from the collection
 	if err := db.JobTemplates().RemoveId(jobTemplate.ID); err != nil {
@@ -703,7 +705,7 @@ func RemoveJTemplate(c *gin.Context) {
 			"Job Template ID": jobTemplate.ID.Hex(),
 			"Error":           err.Error(),
 		}).Errorln("Error while removing Job Temlate")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Job Template"},
 		})
@@ -711,7 +713,7 @@ func RemoveJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXJobTemplate,
@@ -745,16 +747,16 @@ func RemoveJTemplate(c *gin.Context) {
 // failure reruns 500 status code
 //
 func ActivityStream(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
-	var activities []models.Activity
+	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": CTXJobTemplate}).All(&activities)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Activity data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
 		})
@@ -772,7 +774,7 @@ func ActivityStream(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -794,13 +796,13 @@ func ActivityStream(c *gin.Context) {
 // The `next` and `previous` fields provides links to additional results if there are more than will fit on a single page.
 // The `results` list contains zero or more job records.
 func Jobs(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
-	var jbs []models.Job
+	var jbs []ansible.Job
 	// new mongodb iterator
 	iter := db.Jobs().Find(bson.M{"job_template_id": jobTemplate.ID}).Iter()
 	// loop through each result and modify for our needs
-	var tmpJob models.Job
+	var tmpJob ansible.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
 		metadata.JobMetadata(&tmpJob)
@@ -812,7 +814,7 @@ func Jobs(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving jobs data from the database")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Jobs"},
 		})
@@ -830,7 +832,7 @@ func Jobs(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -847,19 +849,19 @@ func Jobs(c *gin.Context) {
 // if the request body is invalid returns JSON serialized Error model with 400 status code
 func Launch(c *gin.Context) {
 	// get job template that was set by the Middleware
-	template := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	template := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 	// get user object set by the jwt Middleware
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	// create a new Launch model
-	var req models.Launch
+	var req ansible.Launch
 	// if the body present deserialize it
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// accept nil request body for POST request, since all the feilds are optional
 		if err != io.EOF {
 			// Return 400 if request has bad JSON
 			// and return formatted validation errors
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: util.GetValidationErrors(err),
 			})
@@ -868,14 +870,14 @@ func Launch(c *gin.Context) {
 	}
 
 	// create new Job
-	job := models.Job{
+	job := ansible.Job{
 		ID:                  bson.NewObjectId(),
 		Name:                template.Name,
 		Description:         template.Description,
 		LaunchType:          "manual",
 		CancelFlag:          false,
 		Status:              "new",
-		JobType:             models.JOBTYPE_ANSIBLE_JOB,
+		JobType:             ansible.JOBTYPE_ANSIBLE_JOB,
 		Playbook:            template.Playbook,
 		Forks:               template.Forks,
 		Limit:               template.Limit,
@@ -910,7 +912,7 @@ func Launch(c *gin.Context) {
 	// if not provided return an error message
 	if template.PromptVariables {
 		if !(len(req.ExtraVars) > 0) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Additional variables required"},
 			})
@@ -922,7 +924,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptLimit {
 		if !(len(req.Limit) > 0) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Limit required"},
 			})
@@ -934,7 +936,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptTags {
 		if !(len(req.JobTags) > 0) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Job Tags required"},
 			})
@@ -946,7 +948,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptSkipTags {
 		if !(len(req.SkipTags) > 0) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Skip Tags required"},
 			})
@@ -958,7 +960,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptJobType {
 		if !(len(req.JobType) > 0) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Job Type required"},
 			})
@@ -977,7 +979,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptInventory {
 		if len(req.InventoryID) != 24 {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory required"},
 			})
@@ -988,7 +990,7 @@ func Launch(c *gin.Context) {
 
 	if template.PromptCredential {
 		if len(req.MachineCredentialID) != 24 {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential required"},
 			})
@@ -998,13 +1000,13 @@ func Launch(c *gin.Context) {
 	}
 
 	if job.NetworkCredentialID != nil {
-		var credential models.Credential
+		var credential common.Credential
 		err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while getting Network Credential")
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting Network Credential"},
 			})
@@ -1014,13 +1016,13 @@ func Launch(c *gin.Context) {
 	}
 
 	if job.CloudCredentialID != nil {
-		var credential models.Credential
+		var credential common.Credential
 		err := db.Credentials().FindId(*job.CloudCredentialID).One(&credential)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while getting Cloud Credential")
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting Cloud Credential"},
 			})
@@ -1030,12 +1032,12 @@ func Launch(c *gin.Context) {
 	}
 
 	// get inventory information
-	var inventory models.Inventory
+	var inventory ansible.Inventory
 	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while getting Inventory")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Inventory"},
 		})
@@ -1043,12 +1045,12 @@ func Launch(c *gin.Context) {
 	}
 	runnerJob.Inventory = inventory
 
-	var credential models.Credential
+	var credential common.Credential
 	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while getting Machine Credential")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Machine Credential"},
 		})
@@ -1057,12 +1059,12 @@ func Launch(c *gin.Context) {
 	runnerJob.MachineCred = credential
 
 	// get project information
-	var project models.Project
+	var project common.Project
 	if err := db.Projects().FindId(job.ProjectID).One(&project); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while getting Project")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Project"},
 		})
@@ -1076,7 +1078,7 @@ func Launch(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while getting Token")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Token"},
 		})
@@ -1090,7 +1092,7 @@ func Launch(c *gin.Context) {
 			"Job ID": job.ID,
 			"Error":  err.Error(),
 		}).Errorln("Error while creating Job")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Job"},
 		})
@@ -1105,7 +1107,7 @@ func Launch(c *gin.Context) {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while adding the job to job queue")
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while creating Job"},
 			})
@@ -1121,7 +1123,7 @@ func Launch(c *gin.Context) {
 			"Error":    err.Error(),
 			"Job Info": jobBytes,
 		}).Errorln("Error while adding the job to job queue")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Job"},
 		})
@@ -1154,7 +1156,7 @@ func Launch(c *gin.Context) {
 // If not then one should be supplied when launching the job
 func LaunchInfo(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jt := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
 	var isCredentialNeeded bool
 	var isInventoryNeeded bool
@@ -1171,7 +1173,7 @@ func LaunchInfo(c *gin.Context) {
 		},
 	}
 
-	var cred models.Credential
+	var cred common.Credential
 
 	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
 		log.WithFields(log.Fields{
@@ -1186,7 +1188,7 @@ func LaunchInfo(c *gin.Context) {
 		}
 	}
 
-	var inven models.Inventory
+	var inven ansible.Inventory
 
 	if err := db.Inventories().FindId(jt.InventoryID).One(&inven); err != nil {
 		log.WithFields(log.Fields{
@@ -1227,7 +1229,7 @@ func LaunchInfo(c *gin.Context) {
 // ObjectRoles is a Gin handler function
 // This returns available roles can be associated with a Job Template model
 func ObjectRoles(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(models.JobTemplate)
+	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
 	roles := []gin.H{
 		{
@@ -1280,7 +1282,7 @@ func ObjectRoles(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),

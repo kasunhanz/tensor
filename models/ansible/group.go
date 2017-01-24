@@ -1,13 +1,13 @@
-package models
+package ansible
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
-// Organization is the model for organization
-// collection
+// Group is the model for Group collection
 type Group struct {
 	ID                       bson.ObjectId  `bson:"_id" json:"id"`
 	Name                     string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
@@ -29,7 +29,7 @@ type Group struct {
 	Modified time.Time `bson:"modified" json:"modified"`
 
 	Type               string `bson:"-" json:"type"`
-	Url                string `bson:"-" json:"url"`
+	URL                string `bson:"-" json:"url"`
 	Related            gin.H  `bson:"-" json:"related"`
 	Summary            gin.H  `bson:"-" json:"summary_fields"`
 	LastJob            gin.H  `bson:"-" json:"last_job"`

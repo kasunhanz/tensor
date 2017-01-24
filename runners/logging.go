@@ -7,7 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 func (t *QueueJob) start() {
@@ -77,7 +78,7 @@ func (t *QueueJob) jobFail() {
 
 	t.updateProject()
 	switch t.Job.JobType {
-	case models.JOBTYPE_UPDATE_JOB:
+	case ansible.JOBTYPE_ANSIBLE_JOB:
 		{
 			t.updateJobTemplate()
 		}
@@ -116,7 +117,7 @@ func (t *QueueJob) jobCancel() {
 
 	t.updateProject()
 	switch t.Job.JobType {
-	case models.JOBTYPE_UPDATE_JOB:
+	case ansible.JOBTYPE_ANSIBLE_JOB:
 		{
 			t.updateJobTemplate()
 		}
@@ -153,7 +154,12 @@ func (t *QueueJob) jobError() {
 	}
 
 	t.updateProject()
-	t.updateJobTemplate()
+	switch t.Job.JobType {
+	case ansible.JOBTYPE_ANSIBLE_JOB:
+		{
+			t.updateJobTemplate()
+		}
+	}
 }
 
 func (t *QueueJob) jobSuccess() {
@@ -186,11 +192,17 @@ func (t *QueueJob) jobSuccess() {
 	}
 
 	t.updateProject()
+	switch t.Job.JobType {
+	case ansible.JOBTYPE_ANSIBLE_JOB:
+		{
+			t.updateJobTemplate()
+		}
+	}
 }
 
 func (t *QueueJob) updateProject() {
 	switch t.Job.JobType {
-	case models.JOBTYPE_UPDATE_JOB:
+	case ansible.JOBTYPE_UPDATE_JOB:
 		{
 			d := bson.M{
 				"$set": bson.M{
@@ -206,7 +218,7 @@ func (t *QueueJob) updateProject() {
 				}).Errorln("Failed to update project")
 			}
 		}
-	case models.JOBTYPE_ANSIBLE_JOB:
+	case ansible.JOBTYPE_ANSIBLE_JOB:
 		{
 			d := bson.M{
 				"$set": bson.M{
@@ -244,7 +256,7 @@ func (t *QueueJob) updateJobTemplate() {
 
 func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype string) {
 
-	a := models.Activity{
+	a := common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     userID,
 		Type:        jobtype,

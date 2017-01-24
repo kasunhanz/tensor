@@ -10,11 +10,13 @@ import (
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -37,7 +39,7 @@ func Middleware(c *gin.Context) {
 			"Group ID": ID,
 			"Error":    err.Error(),
 		}).Errorln("Error while getting Group ID url parameter")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -45,7 +47,7 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var group models.Group
+	var group ansible.Group
 	err = db.Groups().FindId(bson.ObjectIdHex(ID)).One(&group)
 
 	if err != nil {
@@ -53,7 +55,7 @@ func Middleware(c *gin.Context) {
 			"Group ID": ID,
 			"Error":    err.Error(),
 		}).Errorln("Error while retriving Group form the database")
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -67,7 +69,7 @@ func Middleware(c *gin.Context) {
 
 // GetGroup is a Gin handler function which returns the host as a JSON object.
 func GetGroup(c *gin.Context) {
-	group := c.MustGet(CTXGroup).(models.Group)
+	group := c.MustGet(CTXGroup).(ansible.Group)
 
 	metadata.GroupMetadata(&group)
 	// send response with JSON rendered data
@@ -77,7 +79,7 @@ func GetGroup(c *gin.Context) {
 // GetGroups is a Gin handler function which returns list of Groups
 // This takes lookup parameters and order parameters to filder and sort output data.
 func GetGroups(c *gin.Context) {
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -95,11 +97,11 @@ func GetGroups(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
-	var groups []models.Group
+	var groups []ansible.Group
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpGroup models.Group
+	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
 		metadata.GroupMetadata(&tmpGroup)
@@ -111,7 +113,7 @@ func GetGroups(c *gin.Context) {
 			"User ID":  user.ID.Hex(),
 			"Group ID": tmpGroup.ID.Hex(),
 		}).Debugln("User does not have read permissions")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Group"},
 		})
@@ -138,7 +140,7 @@ func GetGroups(c *gin.Context) {
 	}).Debugln("Response info")
 
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -149,16 +151,16 @@ func GetGroups(c *gin.Context) {
 // AddGroup is a Gin handler function which creates a new group using request payload.
 // This accepts Group model.
 func AddGroup(c *gin.Context) {
-	var req models.Group
+	var req ansible.Group
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Invlid JSON request")
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -167,7 +169,7 @@ func AddGroup(c *gin.Context) {
 
 	// if the group exist in the collection it is not unique
 	if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Group with this Name and Inventory already exists."},
 		})
@@ -176,7 +178,7 @@ func AddGroup(c *gin.Context) {
 
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
 		})
@@ -186,7 +188,7 @@ func AddGroup(c *gin.Context) {
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
 		if !helpers.ParentGroupExist(*req.ParentGroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
 			})
@@ -206,7 +208,7 @@ func AddGroup(c *gin.Context) {
 			"Group ID": req.ID.Hex(),
 			"Error":    err.Error(),
 		}).Errorln("Error while creating Group")
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Group"},
 		})
@@ -214,7 +216,7 @@ func AddGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXGroup,
@@ -238,14 +240,14 @@ func AddGroup(c *gin.Context) {
 // unspecified fields will be removed from the database object.
 func UpdateGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(CTXGroup).(models.Group)
+	group := c.MustGet(CTXGroup).(ansible.Group)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.Group
+	var req ansible.Group
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -254,7 +256,7 @@ func UpdateGroup(c *gin.Context) {
 
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
 		})
@@ -264,7 +266,7 @@ func UpdateGroup(c *gin.Context) {
 	if req.Name != group.Name {
 		// if the group exist in the collection it is not unique
 		if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
 			})
@@ -275,7 +277,7 @@ func UpdateGroup(c *gin.Context) {
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
 		if !helpers.ParentGroupExist(*req.ParentGroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
 			})
@@ -295,7 +297,7 @@ func UpdateGroup(c *gin.Context) {
 	// update object
 	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		log.Errorln("Error while updating Group:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Group"},
 		})
@@ -303,7 +305,7 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXGroup,
@@ -328,14 +330,14 @@ func UpdateGroup(c *gin.Context) {
 // removed from the database object. Unspecified fields will be ignored.
 func PatchGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(CTXGroup).(models.Group)
+	group := c.MustGet(CTXGroup).(ansible.Group)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.PatchGroup
+	var req ansible.PatchGroup
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -345,7 +347,7 @@ func PatchGroup(c *gin.Context) {
 	// check whether the inventory exist or not
 	if req.InventoryID != nil {
 		if !helpers.InventoryExist(*req.InventoryID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
 			})
@@ -364,7 +366,7 @@ func PatchGroup(c *gin.Context) {
 		}
 		// if the group exist in the collection it is not unique
 		if helpers.IsNotUniqueGroup(*req.Name, objID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
 			})
@@ -375,7 +377,7 @@ func PatchGroup(c *gin.Context) {
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
 		if !helpers.ParentGroupExist(*req.ParentGroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
 			})
@@ -414,7 +416,7 @@ func PatchGroup(c *gin.Context) {
 	// update object
 	if err := db.Hosts().UpdateId(group.ID, group); err != nil {
 		log.Errorln("Error while updating Group:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Group"},
 		})
@@ -422,7 +424,7 @@ func PatchGroup(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXGroup,
@@ -445,11 +447,11 @@ func PatchGroup(c *gin.Context) {
 // RemoveGroup is a Gin handler function which removes a group object from the database
 func RemoveGroup(c *gin.Context) {
 	// get Group from the gin.Context
-	group := c.MustGet(CTXGroup).(models.Group)
+	group := c.MustGet(CTXGroup).(ansible.Group)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var childgroups []models.Group
+	var childgroups []ansible.Group
 
 	//find the group and all child groups
 	query := bson.M{
@@ -461,7 +463,7 @@ func RemoveGroup(c *gin.Context) {
 	err := db.Groups().Find(query).Select(bson.M{"_id": 1}).All(&childgroups)
 	if err != nil {
 		log.Errorln("Error while getting child Groups:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group"},
 		})
@@ -479,7 +481,7 @@ func RemoveGroup(c *gin.Context) {
 	changes, err := db.Hosts().RemoveAll(bson.M{"group_id": bson.M{"$in": ids}})
 	if err != nil {
 		log.Errorln("Error while removing Group Hosts:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group Hosts"},
 		})
@@ -491,7 +493,7 @@ func RemoveGroup(c *gin.Context) {
 	changes, err = db.Groups().RemoveAll(query)
 	if err != nil {
 		log.Errorln("Error while removing Group:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Group"},
 		})
@@ -503,7 +505,7 @@ func RemoveGroup(c *gin.Context) {
 	}).Infoln("Groups remove info")
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXGroup,
@@ -522,7 +524,7 @@ func RemoveGroup(c *gin.Context) {
 
 // VariableData is Gin handler function which returns host group variables
 func VariableData(c *gin.Context) {
-	group := c.MustGet(CTXGroup).(models.Group)
+	group := c.MustGet(CTXGroup).(ansible.Group)
 
 	variables := gin.H{}
 

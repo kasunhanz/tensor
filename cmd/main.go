@@ -9,7 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	
 	"github.com/pearsonappeng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"

@@ -14,7 +14,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
@@ -22,15 +24,15 @@ import (
 
 // QueueJob contains all the information required to start a job
 type QueueJob struct {
-	Job            models.Job
-	Template       models.JobTemplate
-	MachineCred    models.Credential
-	NetworkCred    models.Credential
-	SCMCred        models.Credential
-	CloudCred      models.Credential
-	Inventory      models.Inventory
-	Project        models.Project
-	User           models.User
+	Job            ansible.Job
+	Template       ansible.JobTemplate
+	MachineCred    common.Credential
+	NetworkCred    common.Credential
+	SCMCred        common.Credential
+	CloudCred      common.Credential
+	Inventory      ansible.Inventory
+	Project        common.Project
+	User           common.User
 	PreviousJob    *QueueJob
 	Token          string
 	CredentialPath string // for system jobs
@@ -77,7 +79,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		"Name":   jb.Job.Name,
 	}).Infoln("Job changed status to pending")
 
-	if jb.Job.JobType == models.JOBTYPE_UPDATE_JOB {
+	if jb.Job.JobType == ansible.JOBTYPE_UPDATE_JOB {
 		systemRun(jb)
 		return
 	}
@@ -157,9 +159,9 @@ func ansibleRun(j QueueJob) {
 		cleanup()
 	}()
 
-	if len(j.MachineCred.SshKeyData) > 0 {
-		if len(j.MachineCred.SshKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
+	if len(j.MachineCred.SSHKeyData) > 0 {
+		if len(j.MachineCred.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.MachineCred.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -178,7 +180,7 @@ func ansibleRun(j QueueJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
@@ -199,9 +201,9 @@ func ansibleRun(j QueueJob) {
 
 	}
 
-	if len(j.NetworkCred.SshKeyData) > 0 {
-		if len(j.NetworkCred.SshKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.NetworkCred.SshKeyUnlock))
+	if len(j.NetworkCred.SSHKeyData) > 0 {
+		if len(j.NetworkCred.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.NetworkCred.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -220,7 +222,7 @@ func ansibleRun(j QueueJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
@@ -280,7 +282,7 @@ func ansibleRun(j QueueJob) {
 		cmd.Process.Kill()
 	})
 
-	if len(j.MachineCred.Password) > 0 && len(j.MachineCred.SshKeyData) <= 0 {
+	if len(j.MachineCred.Password) > 0 && len(j.MachineCred.SSHKeyData) <= 0 {
 		log.Println("Using credential instead of SSH key")
 		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
 	}
@@ -324,12 +326,12 @@ func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 		pPlaybook = append(pPlaybook, "-u", uname)
 
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_SSH {
+		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_SSH {
 			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.MachineCred.Password)+"")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == models.CREDENTIAL_KIND_WIN {
+		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_WIN {
 			j.kinit()
 		}
 	}

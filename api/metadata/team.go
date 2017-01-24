@@ -1,17 +1,17 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // Create a new organization
-func TeamMetadata(tm *models.Team) {
+func TeamMetadata(tm *common.Team) {
 
 	tm.Type = "team"
-	tm.Url = "/v1/teams/" + tm.ID.Hex() + "/"
+	tm.URL = "/v1/teams/" + tm.ID.Hex() + "/"
 	tm.Related = gin.H{
 		"created_by":      "/v1/users/" + tm.CreatedByID.Hex() + "/",
 		"modified_by":     "/v1/users/" + tm.ModifiedByID.Hex() + "/",
@@ -28,11 +28,11 @@ func TeamMetadata(tm *models.Team) {
 	teamSummary(tm)
 }
 
-func teamSummary(tm *models.Team) {
+func teamSummary(tm *common.Team) {
 
-	var modified models.User
-	var created models.User
-	var org models.Organization
+	var modified common.User
+	var created common.User
+	var org common.Organization
 
 	summary := gin.H{
 		"organization": nil,

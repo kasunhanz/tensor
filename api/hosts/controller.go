@@ -10,11 +10,13 @@ import (
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -33,7 +35,7 @@ func Middleware(c *gin.Context) {
 
 	if err != nil {
 		log.Errorln("Error while getting the Host:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -41,10 +43,10 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var h models.Host
+	var h ansible.Host
 	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
 		log.Errorln("Error while getting the Host:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -58,7 +60,7 @@ func Middleware(c *gin.Context) {
 
 // GetHost is a Gin Handler function, returns the host as a JSON object
 func GetHost(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
@@ -81,11 +83,11 @@ func GetHosts(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var hosts []models.Host
+	var hosts []ansible.Host
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpHost models.Host
+	var tmpHost ansible.Host
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
 		metadata.HostMetadata(&tmpHost)
@@ -94,7 +96,7 @@ func GetHosts(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Host data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Hosts"},
 		})
@@ -109,7 +111,7 @@ func GetHosts(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -120,12 +122,12 @@ func GetHosts(c *gin.Context) {
 // AddHost is a Gin handler function which creates a new host using request payload
 // This accepts Host model.
 func AddHost(c *gin.Context) {
-	var req models.Host
-	user := c.MustGet(CTXUser).(models.User)
+	var req ansible.Host
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -135,7 +137,7 @@ func AddHost(c *gin.Context) {
 	// if the host exist in the collection it is not unique
 	if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Host with this Name and Inventory already exists."},
 		})
@@ -144,7 +146,7 @@ func AddHost(c *gin.Context) {
 
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
 		})
@@ -154,7 +156,7 @@ func AddHost(c *gin.Context) {
 	// check whether the group exist or not
 	if req.GroupID != nil {
 		if !helpers.GroupExist(*req.GroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
 			})
@@ -170,7 +172,7 @@ func AddHost(c *gin.Context) {
 
 	if err := db.Hosts().Insert(req); err != nil {
 		log.Errorln("Error while creating Host:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Host"},
 		})
@@ -178,7 +180,7 @@ func AddHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXHost,
@@ -200,14 +202,14 @@ func AddHost(c *gin.Context) {
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object
 func UpdateHost(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
-	user := c.MustGet(CTXUser).(models.User)
+	host := c.MustGet(CTXHost).(ansible.Host)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.Host
+	var req ansible.Host
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -215,7 +217,7 @@ func UpdateHost(c *gin.Context) {
 
 	// check whether the inventory exist or not
 	if !helpers.InventoryExist(req.InventoryID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
 		})
@@ -225,7 +227,7 @@ func UpdateHost(c *gin.Context) {
 	if req.Name != host.Name {
 		// if the host exist in the collection it is not unique
 		if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Host with this Name and Inventory already exists."},
 			})
@@ -236,7 +238,7 @@ func UpdateHost(c *gin.Context) {
 	// check whether the group exist or not
 	if req.GroupID != nil {
 		if !helpers.GroupExist(*req.GroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
 			})
@@ -257,13 +259,13 @@ func UpdateHost(c *gin.Context) {
 	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Errorln("Error while updating Host:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Host"},
 		})
 	}
 
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXHost,
@@ -286,14 +288,14 @@ func UpdateHost(c *gin.Context) {
 // This replaces specified fields in the database, empty "" fields will be
 // removed from the database object. Unspecified fields will ignored.
 func PatchHost(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
-	user := c.MustGet(CTXUser).(models.User)
+	host := c.MustGet(CTXHost).(ansible.Host)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.PatchHost
+	var req ansible.PatchHost
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -302,7 +304,7 @@ func PatchHost(c *gin.Context) {
 	// check whether the inventory exist or not
 	if req.InventoryID != nil {
 		if !helpers.InventoryExist(*req.InventoryID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
 			})
@@ -317,7 +319,7 @@ func PatchHost(c *gin.Context) {
 		}
 		// if the host exist in the collection it is not unique
 		if helpers.IsNotUniqueHost(*req.Name, invID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Host with this Name and Inventory already exists."},
 			})
@@ -328,7 +330,7 @@ func PatchHost(c *gin.Context) {
 	// check whether the group exist or not
 	if req.GroupID != nil {
 		if !helpers.GroupExist(*req.GroupID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
 			})
@@ -375,7 +377,7 @@ func PatchHost(c *gin.Context) {
 	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Errorln("Error while updating Host:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Host"},
 		})
@@ -383,7 +385,7 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXHost,
@@ -406,13 +408,13 @@ func PatchHost(c *gin.Context) {
 // RemoveHost is a Gin handler function which removes a host object from the database
 func RemoveHost(c *gin.Context) {
 	// get Host from the gin.Context
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
 		log.Errorln("Error while removing Host:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Host"},
 		})
@@ -420,7 +422,7 @@ func RemoveHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXHost,
@@ -439,7 +441,7 @@ func RemoveHost(c *gin.Context) {
 // VariableData is a Gin Handler function which returns variables for
 // the host as JSON formatted object.
 func VariableData(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 
 	variables := gin.H{}
 
@@ -459,9 +461,9 @@ func VariableData(c *gin.Context) {
 // Groups is a Gin handler function which returns parent group of the host
 // TODO: not implemented
 func Groups(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 
-	var group models.Group
+	var group ansible.Group
 
 	if host.GroupID != nil {
 		// find group for the host
@@ -490,16 +492,16 @@ func Groups(c *gin.Context) {
 // AllGroups is a Gin handler function which returns parent groups of a host
 // TODO: not implemented
 func AllGroups(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 
-	var outobjects []models.Group
-	var group models.Group
+	var outobjects []ansible.Group
+	var group ansible.Group
 
 	if host.GroupID != nil {
 		// find group for the host
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			log.Errorln("Error while getting groups")
-			c.JSON(http.StatusInternalServerError, models.Error{
+			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Error while getting groups"},
 			})
@@ -511,13 +513,13 @@ func AllGroups(c *gin.Context) {
 		//add group to outobjects
 		outobjects = append(outobjects, group)
 		// clean object
-		group = models.Group{}
+		group = ansible.Group{}
 
 		for group.ParentGroupID != nil {
 			// find group for the host
 			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 				log.Errorln("Error while getting groups")
-				c.JSON(http.StatusInternalServerError, models.Error{
+				c.JSON(http.StatusInternalServerError, common.Error{
 					Code:     http.StatusInternalServerError,
 					Messages: []string{"Error while getting groups"},
 				})
@@ -530,7 +532,7 @@ func AllGroups(c *gin.Context) {
 			outobjects = append(outobjects, group)
 
 			// clean object
-			group = models.Group{}
+			group = ansible.Group{}
 		}
 
 		nobj := len(outobjects)
@@ -545,7 +547,7 @@ func AllGroups(c *gin.Context) {
 		}
 
 		// send response with JSON rendered data
-		c.JSON(http.StatusOK, models.Response{
+		c.JSON(http.StatusOK, common.Response{
 			Count:    nobj,
 			Next:     pgi.NextPage(),
 			Previous: pgi.PreviousPage(),
@@ -557,7 +559,7 @@ func AllGroups(c *gin.Context) {
 
 	// no assigned groups
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count: 0,
 	})
 }
@@ -566,14 +568,14 @@ func AllGroups(c *gin.Context) {
 // credential object that is in the Gin Context
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	host := c.MustGet(CTXHost).(models.Host)
+	host := c.MustGet(CTXHost).(ansible.Host)
 
-	var activities []models.Activity
+	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": CTXHost}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
 		})
@@ -588,7 +590,7 @@ func ActivityStream(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),

@@ -1,4 +1,4 @@
-package models
+package common
 
 import (
 	"time"
@@ -22,8 +22,7 @@ const (
 	CREDENTIAL_KIND_OPENSTACK  = "openstack"
 )
 
-// Organization is the model for organization
-// collection
+// Credential is the model for Credential collection
 type Credential struct {
 	ID bson.ObjectId `bson:"_id" json:"id"`
 	// required feilds
@@ -39,8 +38,8 @@ type Credential struct {
 	SecurityToken     string         `bson:"security_token,omitempty" json:"security_token"`
 	Project           string         `bson:"project,omitempty" json:"project"`
 	Domain            string         `bson:"domain,omitempty" json:"domain"`
-	SshKeyData        string         `bson:"ssh_key_data,omitempty" json:"ssh_key_data"`
-	SshKeyUnlock      string         `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock"`
+	SSHKeyData        string         `bson:"ssh_key_data,omitempty" json:"ssh_key_data"`
+	SSHKeyUnlock      string         `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock"`
 	BecomeMethod      string         `bson:"become_method,omitempty" json:"become_method" binding:"omitempty,become_method"`
 	BecomeUsername    string         `bson:"become_username,omitempty" json:"become_username"`
 	BecomePassword    string         `bson:"become_password,omitempty" json:"become_password"`
@@ -60,7 +59,7 @@ type Credential struct {
 	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
 
 	Type    string `bson:"-" json:"type"`
-	Url     string `bson:"-" json:"url"`
+	URL     string `bson:"-" json:"url"`
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 
@@ -78,8 +77,8 @@ type PatchCredential struct {
 	SecurityToken     *string        `json:"security_token"`
 	Project           *string        `json:"project"`
 	Domain            *string        `json:"domain"`
-	SshKeyData        *string        `json:"ssh_key_data"`
-	SshKeyUnlock      *string        `json:"ssh_key_unlock"`
+	SSHKeyData        *string        `json:"ssh_key_data"`
+	SSHKeyUnlock      *string        `json:"ssh_key_unlock"`
 	BecomeMethod      *string        `json:"become_method" binding:"omitempty,become_method"`
 	BecomeUsername    *string        `json:"become_username"`
 	BecomePassword    *string        `json:"become_password"`

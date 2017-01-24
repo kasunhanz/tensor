@@ -1,18 +1,19 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // Create a new organization
-func GroupMetadata(grp *models.Group) {
+func GroupMetadata(grp *ansible.Group) {
 
 	ID := grp.ID.Hex()
 	grp.Type = "group"
-	grp.Url = "/v1/group/" + ID + "/"
+	grp.URL = "/v1/group/" + ID + "/"
 	grp.Related = gin.H{
 		"created_by":         "/v1/users/" + grp.CreatedByID.Hex() + "/",
 		"job_host_summaries": "/v1/groups/" + grp.CreatedByID.Hex() + "job_host_summaries/",
@@ -32,11 +33,11 @@ func GroupMetadata(grp *models.Group) {
 	groupSummary(grp)
 }
 
-func groupSummary(grp *models.Group) {
+func groupSummary(grp *ansible.Group) {
 
-	var modified models.User
-	var created models.User
-	var inv models.Inventory
+	var modified common.User
+	var created common.User
+	var inv ansible.Inventory
 
 	summary := gin.H{
 		"inventory": nil,

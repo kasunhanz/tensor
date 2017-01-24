@@ -1,19 +1,20 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Create a new organization
-func JTemplateMetadata(jt *models.JobTemplate) {
+func JTemplateMetadata(jt *ansible.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "inventory"
-	jt.Url = "/v1/inventories/" + ID + "/"
+	jt.URL = "/v1/inventories/" + ID + "/"
 	related := gin.H{
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex() + "/",
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
@@ -41,17 +42,17 @@ func JTemplateMetadata(jt *models.JobTemplate) {
 	jTemplateSummary(jt)
 }
 
-func jTemplateSummary(jt *models.JobTemplate) {
+func jTemplateSummary(jt *ansible.JobTemplate) {
 
-	var modified models.User
-	var created models.User
-	var inv models.Inventory
-	var job models.Job
-	var cjob models.Job
-	var cupdate models.Job
-	var cred models.Credential
-	var proj models.Project
-	var recentJobs []models.Job
+	var modified common.User
+	var created common.User
+	var inv ansible.Inventory
+	var job ansible.Job
+	var cjob ansible.Job
+	var cupdate ansible.Job
+	var cred common.Credential
+	var proj common.Project
+	var recentJobs []ansible.Job
 
 	summary := gin.H{
 		"object_roles": []gin.H{

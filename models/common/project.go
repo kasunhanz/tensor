@@ -1,9 +1,10 @@
-package models
+package common
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 // Project is the model for project
@@ -12,7 +13,7 @@ type Project struct {
 	ID bson.ObjectId `bson:"_id" json:"id"`
 
 	Type    string `bson:"-" json:"type"`
-	Url     string `bson:"-" json:"url"`
+	URL     string `bson:"-" json:"url"`
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 
@@ -23,7 +24,8 @@ type Project struct {
 
 	Description           string         `bson:"description,omitempty" json:"description"`
 	LocalPath             string         `bson:"local_path,omitempty" json:"local_path" binding:"omitempty,naproperty"`
-	ScmUrl                string         `bson:"scm_url,omitempty" json:"scm_url" binding:"url"`
+	ScmURL                string         `bson:"scm_url,omitempty" json:"scm_url" binding:"url"`
+	Kind                  string         `bson:"kind,omitempty" json:"kind" binding:"project_kind"`
 	ScmBranch             string         `bson:"scm_branch,omitempty" json:"scm_branch"`
 	ScmClean              bool           `bson:"scm_clean,omitempty" json:"scm_clean"`
 	ScmDeleteOnUpdate     bool           `bson:"scm_delete_on_update,omitempty" json:"scm_delete_on_update"`
@@ -51,13 +53,13 @@ type Project struct {
 	Roles []AccessControl `bson:"roles" json:"-"`
 }
 
-// All optional
+// PatchProject is the model for PATCH requests
 type PatchProject struct {
 	Name                  *string        `json:"name" binding:"omitempty,min=1,max=500"`
 	ScmType               *string        `json:"scm_type" binding:"omitempty,scmtype"`
 	OrganizationID        *bson.ObjectId `json:"organization"`
 	Description           *string        `json:"description"`
-	ScmUrl                *string        `json:"scm_url" binding:"omitempty,url"`
+	ScmURL                *string        `json:"scm_url" binding:"omitempty,url"`
 	ScmBranch             *string        `json:"scm_branch"`
 	ScmClean              *bool          `json:"scm_clean"`
 	ScmDeleteOnUpdate     *bool          `json:"scm_delete_on_update"`

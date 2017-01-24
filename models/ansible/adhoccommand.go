@@ -1,9 +1,10 @@
-package models
+package ansible
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 type AdHocCommand struct {
@@ -24,7 +25,7 @@ type AdHocCommand struct {
 	Modified      time.Time     `bson:"modified" json:"modified"`
 
 	Type          string `bson:"-" json:"type"`
-	Url           string `bson:"-" json:"url"`
+	URL           string `bson:"-" json:"url"`
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 }
@@ -41,7 +42,7 @@ type AdHocCommandEvent struct {
 	AdHocCommandID bson.ObjectId `bson:"ad_hoc_command_id" json:"ad_hoc_command_id"`
 
 	Type          string `bson:"-" json:"type"`
-	Url           string `bson:"-" json:"url"`
+	URL           string `bson:"-" json:"url"`
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 }

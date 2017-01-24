@@ -10,12 +10,14 @@ import (
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/pearsonappeng/tensor/roles"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -34,7 +36,7 @@ func Middleware(c *gin.Context) {
 
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -42,12 +44,12 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var inventory models.Inventory
+	var inventory ansible.Inventory
 	err = db.Inventories().FindId(bson.ObjectIdHex(ID)).One(&inventory)
 
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, models.Error{
+		c.JSON(http.StatusNotFound, common.Error{
 			Code:     http.StatusNotFound,
 			Messages: []string{"Not Found"},
 		})
@@ -61,7 +63,7 @@ func Middleware(c *gin.Context) {
 
 // GetInventory is a Gin handler function which returns the project as a JSON object
 func GetInventory(c *gin.Context) {
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	metadata.InventoryMetadata(&inventory)
 
@@ -83,11 +85,11 @@ func GetInventories(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	var inventories []models.Inventory
+	var inventories []ansible.Inventory
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
-	var tmpInventory models.Inventory
+	var tmpInventory ansible.Inventory
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpInventory) {
 		metadata.InventoryMetadata(&tmpInventory)
@@ -96,7 +98,7 @@ func GetInventories(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Inventory"},
 		})
@@ -111,7 +113,7 @@ func GetInventories(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -122,12 +124,12 @@ func GetInventories(c *gin.Context) {
 // AddInventory is a Gin handler function which creates a new inventory using request payload.
 // This accepts Inventory model.
 func AddInventory(c *gin.Context) {
-	var req models.Inventory
-	user := c.MustGet(CTXUser).(models.User)
+	var req ansible.Inventory
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -137,7 +139,7 @@ func AddInventory(c *gin.Context) {
 	// check whether the organization not in the collection
 	// if not fail
 	if helpers.OrganizationNotExist(req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
 		})
@@ -146,7 +148,7 @@ func AddInventory(c *gin.Context) {
 
 	// if inventory exists in the collection
 	if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory with this Name already exists."},
 		})
@@ -161,7 +163,7 @@ func AddInventory(c *gin.Context) {
 
 	if err := db.Inventories().Insert(req); err != nil {
 		log.Errorln("Error while creating Inventory:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while creating Inventory"},
 		})
@@ -169,7 +171,7 @@ func AddInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXInventory,
@@ -193,15 +195,15 @@ func AddInventory(c *gin.Context) {
 // removed from the database.
 func UpdateInventory(c *gin.Context) {
 	// get Inventory from the gin.Context
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.Inventory
+	var req ansible.Inventory
 	err := binding.JSON.Bind(c.Request, &req)
 	if err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -211,7 +213,7 @@ func UpdateInventory(c *gin.Context) {
 	// check whether the organization not in the collection
 	// if not fail
 	if helpers.OrganizationNotExist(req.OrganizationID) {
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
 		})
@@ -221,7 +223,7 @@ func UpdateInventory(c *gin.Context) {
 	if req.Name != inventory.Name {
 		// if inventory exists in the collection
 		if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
 			})
@@ -240,14 +242,14 @@ func UpdateInventory(c *gin.Context) {
 	err = db.Inventories().UpdateId(inventory.ID, inventory)
 	if err != nil {
 		log.Errorln("Error while updating Inventory:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Inventory"},
 		})
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXInventory,
@@ -271,14 +273,14 @@ func UpdateInventory(c *gin.Context) {
 // removed from the database object. unspecified fields will be ignored.
 func PatchInventory(c *gin.Context) {
 	// get Inventory from the gin.Context
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var req models.PatchInventory
+	var req ansible.PatchInventory
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, models.Error{
+		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: util.GetValidationErrors(err),
 		})
@@ -288,7 +290,7 @@ func PatchInventory(c *gin.Context) {
 	if req.OrganizationID != nil {
 		// check whether the organization exist or not
 		if !helpers.OrganizationExist(*req.OrganizationID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
 			})
@@ -303,7 +305,7 @@ func PatchInventory(c *gin.Context) {
 		}
 		// if inventory exists in the collection
 		if helpers.IsNotUniqueInventory(*req.Name, ogID) {
-			c.JSON(http.StatusBadRequest, models.Error{
+			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
 			})
@@ -332,7 +334,7 @@ func PatchInventory(c *gin.Context) {
 
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Errorln("Error while updating Inventory:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while updating Inventory"},
 		})
@@ -340,7 +342,7 @@ func PatchInventory(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXInventory,
@@ -362,14 +364,14 @@ func PatchInventory(c *gin.Context) {
 
 // RemoveInventory is a Gin handler function which removes a inventory object from the database
 func RemoveInventory(c *gin.Context) {
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
 	changes, err := db.Hosts().RemoveAll(bson.M{"inventory_id": inventory.ID})
 	if err != nil {
 		log.Errorln("Error while removing Hosts:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory Hosts"},
 		})
@@ -379,7 +381,7 @@ func RemoveInventory(c *gin.Context) {
 	changes, err = db.Groups().RemoveAll(bson.M{"inventory_id": inventory.ID})
 	if err != nil {
 		log.Errorln("Error while removing Groups:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory Groups"},
 		})
@@ -389,14 +391,14 @@ func RemoveInventory(c *gin.Context) {
 	err = db.Inventories().RemoveId(inventory.ID)
 	if err != nil {
 		log.Errorln("Error while removing Inventory:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while removing Inventory"},
 		})
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(models.Activity{
+	if err := db.ActivityStream().Insert(common.Activity{
 		ID:          bson.NewObjectId(),
 		ActorID:     user.ID,
 		Type:        CTXInventory,
@@ -418,7 +420,7 @@ func RemoveInventory(c *gin.Context) {
 // note: we are not using var varname []string specially because
 // output json must include [] for each array and {} for each object
 func Script(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	// query variables
 	//qall := c.Query("all")
@@ -427,7 +429,7 @@ func Script(c *gin.Context) {
 
 	if qhost != "" {
 		//get hosts for parent group
-		var host models.Host
+		var host ansible.Host
 		err := db.Hosts().Find(bson.M{"name": qhost}).One(&host)
 		if err != nil {
 			log.Errorln("Error while getting host", err)
@@ -457,7 +459,7 @@ func Script(c *gin.Context) {
 	resp := gin.H{}
 
 	// First Get all groups for inventory ID
-	var parents []models.Group
+	var parents []ansible.Group
 
 	q := bson.M{"inventory_id": inv.ID}
 
@@ -471,7 +473,7 @@ func Script(c *gin.Context) {
 		return
 	}
 
-	allhosts := []models.Host{}
+	allhosts := []ansible.Host{}
 
 	// get all
 
@@ -481,7 +483,7 @@ func Script(c *gin.Context) {
 	for _, v := range parents {
 
 		//get hosts for parent group
-		var hosts []models.Host
+		var hosts []ansible.Host
 
 		q := bson.M{"inventory_id": inv.ID, "group_id": v.ID}
 
@@ -499,7 +501,7 @@ func Script(c *gin.Context) {
 		allhosts = append(allhosts, hosts...)
 
 		// Second get all child groups
-		var childgroups []models.Group
+		var childgroups []ansible.Group
 
 		q = bson.M{"inventory_id": inv.ID, "parent_group_id": v.ID}
 
@@ -566,7 +568,7 @@ func Script(c *gin.Context) {
 	}
 
 	// add non-grouped hosts
-	nghosts := []models.Host{}
+	nghosts := []ansible.Host{}
 	q = bson.M{"inventory_id": inv.ID, "group_id": nil}
 
 	if err := db.Hosts().Find(q).All(&nghosts); err != nil {
@@ -616,15 +618,15 @@ func Script(c *gin.Context) {
 // JobTemplates is a Gin Handler function which returns list of Job Templates
 // that includes the inventory.
 func JobTemplates(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var jobTemplate []models.JobTemplate
+	var jobTemplate []ansible.JobTemplate
 	// new mongodb iterator
 	iter := db.JobTemplates().Find(bson.M{"inventory_id": inv.ID}).Iter()
 	// loop through each result and modify for our needs
-	var tmpJobTemplate models.JobTemplate
+	var tmpJobTemplate ansible.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
 		// if the user doesn't have access to credential
@@ -638,7 +640,7 @@ func JobTemplates(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Job Templates"},
 		})
@@ -653,7 +655,7 @@ func JobTemplates(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -664,11 +666,11 @@ func JobTemplates(c *gin.Context) {
 // RootGroups is a Gin handler function which returns list of root groups
 // of the inventory.
 func RootGroups(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var groups []models.Group
+	var groups []ansible.Group
 	query := bson.M{
 		"inventory_id": inv.ID,
 		"$or": []bson.M{
@@ -679,7 +681,7 @@ func RootGroups(c *gin.Context) {
 	// new mongodb iterator
 	iter := db.Groups().Find(query).Iter()
 	// loop through each result and modify for our needs
-	var tmpGroup models.Group
+	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
 		// if the user doesn't have access to inventory
@@ -693,7 +695,7 @@ func RootGroups(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
@@ -708,7 +710,7 @@ func RootGroups(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -719,18 +721,18 @@ func RootGroups(c *gin.Context) {
 // Groups is a Gin Handler function which returns all the groups of
 // an Inventory.
 func Groups(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var groups []models.Group
+	var groups []ansible.Group
 	query := bson.M{
 		"inventory_id": inv.ID,
 	}
 	// new mongodb iterator
 	iter := db.Groups().Find(query).Iter()
 	// loop through each result and modify for our needs
-	var tmpGroup models.Group
+	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
 		// if the user doesn't have access to inventory
@@ -744,7 +746,7 @@ func Groups(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
@@ -759,7 +761,7 @@ func Groups(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -770,18 +772,18 @@ func Groups(c *gin.Context) {
 // Hosts is a Gin handler function which returns all hosts
 // associated with the inventory.
 func Hosts(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(models.User)
+	user := c.MustGet(CTXUser).(common.User)
 
-	var hosts []models.Host
+	var hosts []ansible.Host
 	query := bson.M{
 		"inventory_id": inv.ID,
 	}
 	// new mongodb iterator
 	iter := db.Hosts().Find(query).Iter()
 	// loop through each result and modify for our needs
-	var tmpHost models.Host
+	var tmpHost ansible.Host
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
 		// if the user doesn't have access to host
@@ -795,7 +797,7 @@ func Hosts(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Host data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Hosts"},
 		})
@@ -810,7 +812,7 @@ func Hosts(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -822,14 +824,14 @@ func Hosts(c *gin.Context) {
 // inventory object that is in the Gin Context.
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
-	var activities []models.Activity
+	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"object_id": inventory.ID, "type": CTXInventory}).All(&activities)
 
 	if err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while Activities"},
 		})
@@ -844,7 +846,7 @@ func ActivityStream(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -856,16 +858,16 @@ func ActivityStream(c *gin.Context) {
 // inventory.
 // TODO: complete
 func Tree(c *gin.Context) {
-	inv := c.MustGet(CTXInventory).(models.Inventory)
+	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
-	var groups []models.Group
+	var groups []ansible.Group
 	query := bson.M{
 		"inventory_id": inv.ID,
 	}
 	// new mongodb iterator
 	iter := db.Inventories().Find(query).Iter()
 	// loop through each result and modify for our needs
-	var tmpGroup models.Group
+	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
 		metadata.GroupMetadata(&tmpGroup)
@@ -877,7 +879,7 @@ func Tree(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
-		c.JSON(http.StatusInternalServerError, models.Error{
+		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Error while getting Groups"},
 		})
@@ -892,7 +894,7 @@ func Tree(c *gin.Context) {
 		return
 	}
 	// send response with JSON rendered data
-	c.JSON(http.StatusOK, models.Response{
+	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
@@ -902,7 +904,7 @@ func Tree(c *gin.Context) {
 
 // VariableData is a Gin Handler function which returns variable data for the inventory.
 func VariableData(c *gin.Context) {
-	inventory := c.MustGet(CTXInventory).(models.Inventory)
+	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	variables := gin.H{}
 

@@ -1,16 +1,17 @@
-package models
+package common
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 // User is model for user collection
 type User struct {
 	ID      bson.ObjectId `bson:"_id" json:"id"`
 	Type    string        `bson:"-" json:"type"`
-	Url     string        `bson:"-" json:"url"`
+	URL     string        `bson:"-" json:"url"`
 	Related gin.H         `bson:"-" json:"related"`
 
 	Username        string         `bson:"username" json:"username" binding:"required,min=1,max=500"`
@@ -30,7 +31,7 @@ type User struct {
 type AccessUser struct {
 	ID      bson.ObjectId `bson:"_id" json:"id"`
 	Type    string        `bson:"-" json:"type"`
-	Url     string        `bson:"-" json:"url"`
+	URL     string        `bson:"-" json:"url"`
 	Related gin.H         `bson:"-" json:"related"`
 	Summary *AccessType   `bson:"-" json:"summary_fields"`
 

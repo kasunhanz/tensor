@@ -1,4 +1,4 @@
-package models
+package common
 
 type Error struct {
 	Code     int         `json:"code"`

@@ -1,9 +1,10 @@
-package models
+package common
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 type Notification struct {
@@ -16,7 +17,7 @@ type Notification struct {
 	Recipients             string `bson:"recipients" json:"recipients"`
 	Subject                string `bson:"subject" json:"subject"`
 	Body                   string `bson:"body" json:"body"`
-	NotificationTemplateId string `bson:"notification_template_id" json:"notification_template_id"`
+	NotificationTemplateID string `bson:"notification_template_id" json:"notification_template_id"`
 
 	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
 	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
@@ -25,7 +26,7 @@ type Notification struct {
 	Modified time.Time `bson:"modified" json:"modified"`
 
 	Type          string `bson:"-" json:"type"`
-	Url           string `bson:"-" json:"url"`
+	URL           string `bson:"-" json:"url"`
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 

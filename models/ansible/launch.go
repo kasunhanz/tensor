@@ -1,4 +1,4 @@
-package models
+package ansible
 
 import (
 	"github.com/gin-gonic/gin"

@@ -1,12 +1,14 @@
-package models
+package ansible
 
 import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
 )
 
+// Job constants
 const (
 	JOBTYPE_ANSIBLE_JOB = "ansible_job" // A ansible job
 	JOBTYPE_UPDATE_JOB  = "update_job"  // A project scm update job
@@ -76,5 +78,5 @@ type Job struct {
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles []common.AccessControl `bson:"roles" json:"-"`
 }

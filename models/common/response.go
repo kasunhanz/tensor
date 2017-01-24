@@ -1,4 +1,4 @@
-package models
+package common
 
 type Response struct {
 	Count    int         `json:"count"`

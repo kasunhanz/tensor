@@ -1,9 +1,11 @@
-package models
+package ansible
 
 import (
-	"github.com/gin-gonic/gin"
-	"gopkg.in/mgo.v2/bson"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Inventory is the model for
@@ -12,7 +14,7 @@ type Inventory struct {
 	ID bson.ObjectId `bson:"_id" json:"id"`
 
 	Type    string `bson:"-" json:"type"`
-	Url     string `bson:"-" json:"url"`
+	URL     string `bson:"-" json:"url"`
 	Related gin.H  `bson:"-" json:"related"`
 	Summary gin.H  `bson:"-" json:"summary_fields"`
 
@@ -39,7 +41,7 @@ type Inventory struct {
 	Created  time.Time `bson:"created" json:"created"`
 	Modified time.Time `bson:"modified" json:"modified"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles []common.AccessControl `bson:"roles" json:"-"`
 }
 
 // PatchInventory is the model for patch requests

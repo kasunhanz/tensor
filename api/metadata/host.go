@@ -1,18 +1,19 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // Create a new organization
-func HostMetadata(host *models.Host) {
+func HostMetadata(host *ansible.Host) {
 
 	ID := host.ID.Hex()
 	host.Type = "host"
-	host.Url = "/v1/hosts/" + ID + "/"
+	host.URL = "/v1/hosts/" + ID + "/"
 	host.Related = gin.H{
 		"created_by":            "/v1/users/" + host.CreatedByID.Hex() + "/",
 		"modified_by":           "/v1/users/" + host.CreatedByID.Hex() + "/",
@@ -32,11 +33,11 @@ func HostMetadata(host *models.Host) {
 	hostSummary(host)
 }
 
-func hostSummary(host *models.Host) {
+func hostSummary(host *ansible.Host) {
 
-	var modified models.User
-	var created models.User
-	var inv models.Inventory
+	var modified common.User
+	var created common.User
+	var inv ansible.Inventory
 
 	summary := gin.H{
 		"recent_jobs": []gin.H{}, //TODO: recent_jobs
