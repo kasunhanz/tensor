@@ -12,11 +12,11 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
-	"github.com/gamunu/tensor/queue"
-	"github.com/gamunu/tensor/ssh"
-	"github.com/gamunu/tensor/util"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/ssh"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 

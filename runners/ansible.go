@@ -13,11 +13,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
-	"github.com/gamunu/tensor/queue"
-	"github.com/gamunu/tensor/ssh"
-	"github.com/gamunu/tensor/util"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/ssh"
+	"github.com/pearsonappeng/tensor/util"
 )
 
 // QueueJob contains all the information required to start a job

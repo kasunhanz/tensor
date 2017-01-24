@@ -3,7 +3,7 @@ package db
 import (
 	"time"
 
-	"github.com/gamunu/tensor/util"
+	"github.com/pearsonappeng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 )

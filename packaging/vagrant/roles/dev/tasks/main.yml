@@ -78,7 +78,7 @@
 
 - name: Update go libraries
   become: false
-  shell: cd /go/src/github.com/gamunu/tensor/ && go get -v ./...
+  shell: cd /go/src/github.com/pearsonappeng/tensor/ && go get -v ./...
   environment:
     GOPATH: /go
     PATH : "{{ ansible_env.PATH }}:/go/bin:/usr/local/go/bin"

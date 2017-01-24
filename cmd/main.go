@@ -1,17 +1,18 @@
 package main
 
 import (
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
-	"github.com/gamunu/tensor/util"
 	"bufio"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/mgo.v2/bson"
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/util"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func main() {

@@ -1,8 +1,8 @@
 package jwt
 
 import (
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/dgrijalva/jwt-go.v3"

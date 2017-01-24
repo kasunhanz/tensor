@@ -1,7 +1,7 @@
 package sockets
 
 import (
-	"github.com/gamunu/tensor/models"
+	"github.com/pearsonappeng/tensor/models"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"

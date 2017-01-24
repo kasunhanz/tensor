@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	"github.com/gamunu/tensor/models"
+	"github.com/pearsonappeng/tensor/models"
 	"github.com/gin-gonic/gin"
 )
 

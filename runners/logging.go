@@ -6,8 +6,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
 )
 
 func (t *QueueJob) start() {

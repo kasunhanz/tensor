@@ -1,9 +1,9 @@
 package jwt
 
 import (
-	"github.com/gamunu/tensor/db"
-	"github.com/gamunu/tensor/models"
-	"github.com/gamunu/tensor/util"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/util"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
