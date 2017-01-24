@@ -5,9 +5,9 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/tensor/db"
 	"github.com/gamunu/tensor/models"
-	log "github.com/Sirupsen/logrus"
 )
 
 func (t *QueueJob) start() {
@@ -186,13 +186,6 @@ func (t *QueueJob) jobSuccess() {
 	}
 
 	t.updateProject()
-
-	switch t.Job.JobType {
-	case models.JOBTYPE_UPDATE_JOB:
-		{
-			t.updateJobTemplate()
-		}
-	}
 }
 
 func (t *QueueJob) updateProject() {

@@ -1,20 +1,22 @@
 package runners
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/tensor/db"
 	"github.com/gamunu/tensor/models"
 	"github.com/gamunu/tensor/queue"
 	"github.com/gamunu/tensor/ssh"
 	"github.com/gamunu/tensor/util"
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -31,9 +33,9 @@ func systemRun(j QueueJob) {
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
-	if len(j.MachineCred.SshKeyData) > 0 {
-		if len(j.MachineCred.SshKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)), util.CipherDecrypt(j.MachineCred.SshKeyUnlock))
+	if len(j.SCMCred.SshKeyData) > 0 {
+		if len(j.SCMCred.SshKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCMCred.SshKeyData)), util.CipherDecrypt(j.SCMCred.SshKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -52,7 +54,7 @@ func systemRun(j QueueJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SshKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCMCred.SshKeyData)))
 
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -94,9 +96,21 @@ func systemRun(j QueueJob) {
 		return
 	}
 
-	output, err := cmd.CombinedOutput()
-	j.Job.ResultStdout = string(output)
+	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running update job failed")
+		j.Job.ResultStdout = "stdout capture is missing"
+		j.Job.JobExplanation = err.Error()
+		j.jobFail()
+		return
+	}
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+
+	if err := cmd.Start(); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
@@ -104,6 +118,30 @@ func systemRun(j QueueJob) {
 		j.jobFail()
 		return
 	}
+	var timer *time.Timer
+	timer = time.AfterFunc(time.Duration(util.Config.JobTimeOut)*time.Second, func() {
+		log.Println("Killing the process. Execution exceeded threashold value")
+		cmd.Process.Kill()
+	})
+
+	if len(j.SCMCred.Password) > 0 && len(j.SCMCred.SshKeyData) <= 0 {
+		log.Println("Using credential instead of SSH key")
+		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
+	}
+
+	if err := cmd.Wait(); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running Project update task failed")
+		j.Job.JobExplanation = err.Error()
+		j.jobFail()
+		return
+	}
+
+	timer.Stop()
+
+	// set stdout
+	j.Job.ResultStdout = string(b.Bytes())
 	//success
 	j.jobSuccess()
 }
@@ -131,7 +169,7 @@ func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 		"HOME_PATH=" + util.Config.ProjectsHome + "/",
 		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"SHLVL=1",
-		"HOME=/root",
+		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",

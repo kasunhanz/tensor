@@ -1,13 +1,14 @@
 package util
 
 import (
-	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
@@ -42,6 +43,8 @@ type configType struct {
 
 	// cookie hashing & encryption
 	Salt string `yaml:"salt"`
+
+	JobTimeOut int `yaml:"job_timeout"`
 }
 
 var Config *configType
@@ -96,8 +99,15 @@ func init() {
 
 	if len(os.Getenv("TENSOR_SALT")) > 0 {
 		Config.Salt = os.Getenv("TENSOR_SALT")
-	} else if len(Config.Port) == 0 {
+	} else if len(Config.Salt) == 0 {
 		Config.Salt = "8m86pie1ef8bghbq41ru!de4"
+	}
+
+	if len(os.Getenv("TENSOR_JOB_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_JOB_TIMEOUT"))
+		Config.JobTimeOut = time
+	} else if Config.JobTimeOut == 0 {
+		Config.JobTimeOut = 3600
 	}
 
 	if len(os.Getenv("TENSOR_DB_USER")) > 0 {
@@ -135,6 +145,6 @@ func init() {
 }
 
 func GenerateSalt() {
-	salt := securecookie.GenerateRandomKey(32)
-	fmt.Println("Generated Salt: ", base64.StdEncoding.EncodeToString(salt))
+	salt := securecookie.GenerateRandomKey(24)
+	fmt.Println("Generated Salt: ", salt)
 }

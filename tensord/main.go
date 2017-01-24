@@ -3,13 +3,13 @@ package main
 import (
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/tensor/api"
 	"github.com/gamunu/tensor/api/sockets"
 	"github.com/gamunu/tensor/db"
 	"github.com/gamunu/tensor/queue"
 	"github.com/gamunu/tensor/runners"
 	"github.com/gamunu/tensor/util"
-	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -22,7 +22,9 @@ func main() {
 	log.Infoln("Projects Home:", util.Config.ProjectsHome)
 
 	if err := db.Connect(); err != nil {
-		log.Fatalln(err)
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Fatalln("Unable to initialize a connection to the database")
 	}
 
 	// connect to redis queues. this can panic if redis server not available make sure

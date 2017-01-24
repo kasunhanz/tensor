@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/gamunu/rmq"
 	"github.com/gamunu/tensor/db"
 	"github.com/gamunu/tensor/models"
 	"github.com/gamunu/tensor/queue"
 	"github.com/gamunu/tensor/ssh"
 	"github.com/gamunu/tensor/util"
-	log "github.com/Sirupsen/logrus"
-	"github.com/gamunu/rmq"
 )
 
 // QueueJob contains all the information required to start a job
@@ -112,7 +112,7 @@ func ansibleRun(j QueueJob) {
 
 		for range ticker.C {
 			if err := db.Jobs().FindId(j.PreviousJob.Job.ID).One(&j.PreviousJob.Job); err != nil {
-				log.Warningln("Cound not find Previous Job", err)
+				log.Warningln("Could not find Previous Job", err)
 				continue
 			}
 
@@ -252,20 +252,51 @@ func ansibleRun(j QueueJob) {
 		return
 	}
 
-	output, err := cmd.CombinedOutput()
+	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		if err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Running playbook failed")
-			j.Job.JobExplanation = err.Error()
-			j.jobFail()
-			return
-		}
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running playbook failed")
+		j.Job.ResultStdout = "stdout capture is missing"
+		j.Job.JobExplanation = err.Error()
+		j.jobFail()
+		return
+	}
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+
+	if err := cmd.Start(); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running playbook failed")
+		j.Job.JobExplanation = err.Error()
+		j.jobFail()
+		return
+	}
+	var timer *time.Timer
+	timer = time.AfterFunc(time.Duration(util.Config.JobTimeOut)*time.Second, func() {
+		log.Println("Killing the process. Execution exceeded threashold value")
+		cmd.Process.Kill()
+	})
+
+	if len(j.MachineCred.Password) > 0 && len(j.MachineCred.SshKeyData) <= 0 {
+		log.Println("Using credential instead of SSH key")
+		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
 	}
 
+	if err := cmd.Wait(); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running playbook failed")
+		j.Job.JobExplanation = err.Error()
+		j.jobFail()
+		return
+	}
+
+	timer.Stop()
 	// set stdout
-	j.Job.ResultStdout = string(output)
+	j.Job.ResultStdout = string(b.Bytes())
 	//success
 	j.jobSuccess()
 }
@@ -343,7 +374,7 @@ func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		"HOME_PATH=" + util.Config.ProjectsHome + "/",
 		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"SHLVL=1",
-		"HOME=/root",
+		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
@@ -352,7 +383,7 @@ func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
 		"ANSIBLE_FORCE_COLOR=True",
-		"REST_API_URL=http://localhost:8010",
+		"REST_API_URL=http://localhost" + util.Config.Port,
 		"INVENTORY_HOSTVARS=True",
 		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
 		"SSH_AUTH_SOCK=" + socket,

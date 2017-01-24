@@ -4,17 +4,18 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/gamunu/tensor/models"
 	"fmt"
+	"io"
+	"net"
+	"regexp"
+	"strings"
+
+	"github.com/gamunu/tensor/models"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/universal-translator"
 	"gopkg.in/go-playground/validator.v9"
 	en_translations "gopkg.in/go-playground/validator.v9/translations/en"
-	"io"
-	"net"
-	"regexp"
-	"strings"
 )
 
 const (
