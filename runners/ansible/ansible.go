@@ -16,27 +16,13 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	"github.com/pearsonappeng/tensor/runners/sync"
+	"github.com/pearsonappeng/tensor/runners/types"
 
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
 )
-
-// AnsibleJob contains all the information required to start a job
-type AnsibleJob struct {
-	Job            ansible.Job
-	Template       ansible.JobTemplate
-	MachineCred    common.Credential
-	NetworkCred    common.Credential
-	SCMCred        common.Credential
-	CloudCred      common.Credential
-	Inventory      ansible.Inventory
-	Project        common.Project
-	User           common.User
-	PreviousJob    *AnsibleJob
-	Token          string
-	CredentialPath string // for system jobs
-}
 
 // Consumer is implementation of rmq.Consumer interface
 type Consumer struct {
@@ -56,12 +42,12 @@ func NewConsumer(tag int) *Consumer {
 
 // Consume will deligate jobs to appropriate runners
 func (consumer *Consumer) Consume(delivery rmq.Delivery) {
-	jb := AnsibleJob{}
+	jb := types.AnsibleJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
 		log.Warningln("Job delivery rejected")
 		delivery.Reject()
-		jb.jobFail()
+		jobFail(jb)
 		return
 	}
 
@@ -72,7 +58,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		"Name":   jb.Job.Name,
 	}).Infoln("Job successfuly received")
 
-	jb.status("pending")
+	status(jb, "pending")
 
 	log.WithFields(log.Fields{
 		"Job ID": jb.Job.ID.Hex(),
@@ -80,7 +66,14 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	}).Infoln("Job changed status to pending")
 
 	if jb.Job.JobType == ansible.JOBTYPE_UPDATE_JOB {
-		SyncAnsible(jb)
+		sync.SyncAnsible(types.SyncJob{
+			Job:      jb.Job,
+			Project:  jb.Project,
+			SCMCred:  jb.SCMCred,
+			Template: jb.Template,
+			Token:    jb.Token,
+			User:     jb.User,
+		})
 		return
 	}
 	ansibleRun(jb)
@@ -94,7 +87,7 @@ func Run() {
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func ansibleRun(j AnsibleJob) {
+func ansibleRun(j types.AnsibleJob) {
 	log.WithFields(log.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -103,7 +96,7 @@ func ansibleRun(j AnsibleJob) {
 	// update if requested
 	if j.PreviousJob != nil {
 		// wait for scm update
-		j.status("waiting")
+		status(j, "waiting")
 
 		log.WithFields(log.Fields{
 			"Job ID": j.Job.ID.Hex(),
@@ -123,7 +116,7 @@ func ansibleRun(j AnsibleJob) {
 				log.Errorln(e)
 				j.Job.JobExplanation = e
 				j.Job.ResultStdout = "stdout capture is missing"
-				j.jobError()
+				jobError(j)
 				return
 			}
 			if j.PreviousJob.Job.Status == "successful" {
@@ -138,7 +131,7 @@ func ansibleRun(j AnsibleJob) {
 		}
 	}
 
-	j.start()
+	start(j)
 
 	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
 	log.WithFields(log.Fields{
@@ -167,7 +160,7 @@ func ansibleRun(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while decyrpting Machine Credential")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 			if client.Add(key); err != nil {
@@ -175,7 +168,7 @@ func ansibleRun(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 		}
@@ -186,7 +179,7 @@ func ansibleRun(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while decyrpting Machine Credential")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
@@ -195,7 +188,7 @@ func ansibleRun(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
@@ -209,7 +202,7 @@ func ansibleRun(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while decyrpting Machine Credential")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 			if client.Add(key); err != nil {
@@ -217,7 +210,7 @@ func ansibleRun(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 		}
@@ -228,7 +221,7 @@ func ansibleRun(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while decyrpting Machine Credential")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
@@ -237,20 +230,20 @@ func ansibleRun(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
 	}
 
-	cmd, err := j.getCmd(socket, pid)
+	cmd, err := getCmd(&j, socket, pid)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running playbook failed")
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 
@@ -261,7 +254,7 @@ func ansibleRun(j AnsibleJob) {
 		}).Errorln("Running playbook failed")
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 	var b bytes.Buffer
@@ -273,7 +266,8 @@ func ansibleRun(j AnsibleJob) {
 			"Error": err.Error(),
 		}).Errorln("Running playbook failed")
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		j.Job.ResultStdout = string(b.Bytes())
+		jobFail(j)
 		return
 	}
 	var timer *time.Timer
@@ -292,7 +286,8 @@ func ansibleRun(j AnsibleJob) {
 			"Error": err.Error(),
 		}).Errorln("Running playbook failed")
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		j.Job.ResultStdout = string(b.Bytes())
+		jobFail(j)
 		return
 	}
 
@@ -300,17 +295,17 @@ func ansibleRun(j AnsibleJob) {
 	// set stdout
 	j.Job.ResultStdout = string(b.Bytes())
 	//success
-	j.jobSuccess()
+	jobSuccess(j)
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
+func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
 		"-i", "/var/lib/tensor/plugins/inventory/tensorrest.py",
 	}
-	pPlaybook = j.buildParams(pPlaybook)
+	pPlaybook = buildParams(*j, pPlaybook)
 
 	// parameters that are hidden from output
 	pSecure := []string{}
@@ -332,7 +327,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
 		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_WIN {
-			j.kinit()
+			kinit(*j)
 		}
 	}
 
@@ -402,7 +397,7 @@ func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *AnsibleJob) buildParams(params []string) []string {
+func buildParams(j types.AnsibleJob, params []string) []string {
 
 	if j.Job.JobType == "check" {
 		params = append(params, "--check")
@@ -485,7 +480,7 @@ func (j *AnsibleJob) buildParams(params []string) []string {
 	return params
 }
 
-func (j *AnsibleJob) kinit() error {
+func kinit(j types.AnsibleJob) error {
 
 	// Create two command structs for echo and kinit
 	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))

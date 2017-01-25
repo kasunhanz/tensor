@@ -13,14 +13,14 @@ import (
 func JTemplateMetadata(jt *ansible.JobTemplate) {
 
 	ID := jt.ID.Hex()
-	jt.Type = "inventory"
-	jt.URL = "/v1/inventories/" + ID + "/"
+	jt.Type = "job_template"
+	jt.URL = "/v1/job_templates/" + ID + "/"
 	related := gin.H{
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex() + "/",
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
 		"labels":                         "/v1/job_templates/" + ID + "/labels/",
 		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex() + "/",
-		"credential":                     "v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
+		"credential":                     "/v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
 		"project":                        "/v1/projects/" + jt.ProjectID.Hex() + "/",
 		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success/",

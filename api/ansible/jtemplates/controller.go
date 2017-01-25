@@ -20,7 +20,8 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/roles"
-	runners "github.com/pearsonappeng/tensor/runners/ansible"
+	"github.com/pearsonappeng/tensor/runners/sync"
+	"github.com/pearsonappeng/tensor/runners/types"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -971,7 +972,7 @@ func Launch(c *gin.Context) {
 	}
 
 	// create new Ansible runner Job
-	runnerJob := runners.AnsibleJob{
+	runnerJob := types.AnsibleJob{
 		Job:      job,
 		Template: template,
 		User:     user,
@@ -1101,7 +1102,7 @@ func Launch(c *gin.Context) {
 
 	// update if requested
 	if runnerJob.Project.ScmUpdateOnLaunch {
-		tj, err := runners.UpdateProject(project)
+		tj, err := sync.UpdateProject(project)
 		runnerJob.PreviousJob = tj
 		if err != nil {
 			log.WithFields(log.Fields{

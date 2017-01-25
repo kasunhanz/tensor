@@ -15,7 +15,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-	ransible "github.com/pearsonappeng/tensor/runners/ansible"
+	"github.com/pearsonappeng/tensor/runners/sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -207,7 +207,7 @@ func AddProject(c *gin.Context) {
 	req.Description = strings.Trim(req.Description, " ")
 
 	req.ID = bson.NewObjectId()
-	req.LocalPath = "/opt/tensor/projects/" + req.ID.Hex()
+	req.LocalPath = util.Config.ProjectsHome + "/" + req.ID.Hex()
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()
@@ -240,7 +240,7 @@ func AddProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := ransible.UpdateProject(req); err != nil {
+	if sysJobID, err := sync.UpdateProject(req); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -347,7 +347,7 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := ransible.UpdateProject(project); err != nil {
+	if sysJobID, err := sync.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -506,7 +506,7 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := ransible.UpdateProject(project); err != nil {
+	if sysJobID, err := sync.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -832,11 +832,11 @@ func SCMUpdate(c *gin.Context) {
 				Code:     http.StatusBadRequest,
 				Messages: util.GetValidationErrors(err),
 			})
+			return
 		}
-		return
 	}
 
-	updateID, err := ransible.UpdateProject(project)
+	updateID, err := sync.UpdateProject(project)
 
 	if err != nil {
 		c.JSON(http.StatusMethodNotAllowed, common.Error{

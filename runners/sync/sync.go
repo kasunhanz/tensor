@@ -1,4 +1,4 @@
-package ansible
+package sync
 
 import (
 	"bytes"
@@ -18,14 +18,15 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/runners/types"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
 )
 
-func SyncAnsible(j AnsibleJob) {
-	j.start()
+func SyncAnsible(j types.SyncJob) {
+	start(j)
 	// create job directories
-	j.createJobDirs()
+	createJobDirs(j)
 
 	log.WithFields(log.Fields{
 		"Job ID": j.Job.ID.Hex(),
@@ -43,7 +44,7 @@ func SyncAnsible(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while decrypting Credential")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 			if client.Add(key); err != nil {
@@ -51,7 +52,7 @@ func SyncAnsible(j AnsibleJob) {
 					"Error": err.Error(),
 				}).Errorln("Error while adding decrypted Key")
 				j.Job.JobExplanation = err.Error()
-				j.jobFail()
+				jobFail(j)
 				return
 			}
 		}
@@ -63,7 +64,7 @@ func SyncAnsible(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while decrypting Credential")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
@@ -72,7 +73,7 @@ func SyncAnsible(j AnsibleJob) {
 				"Error": err.Error(),
 			}).Errorln("Error while adding decrypted Key to SSH Agent")
 			j.Job.JobExplanation = err.Error()
-			j.jobFail()
+			jobFail(j)
 			return
 		}
 
@@ -87,14 +88,14 @@ func SyncAnsible(j AnsibleJob) {
 		cleanup()
 	}()
 
-	cmd, err := j.getSystemCmd(socket, pid)
+	cmd, err := getCmd(&j, socket, pid)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 
@@ -105,7 +106,7 @@ func SyncAnsible(j AnsibleJob) {
 		}).Errorln("Running update job failed")
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 	var b bytes.Buffer
@@ -117,7 +118,7 @@ func SyncAnsible(j AnsibleJob) {
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 	var timer *time.Timer
@@ -136,7 +137,7 @@ func SyncAnsible(j AnsibleJob) {
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
-		j.jobFail()
+		jobFail(j)
 		return
 	}
 
@@ -145,10 +146,10 @@ func SyncAnsible(j AnsibleJob) {
 	// set stdout
 	j.Job.ResultStdout = string(b.Bytes())
 	//success
-	j.jobSuccess()
+	jobSuccess(j)
 }
 
-func (j *AnsibleJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
+func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
@@ -188,7 +189,7 @@ func (j *AnsibleJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *AnsibleJob) createJobDirs() {
+func createJobDirs(j types.SyncJob) {
 	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
 		log.WithFields(log.Fields{
 			"Dir":   util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(),
@@ -199,7 +200,7 @@ func (j *AnsibleJob) createJobDirs() {
 
 // UpdateProject will create and start a update system job
 // using ansible playbook project_update.yml
-func UpdateProject(p common.Project) (*AnsibleJob, error) {
+func UpdateProject(p common.Project) (*types.SyncJob, error) {
 	job := ansible.Job{
 		ID:           bson.NewObjectId(),
 		Name:         p.Name + " update Job",
@@ -246,7 +247,7 @@ func UpdateProject(p common.Project) (*AnsibleJob, error) {
 	}
 
 	// create new background job
-	runnerJob := AnsibleJob{
+	runnerJob := types.SyncJob{
 		Job:     job,
 		Project: p,
 	}
