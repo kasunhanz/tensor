@@ -8,7 +8,7 @@ import (
 	"github.com/pearsonappeng/tensor/api/ansible/groups"
 	"github.com/pearsonappeng/tensor/api/ansible/hosts"
 	"github.com/pearsonappeng/tensor/api/ansible/inventories"
-	"github.com/pearsonappeng/tensor/api/ansible/jobs"
+	ajobs "github.com/pearsonappeng/tensor/api/ansible/jobs"
 	jtemplate "github.com/pearsonappeng/tensor/api/ansible/jtemplates"
 	"github.com/pearsonappeng/tensor/api/common/credentials"
 	"github.com/pearsonappeng/tensor/api/common/dashboard"
@@ -17,6 +17,8 @@ import (
 	"github.com/pearsonappeng/tensor/api/common/teams"
 	"github.com/pearsonappeng/tensor/api/common/users"
 	"github.com/pearsonappeng/tensor/api/sockets"
+	tjobs "github.com/pearsonappeng/tensor/api/terraform/jobs"
+	tjtemplate "github.com/pearsonappeng/tensor/api/terraform/jtemplates"
 	"github.com/pearsonappeng/tensor/cors"
 	"github.com/pearsonappeng/tensor/jwt"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -271,13 +273,13 @@ func Route(r *gin.Engine) {
 				}
 			}
 
-			jtmps := v1.Group("/job_templates")
+			ajtmps := v1.Group("/job_templates")
 			{
-				// Job Templates endpoints
-				jtmps.GET("/", jtemplate.GetJTemplates)
-				jtmps.POST("/", jtemplate.AddJTemplate)
+				// Job Templates endpoints for Ansible
+				ajtmps.GET("/", jtemplate.GetJTemplates)
+				ajtmps.POST("/", jtemplate.AddJTemplate)
 
-				jtmp := jtmps.Group("/:job_template_id", jtemplate.Middleware)
+				jtmp := ajtmps.Group("/:job_template_id", jtemplate.Middleware)
 				{
 					jtmp.GET("/", jtemplate.GetJTemplate)
 					jtmp.PUT("/", jtemplate.UpdateJTemplate)
@@ -299,17 +301,68 @@ func Route(r *gin.Engine) {
 				}
 			}
 
-			jbs := v1.Group("/jobs")
+			tjtmps := v1.Group("/job_templates/terraform")
 			{
-				// Jobs endpoints
-				jbs.GET("/", jobs.GetJobs)
+				// Job Templates endpoints for Terraform
+				jtmps.GET("/", tjtemplate.GetJTemplates)
+				jtmps.POST("/", tjtemplate.AddJTemplate)
 
-				jb := jbs.Group("/:job_id", jobs.Middleware)
+				jtmp := jtmps.Group("/:job_template_id", jtemplate.Middleware)
 				{
-					jb.GET("/", jobs.GetJob)
-					jb.GET("/cancel/", jobs.CancelInfo)
-					jb.POST("/cancel/", jobs.Cancel)
-					jb.GET("/stdout/", jobs.StdOut)
+					jtmp.GET("/", tjtemplate.GetJTemplate)
+					jtmp.PUT("/", tjtemplate.UpdateJTemplate)
+					jtmp.PATCH("/", tjtemplate.PatchJTemplate)
+					jtmp.DELETE("/", tjtemplate.RemoveJTemplate)
+
+					// 'Job Template' releated endpoints
+					jtmp.GET("/jobs/", tjtemplate.Jobs)
+					jtmp.GET("/object_roles/", tjtemplate.ObjectRoles)
+					jtmp.GET("/access_list/", tjtemplate.AccessList)
+					jtmp.GET("/launch/", tjtemplate.LaunchInfo)
+					jtmp.POST("/launch/", tjtemplate.Launch)
+					jtmp.GET("/activity_stream/", tjtemplate.ActivityStream)
+
+					jtmp.GET("/schedules/", notImplemented)                      //TODO: implement
+					jtmp.GET("/notification_templates_error/", notImplemented)   //TODO: implement
+					jtmp.GET("/notification_templates_success/", notImplemented) //TODO: implement
+					jtmp.GET("/notification_templates_any/", notImplemented)     //TODO: implement
+				}
+			}
+
+			ajbs := v1.Group("/jobs")
+			{
+				// Jobs endpoints for Ansible
+				ajbs.GET("/", ajobs.GetJobs)
+
+				jb := ajbs.Group("/:job_id", ajobs.Middleware)
+				{
+					jb.GET("/", ajobs.GetJob)
+					jb.GET("/cancel/", ajobs.CancelInfo)
+					jb.POST("/cancel/", ajobs.Cancel)
+					jb.GET("/stdout/", ajobs.StdOut)
+
+					// 'Job' releated endpoints
+					jb.GET("/job_tasks/", notImplemented)       //TODO: implement
+					jb.GET("/job_plays/", notImplemented)       //TODO: implement
+					jb.GET("/job_events/", notImplemented)      //TODO: implement
+					jb.GET("/notifications/", notImplemented)   //TODO: implement
+					jb.GET("/activity_stream/", notImplemented) //TODO: implement
+					jb.GET("/start/", notImplemented)           //TODO: implement
+					jb.GET("/relaunch/", notImplemented)        //TODO: implement
+				}
+			}
+
+			tjbs := v1.Group("/jobs")
+			{
+				// Jobs endpoints for Terraform
+				tjbs.GET("/", tjobs.GetJobs)
+
+				jb := tjbs.Group("/:job_id", tjobs.Middleware)
+				{
+					jb.GET("/", tjobs.GetJob)
+					jb.GET("/cancel/", tjobs.CancelInfo)
+					jb.POST("/cancel/", tjobs.Cancel)
+					jb.GET("/stdout/", tjobs.StdOut)
 
 					// 'Job' releated endpoints
 					jb.GET("/job_tasks/", notImplemented)       //TODO: implement
