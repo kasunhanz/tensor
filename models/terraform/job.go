@@ -33,6 +33,7 @@ type Job struct {
 	ResultTraceback string    `bson:"result_traceback" json:"result_traceback"`
 	JobExplanation  string    `bson:"job_explanation" json:"job_explanation"`
 	JobType         string    `bson:"job_type" json:"job_type"`
+	Vars            gin.H     `bson:"vars,omitempty" json:"vars"`
 
 	MachineCredentialID bson.ObjectId  `bson:"credential_id,omitempty" json:"credential"`
 	JobTemplateID       bson.ObjectId  `bson:"job_template_id,omitempty" json:"job_template"`
@@ -41,9 +42,10 @@ type Job struct {
 	NetworkCredentialID *bson.ObjectId `bson:"network_credential_id,omitempty" json:"network_credential"`
 	CloudCredentialID   *bson.ObjectId `bson:"cloud_credential_id,omitempty" json:"cloud_credential"`
 
-	PromptCredential bool `bson:"prompt_credential" json:"ask_credential_on_launch"`
-	PromptJobType    bool `bson:"prompt_job_type" json:"ask_job_type_on_launch"`
-	PromptVariables  bool `bson:"prompt_variables" json:"ask_variables_on_launch"`
+	PromptCredential  bool `bson:"prompt_credential" json:"ask_credential_on_launch"`
+	PromptJobType     bool `bson:"prompt_job_type" json:"ask_job_type_on_launch"`
+	PromptVariables   bool `bson:"prompt_variables" json:"ask_variables_on_launch"`
+	AllowSimultaneous bool `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous"`
 
 	// system generated items
 	JobCWD  string   `bson:"job_cwd" json:"job_cwd"`
