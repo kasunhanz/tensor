@@ -20,7 +20,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/runners"
+	runners "github.com/pearsonappeng/tensor/runners/ansible"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -971,7 +971,7 @@ func Launch(c *gin.Context) {
 	}
 
 	// create new Ansible runner Job
-	runnerJob := runners.QueueJob{
+	runnerJob := runners.AnsibleJob{
 		Job:      job,
 		Template: template,
 		User:     user,
@@ -1116,7 +1116,7 @@ func Launch(c *gin.Context) {
 	}
 
 	// Add the job to queue
-	jobQueue := queue.OpenJobQueue()
+	jobQueue := queue.OpenAnsibleQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
 		log.WithFields(log.Fields{

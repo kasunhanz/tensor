@@ -1,4 +1,4 @@
-package runners
+package ansible
 
 import (
 	"bytes"
@@ -22,8 +22,8 @@ import (
 	"github.com/pearsonappeng/tensor/util"
 )
 
-// QueueJob contains all the information required to start a job
-type QueueJob struct {
+// AnsibleJob contains all the information required to start a job
+type AnsibleJob struct {
 	Job            ansible.Job
 	Template       ansible.JobTemplate
 	MachineCred    common.Credential
@@ -33,7 +33,7 @@ type QueueJob struct {
 	Inventory      ansible.Inventory
 	Project        common.Project
 	User           common.User
-	PreviousJob    *QueueJob
+	PreviousJob    *AnsibleJob
 	Token          string
 	CredentialPath string // for system jobs
 }
@@ -56,7 +56,7 @@ func NewConsumer(tag int) *Consumer {
 
 // Consume will deligate jobs to appropriate runners
 func (consumer *Consumer) Consume(delivery rmq.Delivery) {
-	jb := QueueJob{}
+	jb := AnsibleJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
 		log.Warningln("Job delivery rejected")
@@ -80,21 +80,21 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	}).Infoln("Job changed status to pending")
 
 	if jb.Job.JobType == ansible.JOBTYPE_UPDATE_JOB {
-		systemRun(jb)
+		SyncAnsible(jb)
 		return
 	}
 	ansibleRun(jb)
 }
 
-// AnsibleRun starts consuming jobs into a channel of size prefetchLimit
-func AnsibleRun() {
-	q := queue.OpenJobQueue()
+// Run starts consuming jobs into a channel of size prefetchLimit
+func Run() {
+	q := queue.OpenAnsibleQueue()
 
 	q.StartConsuming(1, 500*time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func ansibleRun(j QueueJob) {
+func ansibleRun(j AnsibleJob) {
 	log.WithFields(log.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -304,7 +304,7 @@ func ansibleRun(j QueueJob) {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
+func (j *AnsibleJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
@@ -402,7 +402,7 @@ func (j *QueueJob) getCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *QueueJob) buildParams(params []string) []string {
+func (j *AnsibleJob) buildParams(params []string) []string {
 
 	if j.Job.JobType == "check" {
 		params = append(params, "--check")
@@ -485,7 +485,7 @@ func (j *QueueJob) buildParams(params []string) []string {
 	return params
 }
 
-func (j *QueueJob) kinit() error {
+func (j *AnsibleJob) kinit() error {
 
 	// Create two command structs for echo and kinit
 	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))

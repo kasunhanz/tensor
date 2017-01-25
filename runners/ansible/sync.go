@@ -1,4 +1,4 @@
-package runners
+package ansible
 
 import (
 	"bytes"
@@ -11,18 +11,18 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/mgo.v2/bson"
 )
 
-func systemRun(j QueueJob) {
+func SyncAnsible(j AnsibleJob) {
 	j.start()
 	// create job directories
 	j.createJobDirs()
@@ -148,7 +148,7 @@ func systemRun(j QueueJob) {
 	j.jobSuccess()
 }
 
-func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
+func (j *AnsibleJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
@@ -188,7 +188,7 @@ func (j *QueueJob) getSystemCmd(socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (j *QueueJob) createJobDirs() {
+func (j *AnsibleJob) createJobDirs() {
 	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
 		log.WithFields(log.Fields{
 			"Dir":   util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(),
@@ -199,7 +199,7 @@ func (j *QueueJob) createJobDirs() {
 
 // UpdateProject will create and start a update system job
 // using ansible playbook project_update.yml
-func UpdateProject(p common.Project) (*QueueJob, error) {
+func UpdateProject(p common.Project) (*AnsibleJob, error) {
 	job := ansible.Job{
 		ID:           bson.NewObjectId(),
 		Name:         p.Name + " update Job",
@@ -246,7 +246,7 @@ func UpdateProject(p common.Project) (*QueueJob, error) {
 	}
 
 	// create new background job
-	runnerJob := QueueJob{
+	runnerJob := AnsibleJob{
 		Job:     job,
 		Project: p,
 	}
@@ -263,7 +263,7 @@ func UpdateProject(p common.Project) (*QueueJob, error) {
 	}
 
 	// Add the job to queue
-	jobQueue := queue.OpenJobQueue()
+	jobQueue := queue.OpenAnsibleQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
 		log.WithFields(log.Fields{

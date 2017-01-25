@@ -4,15 +4,15 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gin-gonic/contrib/ginrus"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/api"
 	"github.com/pearsonappeng/tensor/api/sockets"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/queue"
-	"github.com/pearsonappeng/tensor/runners"
+	"github.com/pearsonappeng/tensor/runners/ansible"
 	"github.com/pearsonappeng/tensor/util"
-	"github.com/gin-gonic/contrib/ginrus"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 )
 
 func main() {
@@ -46,7 +46,7 @@ func main() {
 
 	controllers.Route(r)
 
-	go runners.AnsibleRun()
+	go ansible.Run()
 
 	r.Run(util.Config.Port)
 }

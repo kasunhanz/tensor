@@ -15,12 +15,12 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	ransible "github.com/pearsonappeng/tensor/runners/ansible"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/runners"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -240,7 +240,7 @@ func AddProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := runners.UpdateProject(req); err != nil {
+	if sysJobID, err := ransible.UpdateProject(req); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -347,7 +347,7 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := runners.UpdateProject(project); err != nil {
+	if sysJobID, err := ransible.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -506,7 +506,7 @@ func PatchProject(c *gin.Context) {
 	}
 
 	// before set metadata update the project
-	if sysJobID, err := runners.UpdateProject(project); err != nil {
+	if sysJobID, err := ransible.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
@@ -836,7 +836,7 @@ func SCMUpdate(c *gin.Context) {
 		return
 	}
 
-	updateID, err := runners.UpdateProject(project)
+	updateID, err := ransible.UpdateProject(project)
 
 	if err != nil {
 		c.JSON(http.StatusMethodNotAllowed, common.Error{

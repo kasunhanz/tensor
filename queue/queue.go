@@ -6,13 +6,15 @@ import (
 	"github.com/adjust/uniuri"
 	"github.com/gamunu/rmq"
 
-	"github.com/pearsonappeng/tensor/util"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/util"
 )
 
 const (
-	// JobQueue is the redis queue which stores jobs
-	JobQueue = "sysqueue"
+	// AnsibleQueue is the redis queue which stores jobs
+	AnsibleQueue = "ansibleq"
+	// TerraformQueue is the redis queue which stores jobs
+	TerraformQueue = "terraformq"
 )
 
 // Queue is to hold the redis connection created by
@@ -33,7 +35,12 @@ func Connect() {
 	Queue = rmq.OpenConnection("tensor_"+hostname, "tcp", util.Config.Redis.Host, 2)
 }
 
-// OpenJobQueue returns rmq.Queue
-func OpenJobQueue() rmq.Queue {
-	return Queue.OpenQueue(JobQueue)
+// OpenAnsibleQueue returns rmq.Queue
+func OpenAnsibleQueue() rmq.Queue {
+	return Queue.OpenQueue(AnsibleQueue)
+}
+
+// OpenTerraformQueue returns rmq.Queue
+func OpenTerraformQueue() rmq.Queue {
+	return Queue.OpenQueue(TerraformQueue)
 }

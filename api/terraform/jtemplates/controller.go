@@ -13,7 +13,6 @@ import (
 	metadata "github.com/pearsonappeng/tensor/api/metadata/terraform"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/jwt"
-	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
 
@@ -789,7 +788,7 @@ func Launch(c *gin.Context) {
 		LaunchType:          "manual",
 		CancelFlag:          false,
 		Status:              "new",
-		JobType:             ansible.JOBTYPE_ANSIBLE_JOB,
+		JobType:             terraform.JOBTYPE_TERRAFORM_JOB,
 		Vars:                template.Vars,
 		MachineCredentialID: template.MachineCredentialID,
 		JobTemplateID:       template.ID,
@@ -910,7 +909,7 @@ func Launch(c *gin.Context) {
 	}
 	runnerJob.Project = project
 
-	// Get jwt token for authorize Ansible inventory plugin
+	// Get jwt token for authorize API
 	var token jwt.LocalToken
 	if err := jwt.NewAuthToken(&token); err != nil {
 		log.WithFields(log.Fields{
