@@ -100,8 +100,8 @@ func Route(r *gin.Engine) {
 			usrs := v1.Group("/users")
 			{
 				// Users endpoints
-				v1.GET("/users/", users.GetUsers)
-				v1.POST("/users/", users.AddUser)
+				usrs.GET("/", users.GetUsers)
+				usrs.POST("/", users.AddUser)
 
 				usr := usrs.Group("/:user_id", users.Middleware)
 				{
@@ -120,150 +120,207 @@ func Route(r *gin.Engine) {
 					usr.GET("/access_list/", notImplemented) //TODO: implement
 				}
 			}
-			// Projects endpoints
-			r.GET("/projects/", projects.GetProjects)
-			r.POST("/projects/", projects.AddProject)
-			r.GET("/projects/:project_id/", projects.Middleware, projects.GetProject)
-			r.PUT("/projects/:project_id/", projects.Middleware, projects.UpdateProject)
-			r.PATCH("/projects/:project_id/", projects.Middleware, projects.PatchProject)
-			r.DELETE("/projects/:project_id/", projects.Middleware, projects.RemoveProject)
 
-			// 'Project' releated endpoints
-			r.GET("/projects/:project_id/activity_stream/", projects.Middleware, projects.ActivityStream)
-			r.GET("/projects/:project_id/teams/", projects.Middleware, projects.Teams)
-			r.GET("/projects/:project_id/playbooks/", projects.Middleware, projects.Playbooks)
-			r.GET("/projects/:project_id/access_list/", projects.Middleware, projects.AccessList)
-			r.GET("/projects/:project_id/update/", projects.Middleware, projects.SCMUpdateInfo)
-			r.POST("/projects/:project_id/update/", projects.Middleware, projects.SCMUpdate)
-			r.GET("/projects/:project_id/project_updates/", projects.Middleware, projects.ProjectUpdates)
+			prjcts := v1.Group("/projects")
+			{
+				// Projects endpoints
+				prjcts.GET("/", projects.GetProjects)
+				prjcts.POST("/", projects.AddProject)
 
-			r.GET("/projects/:project_id/schedules/", projects.Middleware, notImplemented) //TODO: implement
+				prjct := prjcts.Group("/:project_id", projects.Middleware)
+				{
+					prjct.GET("/", projects.GetProject)
+					prjct.PUT("/", projects.UpdateProject)
+					prjct.PATCH("/", projects.PatchProject)
+					prjct.DELETE("/", projects.RemoveProject)
 
-			// Credentials endpoints
-			r.GET("/credentials/", credentials.GetCredentials)
-			r.POST("/credentials/", credentials.AddCredential)
-			r.GET("/credentials/:credential_id/", credentials.Middleware, credentials.GetCredential)
-			r.PUT("/credentials/:credential_id/", credentials.Middleware, credentials.UpdateCredential)
-			r.PATCH("/credentials/:credential_id/", credentials.Middleware, credentials.PatchCredential)
-			r.DELETE("/credentials/:credential_id/", credentials.Middleware, credentials.RemoveCredential)
+					// 'Project' releated endpoints
+					prjct.GET("/activity_stream/", projects.ActivityStream)
+					prjct.GET("/teams/", projects.Teams)
+					prjct.GET("/playbooks/", projects.Playbooks)
+					prjct.GET("/access_list/", projects.AccessList)
+					prjct.GET("/update/", projects.SCMUpdateInfo)
+					prjct.POST("/update/", projects.SCMUpdate)
+					prjct.GET("/project_updates/", projects.ProjectUpdates)
 
-			// 'Credential' releated endpoints
-			r.GET("/credentials/:credential_id/owner_teams/", credentials.Middleware, credentials.OwnerTeams)
-			r.GET("/credentials/:credential_id/owner_users/", credentials.Middleware, credentials.OwnerUsers)
-			r.GET("/credentials/:credential_id/activity_stream/", credentials.Middleware, credentials.ActivityStream)
-			r.GET("/credentials/:credential_id/access_list/", credentials.Middleware, notImplemented)  //TODO: implement
-			r.GET("/credentials/:credential_id/object_roles/", credentials.Middleware, notImplemented) //TODO: implement
+					prjct.GET("/schedules/", notImplemented) //TODO: implement
+				}
+			}
 
-			// Teams endpoints
-			r.GET("/teams/", teams.GetTeams)
-			r.POST("/teams/", teams.AddTeam)
-			r.GET("/teams/:team_id/", teams.Middleware, teams.GetTeam)
-			r.PUT("/teams/:team_id/", teams.Middleware, teams.UpdateTeam)
-			r.PATCH("/teams/:team_id/", teams.Middleware, teams.PatchTeam)
-			r.DELETE("/teams/:team_id/", teams.Middleware, teams.RemoveTeam)
+			crdntls := v1.Group("/credentials")
+			{
+				// Credentials endpoints
+				crdntls.GET("/", credentials.GetCredentials)
+				crdntls.POST("/", credentials.AddCredential)
 
-			// 'Team' releated endpoints
-			r.GET("/teams/:team_id/users/", teams.Middleware, teams.Users)
-			r.GET("/teams/:team_id/credentials/", teams.Middleware, teams.Credentials)
-			r.GET("/teams/:team_id/projects/", teams.Middleware, teams.Projects)
-			r.GET("/teams/:team_id/activity_stream/", teams.Middleware, teams.ActivityStream)
-			r.GET("/teams/:team_id/access_list/", teams.Middleware, teams.AccessList)
+				crdntl := crdntls.Group(":credential_id", credentials.Middleware)
+				{
+					crdntl.GET("/", credentials.GetCredential)
+					crdntl.PUT("/", credentials.UpdateCredential)
+					crdntl.PATCH("/", credentials.PatchCredential)
+					crdntl.DELETE("/", credentials.RemoveCredential)
 
-			// Inventories endpoints
-			r.GET("/inventories/", inventories.GetInventories)
-			r.POST("/inventories/", inventories.AddInventory)
-			r.GET("/inventories/:inventory_id/", inventories.Middleware, inventories.GetInventory)
-			r.PUT("/inventories/:inventory_id/", inventories.Middleware, inventories.UpdateInventory)
-			r.PATCH("/inventories/:inventory_id/", inventories.Middleware, inventories.PatchInventory)
-			r.DELETE("/inventories/:inventory_id/", inventories.Middleware, inventories.RemoveInventory)
-			r.GET("/inventories/:inventory_id/script/", inventories.Middleware, inventories.Script)
+					// 'Credential' releated endpoints
+					crdntl.GET("/owner_teams/", credentials.OwnerTeams)
+					crdntl.GET("/owner_users/", credentials.OwnerUsers)
+					crdntl.GET("/activity_stream/", credentials.ActivityStream)
+					crdntl.GET("/access_list/", notImplemented)  //TODO: implement
+					crdntl.GET("/object_roles/", notImplemented) //TODO: implement
+				}
+			}
 
-			// 'Inventory' releated endpoints
-			r.GET("/inventories/:inventory_id/job_templates/", inventories.Middleware, inventories.JobTemplates)
-			r.GET("/inventories/:inventory_id/variable_data/", inventories.Middleware, inventories.VariableData)
-			r.GET("/inventories/:inventory_id/root_groups/", inventories.Middleware, inventories.RootGroups)
-			r.GET("/inventories/:inventory_id/ad_hoc_commands/", inventories.Middleware, notImplemented) //TODO: implement
-			r.GET("/inventories/:inventory_id/tree/", inventories.Middleware, notImplemented)            //TODO: implement
-			r.GET("/inventories/:inventory_id/access_list/", inventories.Middleware, inventories.AccessList)
-			r.GET("/inventories/:inventory_id/hosts/", inventories.Middleware, inventories.Hosts)
-			r.GET("/inventories/:inventory_id/groups/", inventories.Middleware, inventories.Groups)
-			r.GET("/inventories/:inventory_id/activity_stream/", inventories.Middleware, inventories.ActivityStream)
-			r.GET("/inventories/:inventory_id/inventory_sources/", inventories.Middleware, notImplemented) //TODO: implement
+			tms := v1.Group("/teams")
+			{
+				// Teams endpoints
+				tms.GET("/", teams.GetTeams)
+				tms.POST("/", teams.AddTeam)
 
-			// Hosts endpoints
-			r.GET("/hosts/", hosts.GetHosts)
-			r.POST("/hosts/", hosts.AddHost)
-			r.GET("/hosts/:host_id/", hosts.Middleware, hosts.GetHost)
-			r.PUT("/hosts/:host_id/", hosts.Middleware, hosts.UpdateHost)
-			r.PATCH("/hosts/:host_id/", hosts.Middleware, hosts.PatchHost)
-			r.DELETE("/hosts/:host_id/", hosts.Middleware, hosts.RemoveHost)
+				tm := tms.Group("/:team_id", teams.Middleware)
+				{
+					tm.GET("/", teams.GetTeam)
+					tm.PUT("/", teams.UpdateTeam)
+					tm.PATCH("/", teams.PatchTeam)
+					tm.DELETE("/", teams.RemoveTeam)
 
-			// 'Host' releated endpoints
-			r.GET("/hosts/:host_id/job_host_summaries/", hosts.Middleware, notImplemented) //TODO: implement
-			r.GET("/hosts/:host_id/job_events/", hosts.Middleware, notImplemented)         //TODO: implement
-			r.GET("/hosts/:host_id/ad_hoc_commands/", hosts.Middleware, notImplemented)    //TODO: implement
-			r.GET("/hosts/:host_id/inventory_sources/", hosts.Middleware, notImplemented)  //TODO: implement
-			r.GET("/hosts/:host_id/activity_stream/", hosts.Middleware, hosts.ActivityStream)
-			r.GET("/hosts/:host_id/ad_hoc_command_events/", hosts.Middleware, notImplemented) //TODO: implement
-			r.GET("/hosts/:host_id/variable_data/", hosts.Middleware, hosts.VariableData)
-			r.GET("/hosts/:host_id/groups/", hosts.Middleware, hosts.Groups)
-			r.GET("/hosts/:host_id/all_groups/", hosts.Middleware, hosts.AllGroups)
+					// 'Team' releated endpoints
+					tm.GET("/users/", teams.Users)
+					tm.GET("/credentials/", teams.Credentials)
+					tm.GET("/projects/", teams.Projects)
+					tm.GET("/activity_stream/", teams.ActivityStream)
+					tm.GET("/access_list/", teams.AccessList)
+				}
+			}
 
-			// Groups endpoints
-			r.GET("/groups/", groups.GetGroups)
-			r.POST("/groups/", groups.AddGroup)
-			r.GET("/groups/:group_id/", groups.Middleware, groups.GetGroup)
-			r.PUT("/groups/:group_id/", groups.Middleware, groups.UpdateGroup)
-			r.PATCH("/groups/:group_id/", groups.Middleware, groups.PatchGroup)
-			r.DELETE("/groups/:group_id/", groups.Middleware, groups.RemoveGroup)
+			invtrs := v1.Group("/inventories")
+			{
+				// Inventories endpoints
+				invtrs.GET("/", inventories.GetInventories)
+				invtrs.POST("/", inventories.AddInventory)
 
-			// 'Group' related endpoints
-			r.GET("/groups/:group_id/variable_data/", groups.Middleware, groups.VariableData)
-			r.GET("/groups/:group_id/job_events/", groups.Middleware, notImplemented)         //TODO: implement
-			r.GET("/groups/:group_id/potential_children/", groups.Middleware, notImplemented) //TODO: implement
-			r.GET("/groups/:group_id/ad_hoc_commands/", groups.Middleware, notImplemented)    //TODO: implement
-			r.GET("/groups/:group_id/all_hosts/", groups.Middleware, notImplemented)          //TODO: implement
-			r.GET("/groups/:group_id/activity_stream/", groups.Middleware, notImplemented)    //TODO: implement
-			r.GET("/groups/:group_id/hosts/", groups.Middleware, notImplemented)              //TODO: implement
-			r.GET("/groups/:group_id/children/", groups.Middleware, notImplemented)           //TODO: implement
-			r.GET("/groups/:group_id/job_host_summaries/", groups.Middleware, notImplemented) //TODO: implement
+				intr := invtrs.Group("/:inventory_id", inventories.Middleware)
+				{
+					intr.GET("/", inventories.GetInventory)
+					intr.PUT("/", inventories.UpdateInventory)
+					intr.PATCH("/", inventories.PatchInventory)
+					intr.DELETE("/", inventories.RemoveInventory)
+					intr.GET("/script/", inventories.Script)
 
-			// Job Templates endpoints
-			r.GET("/job_templates/", jtemplate.GetJTemplates)
-			r.POST("/job_templates/", jtemplate.AddJTemplate)
-			r.GET("/job_templates/:job_template_id/", jtemplate.Middleware, jtemplate.GetJTemplate)
-			r.PUT("/job_templates/:job_template_id/", jtemplate.Middleware, jtemplate.UpdateJTemplate)
-			r.PATCH("/job_templates/:job_template_id/", jtemplate.Middleware, jtemplate.PatchJTemplate)
-			r.DELETE("/job_templates/:job_template_id/", jtemplate.Middleware, jtemplate.RemoveJTemplate)
+					// 'Inventory' releated endpoints
+					intr.GET("/job_templates/", inventories.JobTemplates)
+					intr.GET("/variable_data/", inventories.VariableData)
+					intr.GET("/root_groups/", inventories.RootGroups)
+					intr.GET("/ad_hoc_commands/", notImplemented) //TODO: implement
+					intr.GET("/tree/", notImplemented)            //TODO: implement
+					intr.GET("/access_list/", inventories.AccessList)
+					intr.GET("/hosts/", inventories.Hosts)
+					intr.GET("/groups/", inventories.Groups)
+					intr.GET("/activity_stream/", inventories.ActivityStream)
+					intr.GET("/inventory_sources/", notImplemented) //TODO: implement
+				}
+			}
 
-			// 'Job Template' releated endpoints
-			r.GET("/job_templates/:job_template_id/jobs/", jtemplate.Middleware, jtemplate.Jobs)
-			r.GET("/job_templates/:job_template_id/object_roles/", jtemplate.Middleware, jtemplate.ObjectRoles)
-			r.GET("/job_templates/:job_template_id/access_list/", jtemplate.Middleware, jtemplate.AccessList)
-			r.GET("/job_templates/:job_template_id/launch/", jtemplate.Middleware, jtemplate.LaunchInfo)
-			r.POST("/job_templates/:job_template_id/launch/", jtemplate.Middleware, jtemplate.Launch)
-			r.GET("/job_templates/:job_template_id/activity_stream/", jtemplate.Middleware, jtemplate.ActivityStream)
+			hsts := v1.Group("/hosts")
+			{
+				// Hosts endpoints
+				hsts.GET("/", hosts.GetHosts)
+				hsts.POST("/", hosts.AddHost)
 
-			r.GET("/job_templates/:job_template_id/schedules/", jtemplate.Middleware, notImplemented)                      //TODO: implement
-			r.GET("/job_templates/:job_template_id/notification_templates_error/", jtemplate.Middleware, notImplemented)   //TODO: implement
-			r.GET("/job_templates/:job_template_id/notification_templates_success/", jtemplate.Middleware, notImplemented) //TODO: implement
-			r.GET("/job_templates/:job_template_id/notification_templates_any/", jtemplate.Middleware, notImplemented)     //TODO: implement
+				hst := hsts.Group("/:host_id", hosts.Middleware)
+				{
+					hst.GET("/", hosts.GetHost)
+					hst.PUT("/", hosts.UpdateHost)
+					hst.PATCH("/", hosts.PatchHost)
+					hst.DELETE("/", hosts.RemoveHost)
 
-			// Jobs endpoints
-			r.GET("/jobs/", jobs.GetJobs)
-			r.GET("/jobs/:job_id/", jobs.Middleware, jobs.GetJob)
-			r.GET("/jobs/:job_id/cancel/", jobs.Middleware, jobs.CancelInfo)
-			r.POST("/jobs/:job_id/cancel/", jobs.Middleware, jobs.Cancel)
-			r.GET("/jobs/:job_id/stdout/", jobs.Middleware, jobs.StdOut)
+					// 'Host' releated endpoints
+					hst.GET("/job_host_summaries/", notImplemented) //TODO: implement
+					hst.GET("/job_events/", notImplemented)         //TODO: implement
+					hst.GET("/ad_hoc_commands/", notImplemented)    //TODO: implement
+					hst.GET("/inventory_sources/", notImplemented)  //TODO: implement
+					hst.GET("/activity_stream/", hosts.ActivityStream)
+					hst.GET("/ad_hoc_command_events/", notImplemented) //TODO: implement
+					hst.GET("/variable_data/", hosts.VariableData)
+					hst.GET("/groups/", hosts.Groups)
+					hst.GET("/all_groups/", hosts.AllGroups)
+				}
+			}
 
-			// 'Job' releated endpoints
-			r.GET("/jobs/:job_id/job_tasks/", jobs.Middleware, notImplemented)       //TODO: implement
-			r.GET("/jobs/:job_id/job_plays/", jobs.Middleware, notImplemented)       //TODO: implement
-			r.GET("/jobs/:job_id/job_events/", jobs.Middleware, notImplemented)      //TODO: implement
-			r.GET("/jobs/:job_id/notifications/", jobs.Middleware, notImplemented)   //TODO: implement
-			r.GET("/jobs/:job_id/activity_stream/", jobs.Middleware, notImplemented) //TODO: implement
-			r.GET("/jobs/:job_id/start/", jobs.Middleware, notImplemented)           //TODO: implement
-			r.GET("/jobs/:job_id/relaunch/", jobs.Middleware, notImplemented)        //TODO: implement
+			grps := v1.Group("/groups")
+			{
+				// Groups endpoints
+				grps.GET("/", groups.GetGroups)
+				grps.POST("/", groups.AddGroup)
+
+				grp := grps.Group("/:group_id", groups.Middleware)
+				{
+					grp.GET("/", groups.GetGroup)
+					grp.PUT("/", groups.UpdateGroup)
+					grp.PATCH("/", groups.PatchGroup)
+					grp.DELETE("/", groups.RemoveGroup)
+
+					// 'Group' related endpoints
+					grp.GET("/variable_data/", groups.VariableData)
+					grp.GET("/job_events/", notImplemented)         //TODO: implement
+					grp.GET("/potential_children/", notImplemented) //TODO: implement
+					grp.GET("/ad_hoc_commands/", notImplemented)    //TODO: implement
+					grp.GET("/all_hosts/", notImplemented)          //TODO: implement
+					grp.GET("/activity_stream/", notImplemented)    //TODO: implement
+					grp.GET("/hosts/", notImplemented)              //TODO: implement
+					grp.GET("/children/", notImplemented)           //TODO: implement
+					grp.GET("/job_host_summaries/", notImplemented) //TODO: implement
+				}
+			}
+
+			jtmps := v1.Group("/job_templates")
+			{
+				// Job Templates endpoints
+				jtmps.GET("/", jtemplate.GetJTemplates)
+				jtmps.POST("/", jtemplate.AddJTemplate)
+
+				jtmp := jtmps.Group("/:job_template_id", jtemplate.Middleware)
+				{
+					jtmp.GET("/", jtemplate.GetJTemplate)
+					jtmp.PUT("/", jtemplate.UpdateJTemplate)
+					jtmp.PATCH("/", jtemplate.PatchJTemplate)
+					jtmp.DELETE("/", jtemplate.RemoveJTemplate)
+
+					// 'Job Template' releated endpoints
+					jtmp.GET("/jobs/", jtemplate.Jobs)
+					jtmp.GET("/object_roles/", jtemplate.ObjectRoles)
+					jtmp.GET("/access_list/", jtemplate.AccessList)
+					jtmp.GET("/launch/", jtemplate.LaunchInfo)
+					jtmp.POST("/launch/", jtemplate.Launch)
+					jtmp.GET("/activity_stream/", jtemplate.ActivityStream)
+
+					jtmp.GET("/schedules/", notImplemented)                      //TODO: implement
+					jtmp.GET("/notification_templates_error/", notImplemented)   //TODO: implement
+					jtmp.GET("/notification_templates_success/", notImplemented) //TODO: implement
+					jtmp.GET("/notification_templates_any/", notImplemented)     //TODO: implement
+				}
+			}
+
+			jbs := v1.Group("/jobs")
+			{
+				// Jobs endpoints
+				jbs.GET("/", jobs.GetJobs)
+
+				jb := jbs.Group("/:job_id", jobs.Middleware)
+				{
+					jb.GET("/", jobs.GetJob)
+					jb.GET("/cancel/", jobs.CancelInfo)
+					jb.POST("/cancel/", jobs.Cancel)
+					jb.GET("/stdout/", jobs.StdOut)
+
+					// 'Job' releated endpoints
+					jb.GET("/job_tasks/", notImplemented)       //TODO: implement
+					jb.GET("/job_plays/", notImplemented)       //TODO: implement
+					jb.GET("/job_events/", notImplemented)      //TODO: implement
+					jb.GET("/notifications/", notImplemented)   //TODO: implement
+					jb.GET("/activity_stream/", notImplemented) //TODO: implement
+					jb.GET("/start/", notImplemented)           //TODO: implement
+					jb.GET("/relaunch/", notImplemented)        //TODO: implement
+				}
+			}
 		}
 	}
 }
