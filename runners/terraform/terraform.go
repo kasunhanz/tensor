@@ -1,10 +1,9 @@
-package ansible
+package terraform
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -14,9 +13,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models/ansible"
-	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/sync"
 	"github.com/pearsonappeng/tensor/runners/types"
 
 	"github.com/pearsonappeng/tensor/queue"
@@ -42,10 +38,10 @@ func NewConsumer(tag int) *Consumer {
 
 // Consume will deligate jobs to appropriate runners
 func (consumer *Consumer) Consume(delivery rmq.Delivery) {
-	jb := types.AnsibleJob{}
+	jb := types.TerraformJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
-		log.Warningln("Job delivery rejected")
+		log.Warningln("TerraformJob delivery rejected")
 		delivery.Reject()
 		jobFail(jb)
 		return
@@ -56,42 +52,31 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	log.WithFields(log.Fields{
 		"Job ID": jb.Job.ID.Hex(),
 		"Name":   jb.Job.Name,
-	}).Infoln("Job successfuly received")
+	}).Infoln("TerraformJob successfuly received")
 
 	status(jb, "pending")
 
 	log.WithFields(log.Fields{
-		"Job ID": jb.Job.ID.Hex(),
-		"Name":   jb.Job.Name,
-	}).Infoln("Job changed status to pending")
+		"Terraform Job ID": jb.Job.ID.Hex(),
+		"Name":             jb.Job.Name,
+	}).Infoln("Terraform Job changed status to pending")
 
-	if jb.Job.JobType == ansible.JOBTYPE_UPDATE_JOB {
-		sync.Sync(types.SyncJob{
-			Job:           jb.Job,
-			JobTemplateID: jb.Template.ID,
-			ProjectID:     jb.Project.ID,
-			SCMCred:       jb.SCMCred,
-			Token:         jb.Token,
-			User:          jb.User,
-		})
-		return
-	}
-	ansibleRun(jb)
+	terraformRun(jb)
 }
 
 // Run starts consuming jobs into a channel of size prefetchLimit
 func Run() {
-	q := queue.OpenAnsibleQueue()
+	q := queue.OpenTerraformQueue()
 
 	q.StartConsuming(1, 500*time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func ansibleRun(j types.AnsibleJob) {
+func terraformRun(j types.TerraformJob) {
 	log.WithFields(log.Fields{
-		"Job ID": j.Job.ID.Hex(),
-		"Name":   j.Job.Name,
-	}).Infoln("Job starting")
+		"Terraform Job ID": j.Job.ID.Hex(),
+		"Name":             j.Job.Name,
+	}).Infoln("Terraform Job starting")
 
 	// update if requested
 	if j.PreviousJob != nil {
@@ -101,7 +86,7 @@ func ansibleRun(j types.AnsibleJob) {
 		log.WithFields(log.Fields{
 			"Job ID": j.Job.ID.Hex(),
 			"Name":   j.Job.Name,
-		}).Infoln("Job changed status to waiting")
+		}).Infoln("Terraform Job changed status to waiting")
 
 		ticker := time.NewTicker(time.Second * 2)
 
@@ -135,18 +120,18 @@ func ansibleRun(j types.AnsibleJob) {
 
 	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
 	log.WithFields(log.Fields{
-		"Job ID": j.Job.ID.Hex(),
-		"Name":   j.Job.Name,
-	}).Infoln("Job started")
+		"Terraform Job ID": j.Job.ID.Hex(),
+		"Name":             j.Job.Name,
+	}).Infoln("Terraform Job started")
 
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
 	defer func() {
 		log.WithFields(log.Fields{
-			"Job ID": j.Job.ID.Hex(),
-			"Name":   j.Job.Name,
-			"Status": j.Job.Status,
+			"Terrraform Job ID": j.Job.ID.Hex(),
+			"Name":              j.Job.Name,
+			"Status":            j.Job.Status,
 		}).Infoln("Stopped running Job")
 		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
 		cleanup()
@@ -240,23 +225,13 @@ func ansibleRun(j types.AnsibleJob) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
+		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.ResultStdout = "stdout capture is missing"
 		j.Job.JobExplanation = err.Error()
 		jobFail(j)
 		return
 	}
 
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
-		j.Job.ResultStdout = "stdout capture is missing"
-		j.Job.JobExplanation = err.Error()
-		jobFail(j)
-		return
-	}
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
@@ -264,27 +239,23 @@ func ansibleRun(j types.AnsibleJob) {
 	if err := cmd.Start(); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
+		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.JobExplanation = err.Error()
 		j.Job.ResultStdout = string(b.Bytes())
 		jobFail(j)
 		return
 	}
+
 	var timer *time.Timer
 	timer = time.AfterFunc(time.Duration(util.Config.JobTimeOut)*time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
 
-	if len(j.MachineCred.Password) > 0 && len(j.MachineCred.SSHKeyData) <= 0 {
-		log.Println("Using credential instead of SSH key")
-		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
-	}
-
 	if err := cmd.Wait(); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
+		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.JobExplanation = err.Error()
 		j.Job.ResultStdout = string(b.Bytes())
 		jobFail(j)
@@ -299,71 +270,18 @@ func ansibleRun(j types.AnsibleJob) {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
-
-	// ansible-playbook parameters
-	pPlaybook := []string{
-		"-i", "/var/lib/tensor/plugins/inventory/tensorrest.py",
-	}
-	pPlaybook = buildParams(*j, pPlaybook)
-
-	// parameters that are hidden from output
-	pSecure := []string{}
-
-	// check whether the username not empty
-	if len(j.MachineCred.Username) > 0 {
-		uname := j.MachineCred.Username
-
-		// append domain if exist
-		if len(j.MachineCred.Domain) > 0 {
-			uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
-		}
-
-		pPlaybook = append(pPlaybook, "-u", uname)
-
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_SSH {
-			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.MachineCred.Password)+"")
-		}
-
-		// if credential type is windows the issue a kinit to acquire a kerberos ticket
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_WIN {
-			kinit(*j)
-		}
-	}
-
-	if j.Job.BecomeEnabled {
-		pPlaybook = append(pPlaybook, "-b")
-
-		// default become method is sudo
-		if len(j.MachineCred.BecomeMethod) > 0 {
-			pPlaybook = append(pPlaybook, "--become-method="+j.MachineCred.BecomeMethod)
-		}
-
-		// default become user is root
-		if len(j.MachineCred.BecomeUsername) > 0 {
-			pPlaybook = append(pPlaybook, "--become-user="+j.MachineCred.BecomeUsername)
-		}
-
-		// for now this is more convenient than --ask-become-pass with sshpass
-		if len(j.MachineCred.BecomePassword) > 0 {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass="+util.CipherDecrypt(j.MachineCred.BecomePassword)+"'")
-		}
-	}
+func getCmd(j *types.TerraformJob, socket string, pid int) (*exec.Cmd, error) {
 
 	pargs := []string{}
-	// add proot and ansible paramters
-	pargs = append(pargs, pPlaybook...)
+	pargs = buildParams(*j, pargs)
+
 	j.Job.JobARGS = pargs
-	// should not included in any output
-	pargs = append(pargs, pSecure...)
 
-	// set job arguments, exclude unencrypted passwords etc.
-	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
+	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ")}
 
-	pargs = append(pargs, j.Job.Playbook)
 	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
-	cmd := exec.Command("ansible-playbook", pargs...)
+	cmd := exec.Command("terraform", pargs...)
 	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
 	cmd.Env = []string{
 		"TERM=xterm",
@@ -382,7 +300,6 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 		"ANSIBLE_FORCE_COLOR=True",
 		"REST_API_URL=http://localhost" + util.Config.Port,
 		"INVENTORY_HOSTVARS=True",
-		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
 		"SSH_AUTH_SOCK=" + socket,
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
@@ -397,146 +314,21 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func buildParams(j types.AnsibleJob, params []string) []string {
-
-	if j.Job.JobType == "check" {
-		params = append(params, "--check")
+func buildParams(j types.TerraformJob, params []string) []string {
+	if j.Job.JobType == "apply" {
+		params = append(params, "apply", "-input=false")
+	} else if j.Job.JobType == "plan" {
+		params = append(params, "plan", "-input=false")
 	}
-
-	// forks -f NUM, --forks=NUM
-	if j.Job.Forks != 0 {
-		params = append(params, "-f", string(j.Job.Forks))
-	}
-
-	// limit  -l SUBSET, --limit=SUBSET
-	if j.Job.Limit != "" {
-		params = append(params, "-l", j.Job.Limit)
-	}
-
-	// verbosity  -v, --verbose
-	switch j.Job.Verbosity {
-	case 1:
-		params = append(params, "-v")
-		break
-	case 2:
-		params = append(params, "-vv")
-		break
-	case 3:
-		params = append(params, "-vvv")
-		break
-	case 4:
-		params = append(params, "-vvvv")
-		break
-	case 5:
-		params = append(params, "-vvvv")
-	}
-
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
-	if len(j.Job.ExtraVars) > 0 {
-		vars, err := json.Marshal(j.Job.ExtraVars)
+	if len(j.Job.Vars) > 0 {
+		vars, err := json.Marshal(j.Job.Vars)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err,
 			}).Errorln("Could not marshal extra vars")
 		}
-		params = append(params, "-e", string(vars))
+		params = append(params, "-v", string(vars))
 	}
-
-	// -t, TAGS, --tags=TAGS
-	if len(j.Job.JobTags) > 0 {
-		params = append(params, "-t", j.Job.JobTags)
-	}
-
-	// --skip-tags=SKIP_TAGS
-	if len(j.Job.SkipTags) > 0 {
-		params = append(params, "--skip-tags="+j.Job.SkipTags)
-	}
-
-	// --force-handlers
-	if j.Job.ForceHandlers {
-		params = append(params, "--force-handlers")
-	}
-
-	if len(j.Job.StartAtTask) > 0 {
-		params = append(params, "--start-at-task="+j.Job.StartAtTask)
-	}
-
-	extras := map[string]interface{}{
-		"tensor_job_template_name": j.Template.Name,
-		"tensor_job_id":            j.Job.ID.Hex(),
-		"tensor_user_id":           j.Job.CreatedByID.Hex(),
-		"tensor_job_template_id":   j.Template.ID.Hex(),
-		"tensor_user_name":         "admin",
-		"tensor_job_launch_type":   j.Job.LaunchType,
-	}
-	// Parameters required by the system
-	rp, err := json.Marshal(extras)
-
-	if err != nil {
-		log.Errorln("Error while marshalling parameters")
-	}
-	params = append(params, "-e", string(rp))
-
 	return params
-}
-
-func kinit(j types.AnsibleJob) error {
-
-	// Create two command structs for echo and kinit
-	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))
-
-	uname := j.MachineCred.Username
-
-	// if credential domain specified
-	if len(j.MachineCred.Domain) > 0 {
-		uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
-	}
-
-	kinit := exec.Command("kinit", uname)
-	kinit.Env = os.Environ()
-
-	// Create asynchronous in memory pipe
-	r, w := io.Pipe()
-
-	// set pipe writer to echo std out
-	echo.Stdout = w
-	// set pip reader to kinit std in
-	kinit.Stdin = r
-
-	// initialize new buffer
-	var buffer bytes.Buffer
-	kinit.Stdout = &buffer
-
-	// start two commands
-	if err := echo.Start(); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	if err := kinit.Start(); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	if err := echo.Wait(); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	if err := w.Close(); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	if err := kinit.Wait(); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
-		log.Errorln(err.Error())
-		return err
-	}
-
-	return nil
 }

@@ -2,10 +2,10 @@ package terraform
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -13,26 +13,29 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "inventory"
-	jt.URL = "/v1/inventories/" + ID + "/"
+	jt.URL = "/v1/terraform/job_templates/" + ID + "/"
 	related := gin.H{
-		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex() + "/",
-		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
-		"labels":                         "/v1/job_templates/" + ID + "/labels/",
-		"credential":                     "v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
-		"project":                        "/v1/projects/" + jt.ProjectID.Hex() + "/",
-		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error/",
-		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success/",
-		"jobs":                       "/v1/job_templates/" + ID + "/jobs/",
-		"object_roles":               "/v1/job_templates/" + ID + "/object_roles/",
-		"notification_templates_any": "/v1/job_templates/" + ID + "/notification_templates_any/",
-		"access_list":                "/v1/job_templates/" + ID + "/access_list/",
-		"launch":                     "/v1/job_templates/" + ID + "/launch/",
-		"schedules":                  "/v1/job_templates/" + ID + "/schedules/",
-		"activity_stream":            "/v1/job_templates/" + ID + "/activity_stream/",
+		"created_by":                     "/v1/terraform/users/" + jt.CreatedByID.Hex() + "/",
+		"modified_by":                    "/v1/terraform/users/" + jt.ModifiedByID.Hex() + "/",
+		"labels":                         "/v1/terraform/job_templates/" + ID + "/labels/",
+		"project":                        "/v1/terraform/projects/" + jt.ProjectID.Hex() + "/",
+		"notification_templates_error":   "/v1/terraform/job_templates/" + ID + "/notification_templates_error/",
+		"notification_templates_success": "/v1/terraform/job_templates/" + ID + "/notification_templates_success/",
+		"jobs":                       "/v1/terraform/job_templates/" + ID + "/jobs/",
+		"object_roles":               "/v1/terraform/job_templates/" + ID + "/object_roles/",
+		"notification_templates_any": "/v1/terraform/job_templates/" + ID + "/notification_templates_any/",
+		"access_list":                "/v1/terraform/job_templates/" + ID + "/access_list/",
+		"launch":                     "/v1/terraform/job_templates/" + ID + "/launch/",
+		"schedules":                  "/v1/terraform/job_templates/" + ID + "/schedules/",
+		"activity_stream":            "/v1/terraform/job_templates/" + ID + "/activity_stream/",
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "v1/jobs/" + jt.CurrentJobID.Hex() + "/"
+		related["current_job"] = "/v1/terraform/jobs/" + jt.CurrentJobID.Hex() + "/"
+	}
+
+	if jt.MachineCredentialID != nil {
+		related["credential"] = "/v1/terraform/credentials/" + (*jt.MachineCredentialID).Hex() + "/"
 	}
 
 	jt.Related = related
@@ -108,25 +111,27 @@ func jTemplateSummary(jt *terraform.JobTemplate) {
 		}
 	}
 
-	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.WithFields(log.Fields{
-			"Credential ID":   jt.MachineCredentialID.Hex(),
-			"Job Template":    jt.Name,
-			"Job Template ID": jt.ID.Hex(),
-		}).Errorln("Error while getting Credential")
-	} else {
-		summary["credential"] = gin.H{
-			"id":          cred.ID,
-			"name":        cred.Name,
-			"description": cred.Description,
-			"kind":        cred.Kind,
-			"cloud":       cred.Cloud,
+	if jt.MachineCredentialID != nil {
+		if err := db.Credentials().FindId(*jt.MachineCredentialID).One(&cred); err != nil {
+			log.WithFields(log.Fields{
+				"Credential ID":   (*jt.MachineCredentialID).Hex(),
+				"Job Template":    jt.Name,
+				"Job Template ID": jt.ID.Hex(),
+			}).Errorln("Error while getting Credential")
+		} else {
+			summary["credential"] = gin.H{
+				"id":          cred.ID,
+				"name":        cred.Name,
+				"description": cred.Description,
+				"kind":        cred.Kind,
+				"cloud":       cred.Cloud,
+			}
 		}
 	}
 
 	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
 		log.WithFields(log.Fields{
-			"Project ID":      jt.MachineCredentialID.Hex(),
+			"Project ID":      jt.ProjectID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
 		}).Errorln("Error while getting Project")

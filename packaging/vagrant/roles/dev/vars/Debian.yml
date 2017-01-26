@@ -1,5 +1,10 @@
 ---
 
+packaging_dependencies:
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
+
 tensor_packages_dependencies:
   - 'mercurial'  # For cloning the Golang repository
   - 'git'        # For getting Go dependencies from GitHub

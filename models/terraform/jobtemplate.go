@@ -3,8 +3,8 @@ package terraform
 import (
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -12,10 +12,10 @@ type JobTemplate struct {
 	ID bson.ObjectId `bson:"_id" json:"id"`
 
 	// required
-	Name                string        `bson:"name" json:"name" binding:"required,min=1,max=500"`
-	JobType             string        `bson:"job_type" json:"job_type" binding:"required,jobtype"`
-	ProjectID           bson.ObjectId `bson:"project_id" json:"project" binding:"required"`
-	MachineCredentialID bson.ObjectId `bson:"credential_id" json:"credential"`
+	Name                string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
+	JobType             string         `bson:"job_type" json:"job_type" binding:"required,terraform_jobtype"`
+	ProjectID           bson.ObjectId  `bson:"project_id" json:"project" binding:"required"`
+	MachineCredentialID *bson.ObjectId `bson:"credential_id,omitempty" json:"credential"`
 
 	Description         string         `bson:"description,omitempty" json:"description"`
 	Vars                gin.H          `bson:"vars,omitempty" json:"vars"`
@@ -25,6 +25,7 @@ type JobTemplate struct {
 	PromptCredential    bool           `bson:"prompt_credential,omitempty" json:"ask_credential_on_launch"`
 	PromptJobType       bool           `bson:"prompt_job_type,omitempty" json:"ask_job_type_on_launch"`
 	AllowSimultaneous   bool           `bson:"allow_simultaneous,omitempty" json:"allow_simultaneous"`
+	Parallelism         uint8          `bson:"parallelism,omitempty" json:"parallelism"`
 
 	// output only
 	LastJobRun      *time.Time     `bson:"last_job_run,omitempty" json:"last_job_run" binding:"omitempty,naproperty"`

@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gin-gonic/gin/binding"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/universal-translator"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	Become         string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
-	CredentialKind string = "^(windows|ssh|net|scm|aws|rax|vmware|satellite6|cloudforms|gce|azure|openstack)$"
-	ScmType        string = "^(manual|git|hg|svn)$"
-	JobType        string = "^(run|check|scan)$"
-	ProjectKind    string = "^(ansible|terraform)$"
+	Become           string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
+	CredentialKind   string = "^(windows|ssh|net|scm|aws|rax|vmware|satellite6|cloudforms|gce|azure|openstack)$"
+	ScmType          string = "^(manual|git|hg|svn)$"
+	JobType          string = "^(run|check|scan)$"
+	ProjectKind      string = "^(ansible|terraform)$"
+	TerraformJobType string = "^(plan|apply)$"
 
 	DNSName      string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`
 	IP           string = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
@@ -41,13 +42,14 @@ var Uni *ut.UniversalTranslator
 var trans ut.Translator
 
 var (
-	rxBecome         = regexp.MustCompile(Become)
-	rxDNSName        = regexp.MustCompile(DNSName)
-	rxURL            = regexp.MustCompile(URL)
-	rxCredentialKind = regexp.MustCompile(CredentialKind)
-	rxScmType        = regexp.MustCompile(ScmType)
-	rxJobType        = regexp.MustCompile(JobType)
-	rxProjectKind    = regexp.MustCompile(ProjectKind)
+	rxBecome           = regexp.MustCompile(Become)
+	rxDNSName          = regexp.MustCompile(DNSName)
+	rxURL              = regexp.MustCompile(URL)
+	rxCredentialKind   = regexp.MustCompile(CredentialKind)
+	rxScmType          = regexp.MustCompile(ScmType)
+	rxJobType          = regexp.MustCompile(JobType)
+	rxProjectKind      = regexp.MustCompile(ProjectKind)
+	rxTerraformJobType = regexp.MustCompile(TerraformJobType)
 )
 
 type SpaceValidator struct {
@@ -86,6 +88,7 @@ func (v *SpaceValidator) lazyinit() {
 		v.validate.RegisterValidation("scmtype", IsScmType)
 		v.validate.RegisterValidation("jobtype", IsJobType)
 		v.validate.RegisterValidation("project_kind", IsProjectKind)
+		v.validate.RegisterValidation("terraform_jobtype", IsTerraformJobType)
 
 		//translations
 		// credentialkind
@@ -130,6 +133,13 @@ func (v *SpaceValidator) lazyinit() {
 			return ut.Add("jobtype", "{0} must have either one of run,check,scan", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
 			t, _ := ut.T("jobtype", fe.Field())
+
+			return t
+		})
+		v.validate.RegisterTranslation("terraform_jobtype", trans, func(ut ut.Translator) error {
+			return ut.Add("terraform_jobtype", "{0} must have either one of apply,plan", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("terraform_jobtype", fe.Field())
 
 			return t
 		})
@@ -194,6 +204,9 @@ func IsCredentialKind(fl validator.FieldLevel) bool {
 
 func IsProjectKind(fl validator.FieldLevel) bool {
 	return rxProjectKind.MatchString(fl.Field().String())
+}
+func IsTerraformJobType(fl validator.FieldLevel) bool {
+	return rxTerraformJobType.MatchString(fl.Field().String())
 }
 
 // fail all

@@ -15,13 +15,14 @@ import (
 	"github.com/pearsonappeng/tensor/jwt"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
+	"github.com/pearsonappeng/tensor/runners/sync"
+	"github.com/pearsonappeng/tensor/runners/types"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/pearsonappeng/tensor/queue"
-	"github.com/pearsonappeng/tensor/runners"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -98,13 +99,11 @@ func GetJTemplate(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetJTemplates(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
-
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
 
-	query := db.JobTemplates().Find(match) // prepare the query
+	query := db.TerrafromJobTemplates().Find(match) // prepare the query
 	// set sort value to the query based on request parameters
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
@@ -238,13 +237,15 @@ func AddJTemplate(c *gin.Context) {
 		return
 	}
 
-	// check the machine credential exist or not
-	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
-		})
-		return
+	if req.MachineCredentialID != nil {
+		// check the machine credential exist or not
+		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
 	}
 
 	// check the network credential exist or not
@@ -347,13 +348,15 @@ func UpdateJTemplate(c *gin.Context) {
 		}
 	}
 
-	// check whether the machine credential exist or not
-	if !helpers.MachineCredentialExist(req.MachineCredentialID) {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
-		})
-		return
+	if req.MachineCredentialID != nil {
+		// check whether the machine credential exist or not
+		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
 	}
 
 	// check whether the network credential exist or not
@@ -518,8 +521,12 @@ func PatchJTemplate(c *gin.Context) {
 		jobTemplate.ProjectID = *req.ProjectID
 	}
 
-	if req.MachineCredentialID != nil {
-		jobTemplate.MachineCredentialID = *req.MachineCredentialID
+	if req.MachineCredentialID != nil { // if empty string then make the credential null
+		if len(*req.MachineCredentialID) == 12 {
+			jobTemplate.MachineCredentialID = req.MachineCredentialID
+		} else {
+			jobTemplate.MachineCredentialID = nil
+		}
 	}
 
 	if req.Description != nil {
@@ -788,8 +795,9 @@ func Launch(c *gin.Context) {
 		LaunchType:          "manual",
 		CancelFlag:          false,
 		Status:              "new",
-		JobType:             terraform.JOBTYPE_TERRAFORM_JOB,
+		JobType:             template.JobType,
 		Vars:                template.Vars,
+		Parallelism:         template.Parallelism,
 		MachineCredentialID: template.MachineCredentialID,
 		JobTemplateID:       template.ID,
 		ProjectID:           template.ProjectID,
@@ -833,14 +841,14 @@ func Launch(c *gin.Context) {
 	}
 
 	// create new Ansible runner Job
-	runnerJob := runners.QueueJob{
+	runnerJob := types.TerraformJob{
 		Job:      job,
 		Template: template,
 		User:     user,
 	}
 
 	if template.PromptCredential {
-		if len(req.MachineCredentialID) != 24 {
+		if req.MachineCredentialID == nil {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential required"},
@@ -882,18 +890,20 @@ func Launch(c *gin.Context) {
 		runnerJob.CloudCred = credential
 	}
 
-	var credential common.Credential
-	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Machine Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Machine Credential"},
-		})
-		return
+	if job.MachineCredentialID != nil {
+		var credential common.Credential
+		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&credential); err != nil {
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while getting Machine Credential")
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Error while getting Machine Credential"},
+			})
+			return
+		}
+		runnerJob.MachineCred = credential
 	}
-	runnerJob.MachineCred = credential
 
 	// get project information
 	var project common.Project
@@ -938,7 +948,7 @@ func Launch(c *gin.Context) {
 
 	// update if requested
 	if runnerJob.Project.ScmUpdateOnLaunch {
-		tj, err := runners.UpdateProject(project)
+		tj, err := sync.UpdateProject(project)
 		runnerJob.PreviousJob = tj
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -953,7 +963,7 @@ func Launch(c *gin.Context) {
 	}
 
 	// Add the job to queue
-	jobQueue := queue.OpenJobQueue()
+	jobQueue := queue.OpenTerraformQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -996,7 +1006,6 @@ func LaunchInfo(c *gin.Context) {
 	jt := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
 
 	var isCredentialNeeded bool
-	var isInventoryNeeded bool
 
 	defaults := gin.H{
 		"vars":     jt.Vars,

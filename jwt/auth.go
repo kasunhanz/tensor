@@ -3,13 +3,13 @@ package jwt
 import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 
 	"net/mail"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/appleboy/gin-jwt.v2"

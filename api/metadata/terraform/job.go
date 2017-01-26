@@ -2,42 +2,42 @@ package terraform
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func JobMetadata(job *terraform.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
-	job.URL = "/v1/jobs/" + ID + "/"
+	job.URL = "/v1/terraform/jobs/" + ID + "/"
 	related := gin.H{
-		"labels":          "/v1/jobs/" + ID + "/labels/",
-		"project":         "/v1/projects/" + job.ProjectID.Hex() + "/",
-		"stdout":          "/v1/jobs/" + ID + "/stdout/",
-		"notifications":   "/v1/jobs/" + ID + "/notifications/",
-		"activity_stream": "/v1/jobs/" + ID + "/activity_stream/",
-		"start":           "/v1/jobs/" + ID + "/start/",
-		"cancel":          "/v1/jobs/" + ID + "/cancel/",
-		"relaunch":        "/v1/jobs/" + ID + "/relaunch/",
+		"labels":          "/v1/terraform/jobs/" + ID + "/labels/",
+		"project":         "/v1/terraform/projects/" + job.ProjectID.Hex() + "/",
+		"stdout":          "/v1/terraform/jobs/" + ID + "/stdout/",
+		"notifications":   "/v1/terraform/jobs/" + ID + "/notifications/",
+		"activity_stream": "/v1/terraform/jobs/" + ID + "/activity_stream/",
+		"start":           "/v1/terraform/jobs/" + ID + "/start/",
+		"cancel":          "/v1/terraform/jobs/" + ID + "/cancel/",
+		"relaunch":        "/v1/terraform/jobs/" + ID + "/relaunch/",
 	}
 
 	if len(job.CreatedByID) == 12 {
-		related["created_by"] = "/v1/users/" + job.CreatedByID.Hex() + "/"
+		related["created_by"] = "/v1/terraform/users/" + job.CreatedByID.Hex() + "/"
 	}
 
 	if len(job.ModifiedByID) == 12 {
-		related["modified_by"] = "/v1/users/" + job.ModifiedByID.Hex() + "/"
+		related["modified_by"] = "/v1/terraform/users/" + job.ModifiedByID.Hex() + "/"
 	}
 
-	if len(job.MachineCredentialID) == 12 {
-		related["credential"] = "/v1/credentials/" + job.MachineCredentialID.Hex() + "/"
+	if job.MachineCredentialID != nil {
+		related["credential"] = "/v1/terraform/credentials/" + (*job.MachineCredentialID).Hex() + "/"
 	}
 
 	if len(job.JobTemplateID) == 12 {
-		related["job_template"] = "/v1/job_templates/" + job.JobTemplateID.Hex() + "/"
+		related["job_template"] = "/v1/terraform/job_templates/" + job.JobTemplateID.Hex() + "/"
 	}
 
 	job.Related = related
@@ -112,9 +112,9 @@ func JobSummary(job *terraform.Job) {
 		}
 	}
 
-	if len(job.MachineCredentialID) == 12 {
+	if job.MachineCredentialID != nil {
 		var cred common.Credential
-		if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
+		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&cred); err != nil {
 			log.WithFields(log.Fields{
 				"Credential ID": job.MachineCredentialID.Hex(),
 				"Job":           job.Name,

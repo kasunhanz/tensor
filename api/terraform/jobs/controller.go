@@ -6,12 +6,11 @@ import (
 
 	metadata "github.com/pearsonappeng/tensor/api/metadata/terraform"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
+	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -43,7 +42,7 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	var job ansible.Job
+	var job terraform.Job
 	if err = db.TerrafromJobs().FindId(bson.ObjectIdHex(ID)).One(&job); err != nil {
 		log.WithFields(log.Fields{
 			"Job ID": ID,

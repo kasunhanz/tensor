@@ -23,7 +23,7 @@ import (
 	"github.com/pearsonappeng/tensor/util"
 )
 
-func SyncAnsible(j types.SyncJob) {
+func Sync(j types.SyncJob) {
 	start(j)
 	// create job directories
 	createJobDirs(j)

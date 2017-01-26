@@ -3,8 +3,8 @@ package terraform
 import (
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -34,8 +34,9 @@ type Job struct {
 	JobExplanation  string    `bson:"job_explanation" json:"job_explanation"`
 	JobType         string    `bson:"job_type" json:"job_type"`
 	Vars            gin.H     `bson:"vars,omitempty" json:"vars"`
+	Parallelism     uint8     `bson:"parallelism" json:"parallelism"`
 
-	MachineCredentialID bson.ObjectId  `bson:"credential_id,omitempty" json:"credential"`
+	MachineCredentialID *bson.ObjectId `bson:"credential_id,omitempty" json:"credential"`
 	JobTemplateID       bson.ObjectId  `bson:"job_template_id,omitempty" json:"job_template"`
 	ProjectID           bson.ObjectId  `bson:"project_id,omitempty" json:"project"`
 	SCMCredentialID     *bson.ObjectId `bson:"scm_credential_id,omitempty" json:"scm_credential"`

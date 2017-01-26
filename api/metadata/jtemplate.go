@@ -2,10 +2,10 @@ package metadata
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -34,7 +34,7 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "v1/jobs/" + jt.CurrentJobID.Hex() + "/"
+		related["current_job"] = "/v1/jobs/" + jt.CurrentJobID.Hex() + "/"
 	}
 
 	jt.Related = related
@@ -151,7 +151,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 
 	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
 		log.WithFields(log.Fields{
-			"Project ID":      jt.MachineCredentialID.Hex(),
+			"Project ID":      jt.ProjectID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
 		}).Errorln("Error while getting Project")
