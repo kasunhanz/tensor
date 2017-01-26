@@ -271,7 +271,7 @@ func ansibleRun(j types.AnsibleJob) {
 		return
 	}
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.JobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut)*time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})

@@ -122,7 +122,7 @@ func Sync(j types.SyncJob) {
 		return
 	}
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.JobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.SyncJobTimeOut)*time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
