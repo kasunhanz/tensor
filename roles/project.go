@@ -2,12 +2,13 @@ package roles
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func ProjectRead(user models.User, project models.Project) bool {
+func ProjectRead(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -52,7 +53,7 @@ func ProjectRead(user models.User, project models.Project) bool {
 	return false
 }
 
-func ProjectWrite(user models.User, project models.Project) bool {
+func ProjectWrite(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -102,7 +103,7 @@ func ProjectWrite(user models.User, project models.Project) bool {
 	return false
 }
 
-func ProjectUse(user models.User, project models.Project) bool {
+func ProjectUse(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {

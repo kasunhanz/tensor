@@ -10,19 +10,21 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pearsonappeng/tensor/models"
-	"github.com/gin-gonic/gin/binding"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/universal-translator"
+	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/go-playground/validator.v9"
 	en_translations "gopkg.in/go-playground/validator.v9/translations/en"
 )
 
 const (
-	Become         string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
-	CredentialKind string = "^(windows|ssh|net|scm|aws|rax|vmware|satellite6|cloudforms|gce|azure|openstack)$"
-	ScmType        string = "^(manual|git|hg|svn)$"
-	JobType        string = "^(run|check|scan)$"
+	Become           string = "^(sudo|su|pbrun|pfexec|runas|doas|dzdo)$"
+	CredentialKind   string = "^(windows|ssh|net|scm|aws|rax|vmware|satellite6|cloudforms|gce|azure|openstack)$"
+	ScmType          string = "^(manual|git|hg|svn)$"
+	JobType          string = "^(run|check|scan)$"
+	ProjectKind      string = "^(ansible|terraform)$"
+	TerraformJobType string = "^(plan|apply)$"
 
 	DNSName      string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`
 	IP           string = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
@@ -40,12 +42,14 @@ var Uni *ut.UniversalTranslator
 var trans ut.Translator
 
 var (
-	rxBecome         = regexp.MustCompile(Become)
-	rxDNSName        = regexp.MustCompile(DNSName)
-	rxURL            = regexp.MustCompile(URL)
-	rxCredentialKind = regexp.MustCompile(CredentialKind)
-	rxScmType        = regexp.MustCompile(ScmType)
-	rxJobType        = regexp.MustCompile(JobType)
+	rxBecome           = regexp.MustCompile(Become)
+	rxDNSName          = regexp.MustCompile(DNSName)
+	rxURL              = regexp.MustCompile(URL)
+	rxCredentialKind   = regexp.MustCompile(CredentialKind)
+	rxScmType          = regexp.MustCompile(ScmType)
+	rxJobType          = regexp.MustCompile(JobType)
+	rxProjectKind      = regexp.MustCompile(ProjectKind)
+	rxTerraformJobType = regexp.MustCompile(TerraformJobType)
 )
 
 type SpaceValidator struct {
@@ -83,6 +87,8 @@ func (v *SpaceValidator) lazyinit() {
 		v.validate.RegisterValidation("naproperty", NaProperty)
 		v.validate.RegisterValidation("scmtype", IsScmType)
 		v.validate.RegisterValidation("jobtype", IsJobType)
+		v.validate.RegisterValidation("project_kind", IsProjectKind)
+		v.validate.RegisterValidation("terraform_jobtype", IsTerraformJobType)
 
 		//translations
 		// credentialkind
@@ -93,6 +99,15 @@ func (v *SpaceValidator) lazyinit() {
 
 			return t
 		})
+
+		v.validate.RegisterTranslation("project_kind", trans, func(ut ut.Translator) error {
+			return ut.Add("project_kind", "{0} must have either one of ansible,terraform", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("project_kind", fe.Field())
+
+			return t
+		})
+
 		v.validate.RegisterTranslation("become_method", trans, func(ut ut.Translator) error {
 			return ut.Add("become_method", "{0} must have either one of sudo,su,pbrun,pfexec,runas,doas,dzdo", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -121,6 +136,13 @@ func (v *SpaceValidator) lazyinit() {
 
 			return t
 		})
+		v.validate.RegisterTranslation("terraform_jobtype", trans, func(ut ut.Translator) error {
+			return ut.Add("terraform_jobtype", "{0} must have either one of apply,plan", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("terraform_jobtype", fe.Field())
+
+			return t
+		})
 		v.validate.RegisterTranslation("iphost", trans, func(ut ut.Translator) error {
 			return ut.Add("iphost", "{0} must have valid hostname or ip address", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -130,8 +152,8 @@ func (v *SpaceValidator) lazyinit() {
 		})
 
 		//struct level validations
-		v.validate.RegisterStructValidation(CredentialStructLevelValidation, models.Credential{})
-		v.validate.RegisterStructValidation(ProjectStructLevelValidation, models.Project{})
+		v.validate.RegisterStructValidation(CredentialStructLevelValidation, common.Credential{})
+		v.validate.RegisterStructValidation(ProjectStructLevelValidation, common.Project{})
 	})
 }
 
@@ -180,6 +202,13 @@ func IsCredentialKind(fl validator.FieldLevel) bool {
 	return rxCredentialKind.MatchString(fl.Field().String())
 }
 
+func IsProjectKind(fl validator.FieldLevel) bool {
+	return rxProjectKind.MatchString(fl.Field().String())
+}
+func IsTerraformJobType(fl validator.FieldLevel) bool {
+	return rxTerraformJobType.MatchString(fl.Field().String())
+}
+
 // fail all
 func NaProperty(fl validator.FieldLevel) bool {
 	if fl.Field().String() == "" {
@@ -221,7 +250,7 @@ func GetValidationErrors(err error) []string {
 // TODO: openstack,azure,gce,
 func CredentialStructLevelValidation(sl validator.StructLevel) {
 
-	credentail := sl.Current().Interface().(models.Credential)
+	credentail := sl.Current().Interface().(common.Credential)
 
 	if credentail.Kind == "net" && len(credentail.Username) == 0 {
 		sl.ReportError(credentail.Username, "Username", "Username", "required", "")
@@ -253,11 +282,11 @@ func CredentialStructLevelValidation(sl validator.StructLevel) {
 }
 
 func ProjectStructLevelValidation(sl validator.StructLevel) {
-	project := sl.Current().Interface().(models.Project)
+	project := sl.Current().Interface().(common.Project)
 
 	if project.ScmType == "git" || project.ScmType == "svn" || project.ScmType == "hg" {
-		if len(project.ScmUrl) == 0 {
-			sl.ReportError(project.ScmUrl, "ScmUrl", "ScmUrl", "required", "")
+		if len(project.ScmURL) == 0 {
+			sl.ReportError(project.ScmURL, "ScmUrl", "ScmUrl", "required", "")
 		}
 	}
 

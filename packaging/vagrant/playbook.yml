@@ -6,3 +6,4 @@
     - mongodb
     - redis
     - dev
+    - terraform

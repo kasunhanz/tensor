@@ -1,13 +1,14 @@
 package sockets
 
 import (
-	"github.com/pearsonappeng/tensor/models"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"gopkg.in/mgo.v2/bson"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gorilla/websocket"
+	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var upgrader = websocket.Upgrader{
@@ -96,7 +97,7 @@ func (c *connection) writePump() {
 }
 
 func Handler(context *gin.Context) {
-	user := context.MustGet("user").(*models.User)
+	user := context.MustGet("user").(*common.User)
 	ws, err := upgrader.Upgrade(context.Writer, context.Request, nil)
 	if err != nil {
 		panic(err)

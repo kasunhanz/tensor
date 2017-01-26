@@ -9,7 +9,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"github.com/pearsonappeng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/mgo.v2/bson"
@@ -30,7 +31,7 @@ func doSetup() int {
 
 	stdin := bufio.NewReader(os.Stdin)
 
-	user := models.User{
+	user := common.User{
 		ID:              bson.NewObjectId(),
 		Username:        "admin",
 		IsSystemAuditor: false,
@@ -43,7 +44,7 @@ func doSetup() int {
 		user.Username = strings.ToLower(username)
 	}
 
-	var ouser models.User
+	var ouser common.User
 	err := db.Users().Find(bson.M{"username": user.Username}).One(&ouser)
 
 	if err == nil {

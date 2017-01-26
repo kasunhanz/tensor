@@ -1,13 +1,14 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
+	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
-func JobMetadata(job *models.Job) {
+func JobMetadata(job *ansible.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
 	job.URL = "/v1/jobs/" + ID + "/"
@@ -50,8 +51,8 @@ func JobMetadata(job *models.Job) {
 	JobSummary(job)
 }
 
-func JobSummary(job *models.Job) {
-	var proj models.Project
+func JobSummary(job *ansible.Job) {
+	var proj common.Project
 
 	summary := gin.H{
 		"credential": nil,
@@ -67,7 +68,7 @@ func JobSummary(job *models.Job) {
 	}
 
 	if len(job.ModifiedByID) == 12 {
-		var modified models.User
+		var modified common.User
 		if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
 			log.WithFields(log.Fields{
 				"User ID": job.ModifiedByID.Hex(),
@@ -85,7 +86,7 @@ func JobSummary(job *models.Job) {
 	}
 
 	if len(job.CreatedByID) == 12 {
-		var created models.User
+		var created common.User
 		if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
 			log.WithFields(log.Fields{
 				"User ID": job.CreatedByID.Hex(),
@@ -103,7 +104,7 @@ func JobSummary(job *models.Job) {
 	}
 
 	if len(job.InventoryID) == 12 {
-		var inv models.Inventory
+		var inv ansible.Inventory
 		if err := db.Inventories().FindId(job.InventoryID).One(&inv); err != nil {
 			log.WithFields(log.Fields{
 				"Inventory ID": job.InventoryID.Hex(),
@@ -128,7 +129,7 @@ func JobSummary(job *models.Job) {
 	}
 
 	if len(job.JobTemplateID) == 12 {
-		var jtemp models.JobTemplate
+		var jtemp ansible.JobTemplate
 		if err := db.JobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
 			log.WithFields(log.Fields{
 				"Job Template ID": job.JobTemplateID.Hex(),
@@ -145,7 +146,7 @@ func JobSummary(job *models.Job) {
 	}
 
 	if len(job.MachineCredentialID) == 12 {
-		var cred models.Credential
+		var cred common.Credential
 		if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
 			log.WithFields(log.Fields{
 				"Credential ID": job.MachineCredentialID.Hex(),

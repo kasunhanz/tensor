@@ -2,12 +2,13 @@ package roles
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func TeamRead(user models.User, team models.Team) bool {
+func TeamRead(user common.User, team common.Team) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -34,7 +35,7 @@ func TeamRead(user models.User, team models.Team) bool {
 	return false
 }
 
-func TeamWrite(user models.User, team models.Team) bool {
+func TeamWrite(user common.User, team common.Team) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {

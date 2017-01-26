@@ -1,25 +1,26 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Create a new organization
-func JTemplateMetadata(jt *models.JobTemplate) {
+func JTemplateMetadata(jt *ansible.JobTemplate) {
 
 	ID := jt.ID.Hex()
-	jt.Type = "inventory"
-	jt.Url = "/v1/inventories/" + ID + "/"
+	jt.Type = "job_template"
+	jt.URL = "/v1/job_templates/" + ID + "/"
 	related := gin.H{
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex() + "/",
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
 		"labels":                         "/v1/job_templates/" + ID + "/labels/",
 		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex() + "/",
-		"credential":                     "v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
+		"credential":                     "/v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
 		"project":                        "/v1/projects/" + jt.ProjectID.Hex() + "/",
 		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success/",
@@ -33,7 +34,7 @@ func JTemplateMetadata(jt *models.JobTemplate) {
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "v1/jobs/" + jt.CurrentJobID.Hex() + "/"
+		related["current_job"] = "/v1/jobs/" + jt.CurrentJobID.Hex() + "/"
 	}
 
 	jt.Related = related
@@ -41,17 +42,17 @@ func JTemplateMetadata(jt *models.JobTemplate) {
 	jTemplateSummary(jt)
 }
 
-func jTemplateSummary(jt *models.JobTemplate) {
+func jTemplateSummary(jt *ansible.JobTemplate) {
 
-	var modified models.User
-	var created models.User
-	var inv models.Inventory
-	var job models.Job
-	var cjob models.Job
-	var cupdate models.Job
-	var cred models.Credential
-	var proj models.Project
-	var recentJobs []models.Job
+	var modified common.User
+	var created common.User
+	var inv ansible.Inventory
+	var job ansible.Job
+	var cjob ansible.Job
+	var cupdate ansible.Job
+	var cred common.Credential
+	var proj common.Project
+	var recentJobs []ansible.Job
 
 	summary := gin.H{
 		"object_roles": []gin.H{
@@ -150,7 +151,7 @@ func jTemplateSummary(jt *models.JobTemplate) {
 
 	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
 		log.WithFields(log.Fields{
-			"Project ID":      jt.MachineCredentialID.Hex(),
+			"Project ID":      jt.ProjectID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
 		}).Errorln("Error while getting Project")

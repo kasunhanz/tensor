@@ -19,6 +19,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     python-dev \
     libkrb5-dev \
     python-pip \
+    curl \
+    unzip \
     krb5-user && \
     # install python packages
     pip install -U \
@@ -30,13 +32,18 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     kerberos \
     requests_kerberos && \
     apt-get -y install /tmp/tensor.deb && \
+    #install terraform
+    cd /tmp/ && curl -O https://releases.hashicorp.com/terraform/0.8.4/terraform_0.8.4_linux_amd64.zip && \
+    unzip terraform_0.8.4_linux_amd64.zip -d /opt/terraform && \
+    ln -s /opt/terraform/terraform /usr/bin/terraform && \
     # clean up
-    apt-get --purge remove -y -q --auto-remove build-essential python-pip && \
+    apt-get --purge remove -y -q --auto-remove build-essential python-pip curl unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf /tmp/* && \
     # create project home directory and remove tensor configuration
     mkdir -p "/data" && \
     echo 'localhost' > /etc/ansible/hosts && \
-    rm /etc/tensor.conf && rm /etc/krb5.conf
+    rm /etc/tensor.conf && rm /etc/krb5.conf && \
+
 
 ENV TENSOR_PORT=8010 PROJECTS_HOME="/data" \
     TENSOR_DB_USER=tensor TENSOR_DB_PASSWORD=tensor TENSOR_DB_NAME=tensordb \

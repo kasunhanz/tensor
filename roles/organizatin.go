@@ -1,10 +1,8 @@
 package roles
 
-import (
-	"github.com/pearsonappeng/tensor/models"
-)
+import "github.com/pearsonappeng/tensor/models/common"
 
-func OrganizationRead(user models.User, organization models.Organization) bool {
+func OrganizationRead(user common.User, organization common.Organization) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -20,7 +18,7 @@ func OrganizationRead(user models.User, organization models.Organization) bool {
 	return false
 }
 
-func OrganizationWrite(user models.User, organization models.Organization) bool {
+func OrganizationWrite(user common.User, organization common.Organization) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {

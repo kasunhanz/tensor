@@ -8,7 +8,7 @@
 # Add specified repository into sources list using specified filename.
 - name: "MongoDB repository"
   apt_repository:
-    repo: "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/{{ mongodb_version }} multiverse"
+    repo: "deb http://repo.mongodb.org/apt/{{ ansible_distribution | lower }} {{ ansible_distribution_release | lower }}/mongodb-org/{{ mongodb_version }} main"
     state: present
     filename: "mongodb-org-{{ mongodb_version }}.list"
 

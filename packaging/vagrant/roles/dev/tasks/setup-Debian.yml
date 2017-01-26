@@ -1,16 +1,32 @@
 # Setup docker repository
 - name: "Add docker key"
   apt_key:
-    keyserver: hkp://ha.pool.sks-keyservers.net:80
+    keyserver: hkp://keyserver.ubuntu.com:80
     id: 58118E89F3A912897C070ADBF76221572C52609D
 
+- name: "Add ansible key"
+  apt_key:
+    keyserver: hkp://keyserver.ubuntu.com:80
+    id: 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367
+
+- name: Install apt dependencies
+  apt: name={{ item }} state=present
+  with_items: "{{ packaging_dependencies }}"
+
 - apt_repository:
-    repo: "deb https://apt.dockerproject.org/repo ubuntu-xenial main"
+    repo: "deb https://apt.dockerproject.org/repo/ {{ ansible_distribution | lower }}-{{ ansible_distribution_release | lower }} main"
     state: present
     filename: "docker.list"
 
 - apt_repository:
     repo: 'ppa:ansible/ansible'
+  when: ansible_distribution == 'Ubuntu'
+
+- apt_repository:    
+    repo: "deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main"
+    state: present
+    filename: "ansible.list"
+  when: ansible_distribution == 'Debian'
 
 - name: Install dependencies packages
   apt: name={{ item }} state=present

@@ -1,13 +1,13 @@
 package roles
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func CredentialRead(user models.User, credential models.Credential) bool {
+func CredentialRead(user common.User, credential common.Credential) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -52,7 +52,7 @@ func CredentialRead(user models.User, credential models.Credential) bool {
 	return false
 }
 
-func CredentialWrite(user models.User, credential models.Credential) bool {
+func CredentialWrite(user common.User, credential common.Credential) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -104,7 +104,7 @@ func CredentialWrite(user models.User, credential models.Credential) bool {
 	return false
 }
 
-func CredentialUse(user models.User, credential models.Credential) bool {
+func CredentialUse(user common.User, credential common.Credential) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -156,8 +156,8 @@ func CredentialUse(user models.User, credential models.Credential) bool {
 	return false
 }
 
-func AddCredentialUser(credential models.Credential, user bson.ObjectId, role string) {
-	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type: "user", UserID: user, Role: role}}}
+func AddCredentialUser(credential common.Credential, user bson.ObjectId, role string) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: "user", UserID: user, Role: role}}}
 	err := db.Credentials().UpdateId(credential.ID, access)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -168,8 +168,8 @@ func AddCredentialUser(credential models.Credential, user bson.ObjectId, role st
 	}
 }
 
-func AddCredentialTeam(credential models.Credential, team bson.ObjectId, role string) {
-	access := bson.M{"$addToSet": bson.M{"roles": models.AccessControl{Type: "team", TeamID: team, Role: role}}}
+func AddCredentialTeam(credential common.Credential, team bson.ObjectId, role string) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: "team", TeamID: team, Role: role}}}
 	err := db.Credentials().UpdateId(credential.ID, access)
 	if err != nil {
 		log.WithFields(log.Fields{

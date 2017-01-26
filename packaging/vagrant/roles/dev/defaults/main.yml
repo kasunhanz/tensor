@@ -12,7 +12,7 @@ mongodb_database: "tensordb"
 mongodb_replica_set: ""
 redis_host: "127.0.0.1:6379"
 tensor_port: ":8010"
-tensor_projects_home: "/data"
+tensor_projects_home: "/data/tensor"
 tensor_salt: "8m86pie1ef8bghbq41ru!de4"
 
 

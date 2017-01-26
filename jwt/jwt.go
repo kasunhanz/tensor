@@ -2,12 +2,14 @@ package jwt
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	"errors"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 type LocalToken struct {
@@ -23,7 +25,7 @@ func NewAuthToken(t *LocalToken) error {
 	token := jwt.New(jwt.GetSigningMethod(HeaderAuthMiddleware.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
-	var admin models.User
+	var admin common.User
 
 	if err := db.Users().Find(bson.M{"username": "admin"}).One(&admin); err != nil {
 		log.Errorln("User not found, Create JWT Token faild")

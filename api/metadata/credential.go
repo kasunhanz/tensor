@@ -1,17 +1,17 @@
 package metadata
 
 import (
-	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
+	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
-func CredentialMetadata(c *models.Credential) {
+func CredentialMetadata(c *common.Credential) {
 
 	ID := c.ID.Hex()
 	c.Type = "credential"
-	c.Url = "/v1/credentials/" + ID + "/"
+	c.URL = "/v1/credentials/" + ID + "/"
 	related := gin.H{
 		"created_by":      "/v1/users/" + c.CreatedByID.Hex() + "/",
 		"modified_by":     "/v1/users/" + c.ModifiedByID.Hex() + "/",
@@ -31,11 +31,11 @@ func CredentialMetadata(c *models.Credential) {
 	credentialSummary(c)
 }
 
-func credentialSummary(c *models.Credential) {
+func credentialSummary(c *common.Credential) {
 
-	var modified models.User
-	var created models.User
-	var org models.Organization
+	var modified common.User
+	var created common.User
+	var org common.Organization
 	var owners []gin.H
 
 	summary := gin.H{
@@ -94,7 +94,7 @@ func credentialSummary(c *models.Credential) {
 		switch v.Type {
 		case "user":
 			{
-				var user models.User
+				var user common.User
 				if err := db.Users().FindId(v.UserID).One(&user); err != nil {
 					log.WithFields(log.Fields{
 						"User ID":       v.UserID.Hex(),
@@ -113,7 +113,7 @@ func credentialSummary(c *models.Credential) {
 			}
 		case "team":
 			{
-				var team models.Team
+				var team common.Team
 				if err := db.Teams().FindId(v.TeamID).One(&team); err != nil {
 					log.WithFields(log.Fields{
 						"Team ID":       v.TeamID.Hex(),

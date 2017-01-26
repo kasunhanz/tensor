@@ -55,9 +55,27 @@
     group: "{{ ansible_ssh_user }}"
     recurse: yes
 
+- name: Create tensor project dir
+  file:
+    path: /var/lib/tensor/projects/
+    state: directory
+    owner: root
+    group: root
+    recurse: yes
+
+- name: Copy tensor playbooks
+  copy:
+    src: projects
+    dest: /var/lib/tensor/
+
+- name: Copy tensor plugins
+  copy:
+    src: plugins
+    dest: /var/lib/tensor/
+
 - name: Create tensor data dir
   file:
-    path: /data
+    path: /data/tensor
     state: directory
     owner: "{{ ansible_ssh_user }}"
     group: "{{ ansible_ssh_user }}"

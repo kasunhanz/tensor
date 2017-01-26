@@ -2,12 +2,14 @@ package roles
 
 import (
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
+
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func JobRead(user models.User, jtemplate models.Job) bool {
+func JobRead(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -15,7 +17,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	}
 
 	//need to get project for organization
-	var project models.Project
+	var project common.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Errorln("Error while getting project")
@@ -60,7 +62,7 @@ func JobRead(user models.User, jtemplate models.Job) bool {
 	return false
 }
 
-func JoWrite(user models.User, jtemplate models.Job) bool {
+func JoWrite(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -68,7 +70,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	}
 
 	//need to get project for organization
-	var project models.Project
+	var project common.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Errorln("Error while getting project")
@@ -118,7 +120,7 @@ func JoWrite(user models.User, jtemplate models.Job) bool {
 	return false
 }
 
-func JobExecute(user models.User, jtemplate models.Job) bool {
+func JobExecute(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -126,7 +128,7 @@ func JobExecute(user models.User, jtemplate models.Job) bool {
 	}
 
 	//need to get project for organization id
-	var project models.Project
+	var project common.Project
 	err := db.Projects().FindId(jtemplate.ProjectID).One(&project)
 	if err != nil {
 		log.Errorln("Error while getting project")

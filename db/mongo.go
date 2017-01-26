@@ -3,8 +3,8 @@ package db
 import (
 	"time"
 
-	"github.com/pearsonappeng/tensor/util"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2"
 )
 
@@ -23,6 +23,8 @@ const (
 	CInventorySources      = "inventory_sources"
 	CJobs                  = "jobs"
 	CJobTemplates          = "job_templates"
+	CTerraformJobTemplates = "terrafrom_job_templates"
+	CTerraformJobs         = "terraform_jobs"
 	CNotifications         = "notifications"
 	CNotificationTemplates = "notification_templates"
 	COrganizations         = "organizations"
@@ -134,6 +136,16 @@ func Jobs() *mgo.Collection {
 // JobTemplates returns mgo.Collection for job_templates
 func JobTemplates() *mgo.Collection {
 	return MongoDb.C(CJobTemplates)
+}
+
+// TerrafromJobs returns a mgo.Collection for terraform_jobs
+func TerrafromJobs() *mgo.Collection {
+	return MongoDb.C(CTerraformJobs)
+}
+
+// TerrafromJobTemplates returns mgo.Collection for terraform_job_templates
+func TerrafromJobTemplates() *mgo.Collection {
+	return MongoDb.C(CTerraformJobTemplates)
 }
 
 // Hosts returns mgo.Collection for hosts
