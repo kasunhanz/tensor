@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -235,6 +236,10 @@ func terraformRun(j types.TerraformJob) {
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
+
+	// Set setsid to create a new session, The new process group has no controlling
+	// terminal which disables the stdin & will skip prompts
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	if err := cmd.Start(); err != nil {
 		log.WithFields(log.Fields{

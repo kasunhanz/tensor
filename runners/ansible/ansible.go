@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -247,39 +248,29 @@ func ansibleRun(j types.AnsibleJob) {
 		return
 	}
 
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
-		j.Job.ResultStdout = "stdout capture is missing"
-		j.Job.JobExplanation = err.Error()
-		jobFail(j)
-		return
-	}
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
 
+	// Set setsid to create a new session, The new process group has no controlling
+	// terminal which disables the stdin & will skip prompts
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
 	if err := cmd.Start(); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
-		}).Errorln("Running playbook failed")
+		}).Errorln("Running ansible job failed")
 		j.Job.JobExplanation = err.Error()
 		j.Job.ResultStdout = string(b.Bytes())
 		jobFail(j)
 		return
 	}
+
 	var timer *time.Timer
 	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut)*time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
-
-	if len(j.MachineCred.Password) > 0 && len(j.MachineCred.SSHKeyData) <= 0 {
-		log.Println("Using credential instead of SSH key")
-		io.WriteString(stdin, util.CipherDecrypt(j.SCMCred.Password)+"\n")
-	}
 
 	if err := cmd.Wait(); err != nil {
 		log.WithFields(log.Fields{
