@@ -10,7 +10,7 @@
     id: 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367
 
 - name: Install apt dependencies
-  apt: name={{ item }} state=present
+  package: name={{ item }} state=present
   with_items: "{{ packaging_dependencies }}"
 
 - apt_repository:
@@ -29,7 +29,7 @@
   when: ansible_distribution == 'Debian'
 
 - name: Install dependencies packages
-  apt: name={{ item }} state=present
+  package: name={{ item }} state=present
   with_items: "{{ tensor_packages_dependencies }}"
   notify:
     - "Start Docker"

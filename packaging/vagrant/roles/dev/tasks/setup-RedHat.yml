@@ -4,7 +4,7 @@
   register: epel_repofile_result
 
 - name: Install EPEL repo.
-  dnf:
+  package:
     name: "{{ epel_repo_url }}"
     state: present
   register: result
@@ -20,7 +20,7 @@
   when: not epel_repofile_result.stat.exists
 
 - name: Install dependencies packages
-  dnf: name={{ item }} state=present
+  package: name={{ item }} state=present
   with_items: "{{ tensor_packages_dependencies }}"
   notify:
     - "Start Docker"

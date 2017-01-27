@@ -1,10 +1,13 @@
 ---
+
+- name: Install dependencies packages
+  package: name=unzip state=present
+
 - name: Create Terraform directory
   file:
-    path: "{{terraform_dir}}"
+    path: "{{ terraform_dir }}"
     state: directory
     owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
   register: terraform_directory
 
 - name: Check terraform version
@@ -13,28 +16,19 @@
   changed_when: false
   register: terraform_versions_match
 
-- include: download.yml
-  when: terraform_versions_match.rc != 0
-
-- name: Install unzip to unarchive terraform
-  apt:
-    name: unzip
-    state: present
+- name: Download terraform archive Linux 64 bits
+  get_url:
+    url: https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_linux_amd64.zip
+    dest: /tmp/terraform-{{terraform_version}}.zip
+  when: "terraform_versions_match.rc != 0"
 
 - name: Unarchive Terraform archive
   unarchive:
     src: /tmp/terraform-{{terraform_version}}.zip
-    dest: "{{terraform_dir}}"
-    copy: no
-  when: terraform_versions_match.rc != 0 or terraform_directory | changed
-
-- name: Make terraform_user terraform directory owner
-  file:
-    path: "{{terraform_dir}}"
-    state: directory
+    dest: "{{ terraform_dir }}"
     owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
-    recurse: yes
+    remote_src: yes
+  when: "terraform_versions_match.rc != 0 or terraform_directory | changed"
 
 - name: Adding terraform command to user path
   file: 

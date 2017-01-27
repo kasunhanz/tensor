@@ -231,6 +231,9 @@ lint:
 run:
 	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
 
+runsetup:
+	go run cmd/main.go -setup
+
 # run test suite
 test:
 	go test ./...

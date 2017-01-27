@@ -1,8 +1,8 @@
 ---
 # tasks file for mongodb
 
-- name: Install dependencies packages
-  dnf: name={{ item }} state=installed
+- name: Install dependency packages
+  package: name={{ item }} state=installed
   with_items: "{{ mongodb_packages_dependencies }}"
 
 - name: Ensure python mongo driver installed
@@ -22,7 +22,7 @@
   ignore_errors: yes # if firewalld not installed
 
 - name: "Install required packages"
-  dnf: name={{ item }} state=present
+  package: name={{ item }} state=present
   with_items:
     - mongodb-org
   notify:

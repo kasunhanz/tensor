@@ -2,7 +2,7 @@
 
 
 tensor_packages_dependencies:
-  - 'mercurial'  # For cloning the Golang repository
+  - mercurial  # For cloning the Golang repository
   - git          # For getting Go dependencies from GitHub
   - python-setuptools
   - ansible

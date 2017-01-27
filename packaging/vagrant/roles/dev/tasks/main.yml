@@ -13,7 +13,7 @@
 
 - name: Install docker compose
   get_url: 
-    url: "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-Linux-x86_64"
+    url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64"
     dest: /usr/local/bin/docker-compose
     mode: 0775
 
@@ -36,16 +36,11 @@
     copy: no
   when: go_version|failed or go_version.stdout != go_version_target
 
-- name: Add the Go bin directory to the PATH environment variable for all users
-  copy:
-    src: go-bin.sh
-    dest: /etc/profile.d
-
-- name: Set GOPATH for all users
-  copy:
-    src: go-path.sh
-    dest: /etc/profile.d
-  when: set_go_path
+- name: Set GOPATHs for all users
+  copy: "src={{ item }} dest=/etc/profile.d/"
+  with_items:
+    - go-path.sh
+    - go-bin.sh
 
 - name: Set permissions for go path
   file:
@@ -65,13 +60,17 @@
 
 - name: Copy tensor playbooks
   copy:
-    src: projects
+    src: "{{ playbook_dir }}/../ansible/playbooks"
     dest: /var/lib/tensor/
 
 - name: Copy tensor plugins
   copy:
-    src: plugins
+    src: "{{ playbook_dir }}/../ansible/plugins"
     dest: /var/lib/tensor/
+
+- name: Make ansible inventory plugins executable
+  file: "path=/var/lib/tensor/plugins/inventory/{{ item }} mode=0755 state=file"
+  with_items: "{{ inventory_plugins }}"
 
 - name: Create tensor data dir
   file:
@@ -100,3 +99,7 @@
   environment:
     GOPATH: /go
     PATH : "{{ ansible_env.PATH }}:/go/bin:/usr/local/go/bin"
+
+- name: Set tensor path when vagrant ssh
+  become: false
+  shell: 'echo "cd /go/src/github.com/pearsonappeng/tensor/" | tee ~/.profile | tee ~/.bashrc'
