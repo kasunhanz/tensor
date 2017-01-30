@@ -1,6 +1,11 @@
 ---
 # tasks file for mongodb
 
+# Ignore selinux
+- selinux:
+    policy: targeted
+    state: permissive
+
 - name: Install dependency packages
   package: name={{ item }} state=installed
   with_items: "{{ mongodb_packages_dependencies }}"

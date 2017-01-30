@@ -8,5 +8,6 @@ tensor_packages_dependencies:
   - ansible
   - docker
   - make
+  - rpm-build
 
 docker_daemon: docker

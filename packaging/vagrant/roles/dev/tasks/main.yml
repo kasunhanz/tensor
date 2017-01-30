@@ -102,4 +102,4 @@
 
 - name: Set tensor path when vagrant ssh
   become: false
-  shell: 'echo "cd /go/src/github.com/pearsonappeng/tensor/" | tee ~/.profile | tee ~/.bashrc'
+  shell: 'echo "cd /go/src/github.com/pearsonappeng/tensor/" >> ~/.profile  && echo "cd /go/src/github.com/pearsonappeng/tensor/" >> ~/.bashrc'

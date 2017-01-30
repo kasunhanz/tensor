@@ -6,6 +6,9 @@
 # Folders
 _obj
 _test
+.vagrant
+.vscode
+.idea
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -28,10 +31,6 @@ _testmain.go
 build
 data
 packaging/docker/tensor/tensor.deb
-
-#ignore project vs code
-.vscode/
-.idea/
 
 # Ignore vagrant
 packaging/vagrant/*.log

@@ -14,11 +14,6 @@
 - name: Create mongodb data dir
   file: path={{ mongodb_data_dir }} state=directory owner={{ mongodb_daemon_user }} group={{ mongodb_daemon_user }}
 
-# Ignore selinux
-- selinux:
-    policy: targeted
-    state: permissive
-
 - name: Ensure MongoDB is configured.
   template:
     src: mongodb.conf.j2
