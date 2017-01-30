@@ -2,10 +2,19 @@
 
 NAME = tensor
 OS = $(shell uname -s)
+OSI = $(shell lsb_release -si)
 
 # VERSION file provides one place to update the software version
 VERSION := $(shell cat VERSION | cut -f1 -d' ')
 RELEASE := $(shell cat VERSION | cut -f2 -d' ')
+
+ifeq ($(OSI), Ubuntu)
+DEB_MIRROR = "http://archive.ubuntu.com/ubuntu"
+DEB_REPO = "universe"
+else
+DEB_MIRROR = "http://httpredir.debian.org/debian"
+DEB_REPO = "non-free"
+endif
 
 # Get the branch information from git
 ifneq ($(shell which git),)
@@ -55,7 +64,7 @@ PBUILDER_OPTS ?= --debootstrapopts --variant=buildd --architecture $(PBUILDER_AR
 
 # RPM build parameters
 RPMSPECDIR= packaging/rpm
-RPMSPEC = $(RPMSPECDIR)/ansible.spec
+RPMSPEC = $(RPMSPECDIR)/tensor.spec
 RPMDIST = $(shell rpm --eval '%{?dist}')
 RPMRELEASE = $(RELEASE)
 ifneq ($(OFFICIAL),yes)
@@ -99,7 +108,7 @@ debian:	sdist
 deb: deb-src
 	@for DIST in $(DEB_DIST) ; do \
 		PBUILDER_OPTS="$(PBUILDER_OPTS) --distribution $${DIST} --basetgz $(PBUILDER_CACHE_DIR)/$${DIST}-$(PBUILDER_ARCH)-base.tgz --buildresult $(CURDIR)/build/deb-build/$${DIST}" ; \
-		$(PBUILDER_BIN) create $${PBUILDER_OPTS} --othermirror "deb http://archive.ubuntu.com/ubuntu $${DIST} universe" ; \
+		$(PBUILDER_BIN) create $${PBUILDER_OPTS} --othermirror "deb ${DEB_MIRROR} $${DIST} ${DEB_REPO}" ; \
 		$(PBUILDER_BIN) update $${PBUILDER_OPTS} ; \
 		$(PBUILDER_BIN) build $${PBUILDER_OPTS} build/deb-build/$${DIST}/$(NAME)_$(VERSION)-$(DEB_RELEASE)~$${DIST}.dsc ; \
 	done
@@ -134,9 +143,9 @@ local_deb: debian
 	done
 
 rpmcommon: sdist
-	@mkdir -p /build/rpm-build
-	@cp dist/*.gz /build/rpm-build/
-	@sed -e 's#^Version:.*#Version: $(VERSION)#' -e 's#^Release:.*#Release: $(RPMRELEASE)%{?dist}#' $(RPMSPEC) >/build/rpm-build/$(NAME).spec
+	@mkdir -p build/rpm-build
+	@cp build/dist/*.gz build/rpm-build/
+	@sed -e 's#^Version:.*#Version: $(VERSION)#' -e 's#^Release:.*#Release: $(RPMRELEASE)%{?dist}#' $(RPMSPEC) > build/rpm-build/$(NAME).spec
 
 srpm: rpmcommon
 	@rpmbuild --define "_topdir %(pwd)/build/rpm-build" \
@@ -145,11 +154,11 @@ srpm: rpmcommon
 	--define "_srcrpmdir %{_topdir}" \
 	--define "_specdir $(RPMSPECDIR)" \
 	--define "_sourcedir %{_topdir}" \
-	-bs /build/rpm-build/$(NAME).spec
-	@rm -f /build/rpm-build/$(NAME).spec
+	-bs build/rpm-build/$(NAME).spec
+	@rm -f build/rpm-build/$(NAME).spec
 	@echo "#############################################"
 	@echo "Tensor SRPM is built:"
-	@echo "    /build/rpm-build/$(RPMNVR).src.rpm"
+	@echo "    build/rpm-build/$(RPMNVR).src.rpm"
 	@echo "#############################################"
 
 rpm: rpmcommon
@@ -160,11 +169,11 @@ rpm: rpmcommon
 	--define "_specdir $(RPMSPECDIR)" \
 	--define "_sourcedir %{_topdir}" \
 	--define "_rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" \
-	-ba /build/rpm-build/$(NAME).spec
-	@rm -f /build/rpm-build/$(NAME).spec
+	-ba build/rpm-build/$(NAME).spec
+	@rm -f build/rpm-build/$(NAME).spec
 	@echo "#############################################"
 	@echo "Python RPM is built:"
-	@echo "    /build/rpm-build/$(RPMNVR).noarch.rpm"
+	@echo "    build/rpm-build/$(RPMNVR).noarch.rpm"
 	@echo "#############################################"
 
 # Build tensor docker image and tag with current version
@@ -230,6 +239,9 @@ lint:
 # run tensor locally using reflex 
 run:
 	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
+
+runsetup:
+	go run cmd/main.go -setup
 
 # run test suite
 test:

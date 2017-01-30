@@ -6,20 +6,20 @@ packaging_dependencies:
   - software-properties-common
 
 tensor_packages_dependencies:
-  - 'mercurial'  # For cloning the Golang repository
-  - 'git'        # For getting Go dependencies from GitHub
-  - 'python-setuptools'
-  - 'docker-engine'
-  - 'make'
-  - 'ruby'
-  - 'devscripts'
-  - 'build-essential'
-  - 'cdbs'
-  - 'debhelper'
-  - 'lintian'
-  - 'dh-make'
-  - 'cdbs'
-  - 'ansible'
-  - 'pbuilder'
+  - mercurial  # For cloning the Golang repository
+  - git        # For getting Go dependencies from GitHub
+  - python-setuptools
+  - docker-engine
+  - make
+  - ruby
+  - devscripts
+  - build-essential
+  - cdbs
+  - debhelper
+  - lintian
+  - dh-make
+  - cdbs
+  - ansible
+  - pbuilder
 
 docker_daemon: docker

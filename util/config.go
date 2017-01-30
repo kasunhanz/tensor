@@ -44,7 +44,9 @@ type configType struct {
 	// cookie hashing & encryption
 	Salt string `yaml:"salt"`
 
-	JobTimeOut int `yaml:"job_timeout"`
+	AnsibleJobTimeOut   int `yaml:"ansible_job_timeout"`
+	SyncJobTimeOut      int `yaml:"sync_job_timeout"`
+	TerraformJobTimeOut int `yaml:"terraform_job_timeout"`
 }
 
 var Config *configType
@@ -103,11 +105,25 @@ func init() {
 		Config.Salt = "8m86pie1ef8bghbq41ru!de4"
 	}
 
-	if len(os.Getenv("TENSOR_JOB_TIMEOUT")) > 0 {
-		time, _ := strconv.Atoi(os.Getenv("TENSOR_JOB_TIMEOUT"))
-		Config.JobTimeOut = time
-	} else if Config.JobTimeOut == 0 {
-		Config.JobTimeOut = 3600
+	if len(os.Getenv("TENSOR_ANSIBLE_JOB_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_ANSIBLE_JOB_TIMEOUT"))
+		Config.AnsibleJobTimeOut = time
+	} else if Config.AnsibleJobTimeOut == 0 {
+		Config.AnsibleJobTimeOut = 3600
+	}
+
+	if len(os.Getenv("TENSOR_TERRAFORM_JOB_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_TERRAFORM_JOB_TIMEOUT"))
+		Config.TerraformJobTimeOut = time
+	} else if Config.TerraformJobTimeOut == 0 {
+		Config.TerraformJobTimeOut = 3600
+	}
+
+	if len(os.Getenv("TENSOR_SYNC_JOB_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_SYNC_JOB_TIMEOUT"))
+		Config.SyncJobTimeOut = time
+	} else if Config.SyncJobTimeOut == 0 {
+		Config.SyncJobTimeOut = 3600
 	}
 
 	if len(os.Getenv("TENSOR_DB_USER")) > 0 {

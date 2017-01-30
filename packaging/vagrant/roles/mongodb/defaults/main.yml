@@ -16,3 +16,7 @@ mongodb_data_dir: /data/mongodb
 
 mongodb_keyserver: hkp://keyserver.ubuntu.com:80
 mongodb_key_id: 0C49F3730359A14518585931BC711F9BA15703C6
+
+epel_repo_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
+epel_repo_gpg_key_url: "http://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}"
+epel_repofile_path: "/etc/yum.repos.d/epel.repo"
