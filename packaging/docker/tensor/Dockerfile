@@ -42,7 +42,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     # create project home directory and remove tensor configuration
     mkdir -p "/data" && \
     echo 'localhost' > /etc/ansible/hosts && \
-    rm /etc/tensor.conf && rm /etc/krb5.conf && \
+    rm /etc/tensor.conf && rm /etc/krb5.conf
 
 
 ENV TENSOR_PORT=8010 PROJECTS_HOME="/data" \
