@@ -2,13 +2,13 @@
 
 NAME = tensor
 OS = $(shell uname -s)
-OSI = $(shell lsb_release -si)
+DEB_OS = $(shell lsb_release -si)
 
 # VERSION file provides one place to update the software version
 VERSION := $(shell cat VERSION | cut -f1 -d' ')
 RELEASE := $(shell cat VERSION | cut -f2 -d' ')
 
-ifeq ($(OSI), Ubuntu)
+ifeq ($(DEB_OS), Ubuntu)
 DEB_MIRROR = "http://archive.ubuntu.com/ubuntu"
 DEB_REPO = "universe"
 else

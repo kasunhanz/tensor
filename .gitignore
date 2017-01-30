@@ -33,6 +33,5 @@ data
 packaging/docker/tensor/tensor.deb
 
 # Ignore vagrant
-packaging/vagrant/*.log
+*.log
 packaging/vagrant/*.retry
-packaging/vagrant/.vagrant*

@@ -11,6 +11,14 @@
     repo: "deb http://repo.mongodb.org/apt/{{ ansible_distribution | lower }} {{ ansible_distribution_release | lower }}/mongodb-org/{{ mongodb_version }} main"
     state: present
     filename: "mongodb-org-{{ mongodb_version }}.list"
+  when: ansible_distribution == 'Debian'
+
+- name: "MongoDB repository"
+  apt_repository:
+    repo: "deb http://repo.mongodb.org/apt/{{ ansible_distribution | lower }} {{ ansible_distribution_release | lower }}/mongodb-org/{{ mongodb_version }} multiverse"
+    state: present
+    filename: "mongodb-org-{{ mongodb_version }}.list"
+  when: ansible_distribution == 'Ubuntu'
 
 - name: Install dependencies packages
   package: name={{ item }} state=present
