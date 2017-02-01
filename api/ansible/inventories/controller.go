@@ -14,10 +14,10 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -856,7 +856,6 @@ func ActivityStream(c *gin.Context) {
 
 // Tree is a Gin handler function which generete a json tree of the
 // inventory.
-// TODO: complete
 func Tree(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
@@ -864,20 +863,68 @@ func Tree(c *gin.Context) {
 	query := bson.M{
 		"inventory_id": inv.ID,
 	}
-	// new mongodb iterator
-	iter := db.Inventories().Find(query).Iter()
-	// loop through each result and modify for our needs
-	var tmpGroup ansible.Group
+	// new mongodb iterator for groups
+	iOne := db.Groups().Find(query).Iter()
+
+	var gOne ansible.Group
 	// iterate over all and only get valid objects
-	for iter.Next(&tmpGroup) {
-		metadata.GroupMetadata(&tmpGroup)
+	for iOne.Next(&gOne) {
+		query = bson.M{
+			"parent_group_id": gOne.ID,
+		}
+		// new mongodb iterator for children groups
+		iTwo := db.Groups().Find(query).Iter()
+		var gTwo ansible.Group
+		// iterate over all and only get valid children objects
+		for iTwo.Next(&gTwo) {
+			query = bson.M{
+				"parent_group_id": gTwo.ID,
+			}
+			// new mongodb iterator for grandchildren groups
+			iTree := db.Groups().Find(query).Iter()
+			var gThree ansible.Group
+			// iterate over all and only get valid grandchildren objects
+			for iTree.Next(&gThree) {
+				if (*gThree.ParentGroupID).Hex() == gTwo.ID.Hex() {
+					// attach metadata
+					metadata.GroupMetadata(&gThree)
+					gTwo.Children = append(gTwo.Children, gThree)
+				}
+			}
 
-		//TODO: children
+			if err := iTree.Close(); err != nil {
+				log.Errorln("Error while retriving Inventory data from the db:", err)
+				c.JSON(http.StatusInternalServerError, common.Error{
+					Code:     http.StatusInternalServerError,
+					Messages: []string{"Error while getting Grandchildren Groups"},
+				})
+				return
+			}
 
-		// good to go add to list
-		groups = append(groups, tmpGroup)
+			if (*gTwo.ParentGroupID).Hex() == gOne.ID.Hex() {
+				// attach metadata
+				metadata.GroupMetadata(&gTwo)
+				gOne.Children = append(gOne.Children, gTwo)
+			}
+		}
+
+		if err := iTwo.Close(); err != nil {
+			log.Errorln("Error while retriving Inventory data from the db:", err)
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Error while getting Children Groups"},
+			})
+			return
+		}
+
+		if gOne.ParentGroupID == nil {
+			// attach metadata
+			metadata.GroupMetadata(&gOne)
+			groups = append(groups, gOne)
+		}
 	}
-	if err := iter.Close(); err != nil {
+
+	if err := iOne.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
