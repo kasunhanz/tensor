@@ -860,28 +860,25 @@ func Tree(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	var groups []ansible.Group
-	query := bson.M{
-		"inventory_id": inv.ID,
-	}
 	// new mongodb iterator for groups
-	iOne := db.Groups().Find(query).Iter()
+	iOne := db.Groups().Find(bson.M{
+		"inventory_id": inv.ID,
+	}).Iter()
 
 	var gOne ansible.Group
 	// iterate over all and only get valid objects
 	for iOne.Next(&gOne) {
-		query = bson.M{
-			"parent_group_id": gOne.ID,
-		}
 		// new mongodb iterator for children groups
-		iTwo := db.Groups().Find(query).Iter()
+		iTwo := db.Groups().Find(bson.M{
+			"parent_group_id": gOne.ID,
+		}).Iter()
 		var gTwo ansible.Group
 		// iterate over all and only get valid children objects
 		for iTwo.Next(&gTwo) {
-			query = bson.M{
-				"parent_group_id": gTwo.ID,
-			}
 			// new mongodb iterator for grandchildren groups
-			iTree := db.Groups().Find(query).Iter()
+			iTree := db.Groups().Find(bson.M{
+				"parent_group_id": gTwo.ID,
+			}).Iter()
 			var gThree ansible.Group
 			// iterate over all and only get valid grandchildren objects
 			for iTree.Next(&gThree) {
@@ -896,7 +893,7 @@ func Tree(c *gin.Context) {
 				log.Errorln("Error while retriving Inventory data from the db:", err)
 				c.JSON(http.StatusInternalServerError, common.Error{
 					Code:     http.StatusInternalServerError,
-					Messages: []string{"Error while getting Grandchildren Groups"},
+					Messages: []string{"Error while getting Groups"},
 				})
 				return
 			}
@@ -912,7 +909,7 @@ func Tree(c *gin.Context) {
 			log.Errorln("Error while retriving Inventory data from the db:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Children Groups"},
+				Messages: []string{"Error while getting Groups"},
 			})
 			return
 		}
