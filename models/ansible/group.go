@@ -28,14 +28,16 @@ type Group struct {
 	Created  time.Time `bson:"created" json:"created"`
 	Modified time.Time `bson:"modified" json:"modified"`
 
-	Type               string `bson:"-" json:"type"`
-	URL                string `bson:"-" json:"url"`
-	Related            gin.H  `bson:"-" json:"related"`
-	Summary            gin.H  `bson:"-" json:"summary_fields"`
-	LastJob            gin.H  `bson:"-" json:"last_job"`
-	LastJobHostSummary gin.H  `bson:"-" json:"last_job_host_summary"`
+	Type               string  `bson:"-" json:"type"`
+	URL                string  `bson:"-" json:"url"`
+	Children           []Group `bson:"-" json:"children,omitempty"`
+	Related            gin.H   `bson:"-" json:"related"`
+	Summary            gin.H   `bson:"-" json:"summary_fields"`
+	LastJob            gin.H   `bson:"-" json:"last_job"`
+	LastJobHostSummary gin.H   `bson:"-" json:"last_job_host_summary"`
 }
 
+// PatchGroup to support patch requests
 type PatchGroup struct {
 	Name          *string        `json:"name" binding:"omitempty,min=1,max=500"`
 	Description   *string        `json:"description"`

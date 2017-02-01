@@ -211,7 +211,7 @@ func Route(r *gin.Engine) {
 					intr.GET("/variable_data/", inventories.VariableData)
 					intr.GET("/root_groups/", inventories.RootGroups)
 					intr.GET("/ad_hoc_commands/", notImplemented) //TODO: implement
-					intr.GET("/tree/", notImplemented)            //TODO: implement
+					intr.GET("/tree/", inventories.Tree)          //TODO: implement
 					intr.GET("/access_list/", inventories.AccessList)
 					intr.GET("/hosts/", inventories.Hosts)
 					intr.GET("/groups/", inventories.Groups)
