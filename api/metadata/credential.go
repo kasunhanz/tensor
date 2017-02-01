@@ -2,9 +2,9 @@ package metadata
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func CredentialMetadata(c *common.Credential) {
@@ -24,7 +24,7 @@ func CredentialMetadata(c *common.Credential) {
 	}
 
 	if c.OrganizationID != nil {
-		related["organization"] = "/api/v1/organizations/" + *c.OrganizationID + "/"
+		related["organization"] = "/api/v1/organizations/" + (*c.OrganizationID).Hex() + "/"
 	}
 
 	c.Related = related

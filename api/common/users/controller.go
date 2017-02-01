@@ -10,9 +10,9 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -230,7 +230,8 @@ func Credentials(c *gin.Context) {
 	// loop through each result and modify for our needs
 	var tmpCredential common.Credential
 	// iterate over all and only get valid objects
-	for iter.Next(&tmpCredential) {
+	for iter.Next(&tmpCredential) { // hide passwords, keys even they are already encrypted
+		hideEncrypted(&tmpCredential)
 		metadata.CredentialMetadata(&tmpCredential)
 		// add to list
 		creds = append(creds, tmpCredential)
@@ -411,4 +412,16 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
+}
+
+// hideEncrypted is replaces encrypted fields by $encrypted$ string
+func hideEncrypted(c *common.Credential) {
+	encrypted := "$encrypted$"
+	c.Password = encrypted
+	c.SSHKeyData = encrypted
+	c.SSHKeyUnlock = encrypted
+	c.BecomePassword = encrypted
+	c.VaultPassword = encrypted
+	c.AuthorizePassword = encrypted
+	c.Secret = encrypted
 }
