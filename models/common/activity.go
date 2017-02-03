@@ -38,5 +38,5 @@ type ActivityOrganization struct {
 	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
 	Operation string        `bson:"operation" json:"operation"`
 	Object1   Organization  `bson:"object1" json:"object1"`
-	Object2   *Organization `bson:"object2,omitempty" json:"object2,omitempty"`
+	Object2   *Organization `bson:"object2" json:"object2"`
 }
