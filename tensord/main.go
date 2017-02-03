@@ -17,9 +17,9 @@ import (
 )
 
 func main() {
-	logrus.Infoln("Tensor :", util.Version)
-	logrus.Infoln("Port :", util.Config.Port)
-	logrus.Infoln("MongoDB :", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
+	logrus.Infoln("Tensor:", util.Version)
+	logrus.Infoln("Port:", util.Config.Port)
+	logrus.Infoln("MongoDB:", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
 	logrus.Infoln("Projects Home:", util.Config.ProjectsHome)
 
 	if err := db.Connect(); err != nil {
