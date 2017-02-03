@@ -12,7 +12,7 @@ import (
 func JTemplateMetadata(jt *terraform.JobTemplate) {
 
 	ID := jt.ID.Hex()
-	jt.Type = "inventory"
+	jt.Type = "job_template"
 	jt.URL = "/v1/terraform/job_templates/" + ID + "/"
 	related := gin.H{
 		"created_by":                     "/v1/terraform/users/" + jt.CreatedByID.Hex() + "/",
