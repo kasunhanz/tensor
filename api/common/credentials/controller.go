@@ -7,14 +7,14 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -451,7 +451,7 @@ func PatchCredential(c *gin.Context) {
 		credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
 	}
 
-	// replace following feilds if precent
+	// replace following fields if precent
 	if req.Secret != nil && *req.Secret != "$encrypted$" {
 		credential.Secret = util.CipherEncrypt(*req.Secret)
 	}

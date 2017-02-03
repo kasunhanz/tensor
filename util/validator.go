@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/universal-translator"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/go-playground/validator.v9"
 	en_translations "gopkg.in/go-playground/validator.v9/translations/en"
 )
@@ -81,14 +81,14 @@ func (v *SpaceValidator) lazyinit() {
 
 		// Register custom validator functions
 		v.validate.RegisterValidation("become_method", isBecome)
-		v.validate.RegisterValidation("dnsname", IsDNSName)
-		v.validate.RegisterValidation("iphost", IsHost)
-		v.validate.RegisterValidation("credentialkind", IsCredentialKind)
-		v.validate.RegisterValidation("naproperty", NaProperty)
-		v.validate.RegisterValidation("scmtype", IsScmType)
-		v.validate.RegisterValidation("jobtype", IsJobType)
-		v.validate.RegisterValidation("project_kind", IsProjectKind)
-		v.validate.RegisterValidation("terraform_jobtype", IsTerraformJobType)
+		v.validate.RegisterValidation("dnsname", isDNSName)
+		v.validate.RegisterValidation("iphost", isHost)
+		v.validate.RegisterValidation("credentialkind", isCredentialKind)
+		v.validate.RegisterValidation("naproperty", naProperty)
+		v.validate.RegisterValidation("scmtype", isScmType)
+		v.validate.RegisterValidation("jobtype", isJobType)
+		v.validate.RegisterValidation("project_kind", isProjectKind)
+		v.validate.RegisterValidation("terraform_jobtype", isTerraformJobType)
 
 		//translations
 		// credentialkind
@@ -152,8 +152,8 @@ func (v *SpaceValidator) lazyinit() {
 		})
 
 		//struct level validations
-		v.validate.RegisterStructValidation(CredentialStructLevelValidation, common.Credential{})
-		v.validate.RegisterStructValidation(ProjectStructLevelValidation, common.Project{})
+		v.validate.RegisterStructValidation(credentialStructLevelValidation, common.Credential{})
+		v.validate.RegisterStructValidation(projectStructLevelValidation, common.Project{})
 	})
 }
 
@@ -171,7 +171,7 @@ func isBecome(fl validator.FieldLevel) bool {
 }
 
 // IsDNSName will validate the given string as a DNS name
-func IsDNSName(fl validator.FieldLevel) bool {
+func isDNSName(fl validator.FieldLevel) bool {
 	str := fl.Field().String()
 	if str == "" || len(strings.Replace(str, ".", "", -1)) > 255 {
 		// constraints already violated
@@ -181,36 +181,36 @@ func IsDNSName(fl validator.FieldLevel) bool {
 }
 
 // IsIP checks if a string is either IP version 4 or 6.
-func IsIP(fl validator.FieldLevel) bool {
+func isIP(fl validator.FieldLevel) bool {
 	return net.ParseIP(fl.Field().String()) != nil
 }
 
 // IsHost checks if the string is a valid IP (both v4 and v6) or a valid DNS name
-func IsHost(fl validator.FieldLevel) bool {
-	return IsIP(fl) || IsDNSName(fl)
+func isHost(fl validator.FieldLevel) bool {
+	return isIP(fl) || isDNSName(fl)
 }
 
-func IsScmType(fl validator.FieldLevel) bool {
+func isScmType(fl validator.FieldLevel) bool {
 	return rxScmType.MatchString(fl.Field().String())
 }
 
-func IsJobType(fl validator.FieldLevel) bool {
+func isJobType(fl validator.FieldLevel) bool {
 	return rxJobType.MatchString(fl.Field().String())
 }
 
-func IsCredentialKind(fl validator.FieldLevel) bool {
+func isCredentialKind(fl validator.FieldLevel) bool {
 	return rxCredentialKind.MatchString(fl.Field().String())
 }
 
-func IsProjectKind(fl validator.FieldLevel) bool {
+func isProjectKind(fl validator.FieldLevel) bool {
 	return rxProjectKind.MatchString(fl.Field().String())
 }
-func IsTerraformJobType(fl validator.FieldLevel) bool {
+func isTerraformJobType(fl validator.FieldLevel) bool {
 	return rxTerraformJobType.MatchString(fl.Field().String())
 }
 
 // fail all
-func NaProperty(fl validator.FieldLevel) bool {
+func naProperty(fl validator.FieldLevel) bool {
 	if fl.Field().String() == "" {
 		// constraints not violated
 		return true
@@ -247,46 +247,82 @@ func GetValidationErrors(err error) []string {
 	return []string{}
 }
 
-// TODO: openstack,azure,gce,
-func CredentialStructLevelValidation(sl validator.StructLevel) {
+func credentialStructLevelValidation(sl validator.StructLevel) {
 
 	credentail := sl.Current().Interface().(common.Credential)
 
-	if credentail.Kind == "net" && len(credentail.Username) == 0 {
+	if credentail.Kind == common.CredentialKindNET && len(credentail.Username) == 0 {
 		sl.ReportError(credentail.Username, "Username", "Username", "required", "")
 	}
 
-	if credentail.Kind == "aws" || credentail.Kind == "rax" {
-		if len(credentail.Username) == 0 {
-			sl.ReportError(credentail.Username, "Username", "Username", "required", "")
+	if credentail.Kind == common.CredentialKindAWS {
+		if len(credentail.Secret) == 0 {
+			sl.ReportError(credentail.Secret, "Secret", "Secret Access Key", "required", "")
 		}
 
-		if len(credentail.Password) == 0 {
-			sl.ReportError(credentail.Username, "Password", "Password", "required", "")
+		if len(credentail.Client) == 0 {
+			sl.ReportError(credentail.Client, "Client", "Secret Access ID", "required", "")
 		}
 	}
 
-	if credentail.Kind == "vmware" || credentail.Kind == "satellite6" || credentail.Kind == "cloudforms" {
+	if credentail.Kind == common.CredentialKindRAX {
 		if len(credentail.Username) == 0 {
 			sl.ReportError(credentail.Username, "Username", "Username", "required", "")
 		}
 
-		if len(credentail.Password) == 0 {
-			sl.ReportError(credentail.Username, "Password", "Password", "required", "")
+		if len(credentail.Secret) == 0 {
+			sl.ReportError(credentail.Secret, "Secret", "API Key", "required", "")
+		}
+	}
+
+	if credentail.Kind == common.CredentialKindGCE {
+		if len(credentail.Email) == 0 {
+			sl.ReportError(credentail.Email, "Email", "Email", "required", "")
 		}
 
-		if len(credentail.Host) == 0 {
-			sl.ReportError(credentail.Host, "Host", "Password", "required", "")
+		if len(credentail.Project) == 0 {
+			sl.ReportError(credentail.Project, "Project", "Project", "required", "")
+		}
+
+		if len(credentail.SSHKeyData) == 0 {
+			sl.ReportError(credentail.SSHKeyData, "SSH Key Data", "SSH Key Data", "required", "")
+		}
+	}
+
+	if credentail.Kind == common.CredentialKindAZURE {
+		if len(credentail.Username) > 0 {
+			if len(credentail.Username) == 0 {
+				sl.ReportError(credentail.Username, "Username", "Azure AD User", "required", "")
+			}
+
+			if len(credentail.Password) == 0 {
+				sl.ReportError(credentail.Password, "Password", "Azure AD Password", "required", "")
+			}
+		} else {
+			if len(credentail.Secret) == 0 {
+				sl.ReportError(credentail.Secret, "Secret", "Azure Secret", "required", "")
+			}
+
+			if len(credentail.Client) == 0 {
+				sl.ReportError(credentail.Client, "Client", "Azure Client ID", "required", "")
+			}
+			if len(credentail.Tenant) == 0 {
+				sl.ReportError(credentail.Tenant, "Tenant", "Azure Tenant", "required", "")
+			}
+		}
+
+		if len(credentail.Subscription) == 0 {
+			sl.ReportError(credentail.Subscription, "Subscription", "Azure Subscription", "required", "")
 		}
 	}
 }
 
-func ProjectStructLevelValidation(sl validator.StructLevel) {
+func projectStructLevelValidation(sl validator.StructLevel) {
 	project := sl.Current().Interface().(common.Project)
 
 	if project.ScmType == "git" || project.ScmType == "svn" || project.ScmType == "hg" {
 		if len(project.ScmURL) == 0 {
-			sl.ReportError(project.ScmURL, "ScmUrl", "ScmUrl", "required", "")
+			sl.ReportError(project.ScmURL, "Scm Url", "ScmUrl", "required", "")
 		}
 	}
 

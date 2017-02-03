@@ -1,4 +1,4 @@
-package terraform
+package ansible
 
 import (
 	"time"
@@ -8,10 +8,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/types"
 )
 
-func start(t types.TerraformJob) {
+func start(t types.AnsibleJob) {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -23,7 +23,7 @@ func start(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -31,7 +31,7 @@ func start(t types.TerraformJob) {
 	}
 }
 
-func status(t types.TerraformJob, s string) {
+func status(t types.AnsibleJob, s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -39,7 +39,7 @@ func status(t types.TerraformJob, s string) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -47,7 +47,7 @@ func status(t types.TerraformJob, s string) {
 	}
 }
 
-func jobFail(t types.TerraformJob) {
+func jobFail(t types.AnsibleJob) {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -69,7 +69,7 @@ func jobFail(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -80,7 +80,7 @@ func jobFail(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobCancel(t types.TerraformJob) {
+func jobCancel(t types.AnsibleJob) {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -103,7 +103,7 @@ func jobCancel(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -114,7 +114,7 @@ func jobCancel(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobError(t types.TerraformJob) {
+func jobError(t types.AnsibleJob) {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -136,7 +136,7 @@ func jobError(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -147,7 +147,7 @@ func jobError(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobSuccess(t types.TerraformJob) {
+func jobSuccess(t types.AnsibleJob) {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -169,7 +169,7 @@ func jobSuccess(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -180,7 +180,7 @@ func jobSuccess(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func updateProject(t types.TerraformJob) {
+func updateProject(t types.AnsibleJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -195,7 +195,7 @@ func updateProject(t types.TerraformJob) {
 	}
 }
 
-func updateJobTemplate(t types.TerraformJob) {
+func updateJobTemplate(t types.AnsibleJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -204,7 +204,7 @@ func updateJobTemplate(t types.TerraformJob) {
 		},
 	}
 
-	if err := db.TerrafromJobTemplates().UpdateId(t.Template.ID, d); err != nil {
+	if err := db.JobTemplates().UpdateId(t.Template.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,

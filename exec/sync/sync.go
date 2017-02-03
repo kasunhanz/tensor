@@ -18,7 +18,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/queue"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
 )
@@ -36,9 +36,9 @@ func Sync(j types.SyncJob) {
 	// Start SSH agent
 	client, socket, pid, cleanup := ssh.StartAgent()
 
-	if len(j.SCMCred.SSHKeyData) > 0 {
-		if len(j.SCMCred.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCMCred.SSHKeyData)), util.CipherDecrypt(j.SCMCred.SSHKeyUnlock))
+	if len(j.SCM.SSHKeyData) > 0 {
+		if len(j.SCM.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)), util.CipherDecrypt(j.SCM.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -57,7 +57,7 @@ func Sync(j types.SyncJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCMCred.SSHKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)))
 
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -252,7 +252,7 @@ func UpdateProject(p common.Project) (*types.SyncJob, error) {
 			}).Errorln("Error while getting SCM Credential")
 			return nil, errors.New("Error while getting SCM Credential")
 		}
-		runnerJob.SCMCred = credential
+		runnerJob.SCM = credential
 	}
 
 	// Add the job to queue

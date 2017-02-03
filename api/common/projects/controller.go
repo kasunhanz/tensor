@@ -15,7 +15,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/sync"
+	"github.com/pearsonappeng/tensor/exec/sync"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"

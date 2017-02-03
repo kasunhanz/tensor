@@ -1,4 +1,4 @@
-package sync
+package terraform
 
 import (
 	"time"
@@ -8,10 +8,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/types"
 )
 
-func start(t types.SyncJob) {
+func start(t types.TerraformJob) {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -23,7 +23,7 @@ func start(t types.SyncJob) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -31,7 +31,7 @@ func start(t types.SyncJob) {
 	}
 }
 
-func status(t types.SyncJob, s string) {
+func status(t types.TerraformJob, s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -39,7 +39,7 @@ func status(t types.SyncJob, s string) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -47,7 +47,7 @@ func status(t types.SyncJob, s string) {
 	}
 }
 
-func jobFail(t types.SyncJob) {
+func jobFail(t types.TerraformJob) {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -69,7 +69,7 @@ func jobFail(t types.SyncJob) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -77,9 +77,10 @@ func jobFail(t types.SyncJob) {
 	}
 
 	updateProject(t)
+	updateJobTemplate(t)
 }
 
-func jobCancel(t types.SyncJob) {
+func jobCancel(t types.TerraformJob) {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -102,7 +103,7 @@ func jobCancel(t types.SyncJob) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -110,9 +111,10 @@ func jobCancel(t types.SyncJob) {
 	}
 
 	updateProject(t)
+	updateJobTemplate(t)
 }
 
-func jobError(t types.SyncJob) {
+func jobError(t types.TerraformJob) {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -134,7 +136,7 @@ func jobError(t types.SyncJob) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -142,9 +144,10 @@ func jobError(t types.SyncJob) {
 	}
 
 	updateProject(t)
+	updateJobTemplate(t)
 }
 
-func jobSuccess(t types.SyncJob) {
+func jobSuccess(t types.TerraformJob) {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -166,7 +169,7 @@ func jobSuccess(t types.SyncJob) {
 		},
 	}
 
-	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
+	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
@@ -174,25 +177,25 @@ func jobSuccess(t types.SyncJob) {
 	}
 
 	updateProject(t)
+	updateJobTemplate(t)
 }
 
-func updateProject(t types.SyncJob) {
+func updateProject(t types.TerraformJob) {
 	d := bson.M{
 		"$set": bson.M{
-			"last_updated":       t.Job.Finished,
-			"last_update_failed": t.Job.Failed,
-			"status":             t.Job.Status,
+			"last_job_run":    t.Job.Started,
+			"last_job_failed": t.Job.Failed,
+			"status":          t.Job.Status,
 		},
 	}
-
-	if err := db.Projects().UpdateId(t.ProjectID, d); err != nil {
+	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err,
 		}).Errorln("Failed to update project")
 	}
 }
 
-func updateJobTemplate(t types.SyncJob) {
+func updateJobTemplate(t types.TerraformJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -201,7 +204,7 @@ func updateJobTemplate(t types.SyncJob) {
 		},
 	}
 
-	if err := db.JobTemplates().UpdateId(t.JobTemplateID, d); err != nil {
+	if err := db.TerrafromJobTemplates().UpdateId(t.Template.ID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,

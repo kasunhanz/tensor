@@ -9,10 +9,10 @@ import (
 type AnsibleJob struct {
 	Job         ansible.Job
 	Template    ansible.JobTemplate
-	MachineCred common.Credential
-	NetworkCred common.Credential
-	SCMCred     common.Credential
-	CloudCred   common.Credential
+	Machine     common.Credential
+	Network     common.Credential
+	SCM         common.Credential
+	Cloud       common.Credential
 	Inventory   ansible.Inventory
 	Project     common.Project
 	User        common.User

@@ -28,8 +28,8 @@ func MachineCredentialExist(ID bson.ObjectId) bool {
 		"_id": ID,
 		"kind": bson.M{
 			"$in": []string{
-				common.CREDENTIAL_KIND_SSH,
-				common.CREDENTIAL_KIND_WIN,
+				common.CredentialKindSSH,
+				common.CredentialKindWIN,
 			},
 		},
 	}
@@ -41,7 +41,7 @@ func MachineCredentialExist(ID bson.ObjectId) bool {
 }
 
 func NetworkCredentialExist(ID bson.ObjectId) bool {
-	count, err := db.Credentials().Find(bson.M{"_id": ID, "kind": common.CREDENTIAL_KIND_NET}).Count()
+	count, err := db.Credentials().Find(bson.M{"_id": ID, "kind": common.CredentialKindNET}).Count()
 	if err == nil && count > 0 {
 		return true
 	}
@@ -53,13 +53,13 @@ func CloudCredentialExist(ID bson.ObjectId) bool {
 		"_id": ID,
 		"kind": bson.M{
 			"$in": []string{
-				common.CREDENTIAL_KIND_AWS,
-				common.CREDENTIAL_KIND_AZURE,
-				common.CREDENTIAL_KIND_CLOUDFORMS,
-				common.CREDENTIAL_KIND_GCE,
-				common.CREDENTIAL_KIND_OPENSTACK,
-				common.CREDENTIAL_KIND_SATELLITE6,
-				common.CREDENTIAL_KIND_VMWARE,
+				common.CredentialKindAWS,
+				common.CredentialKindAZURE,
+				common.CredentialKindCLOUDFORMS,
+				common.CredentialKindGCE,
+				common.CredentialKindOPENSTACK,
+				common.CredentialKindSATELLITE6,
+				common.CredentialKindVMWARE,
 			},
 		},
 	}
@@ -71,7 +71,7 @@ func CloudCredentialExist(ID bson.ObjectId) bool {
 }
 
 func SCMCredentialExist(ID bson.ObjectId) bool {
-	count, err := db.Credentials().Find(bson.M{"_id": ID, "kind": common.CREDENTIAL_KIND_SCM}).Count()
+	count, err := db.Credentials().Find(bson.M{"_id": ID, "kind": common.CredentialKindSCM}).Count()
 	if err == nil && count > 0 {
 		return true
 	}

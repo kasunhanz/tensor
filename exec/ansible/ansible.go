@@ -17,8 +17,9 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/sync"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/misc"
+	"github.com/pearsonappeng/tensor/exec/sync"
+	"github.com/pearsonappeng/tensor/exec/types"
 
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
@@ -32,7 +33,7 @@ type Consumer struct {
 	before time.Time
 }
 
-// NewConsumer is the entrypoint for runners.Consumer
+// NewConsumer is the entrypoint to runners.Consumer
 func NewConsumer(tag int) *Consumer {
 	return &Consumer{
 		name:   fmt.Sprintf("consumer%d", tag),
@@ -71,7 +72,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 			Job:           jb.Job,
 			JobTemplateID: jb.Template.ID,
 			ProjectID:     jb.Project.ID,
-			SCMCred:       jb.SCMCred,
+			SCM:       jb.SCM,
 			Token:         jb.Token,
 			User:          jb.User,
 		})
@@ -84,7 +85,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 func Run() {
 	q := queue.OpenAnsibleQueue()
 
-	q.StartConsuming(1, 500*time.Millisecond)
+	q.StartConsuming(1, 500 * time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
@@ -134,7 +135,7 @@ func ansibleRun(j types.AnsibleJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
+	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
 	log.WithFields(log.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -149,13 +150,13 @@ func ansibleRun(j types.AnsibleJob) {
 			"Name":   j.Job.Name,
 			"Status": j.Job.Status,
 		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
+		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
 		cleanup()
 	}()
 
-	if len(j.MachineCred.SSHKeyData) > 0 {
-		if len(j.MachineCred.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.MachineCred.SSHKeyUnlock))
+	if len(j.Machine.SSHKeyData) > 0 {
+		if len(j.Machine.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Machine.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -174,7 +175,7 @@ func ansibleRun(j types.AnsibleJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
@@ -195,9 +196,9 @@ func ansibleRun(j types.AnsibleJob) {
 
 	}
 
-	if len(j.NetworkCred.SSHKeyData) > 0 {
-		if len(j.NetworkCred.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.NetworkCred.SSHKeyUnlock))
+	if len(j.Network.SSHKeyData) > 0 {
+		if len(j.Network.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Network.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -216,7 +217,7 @@ func ansibleRun(j types.AnsibleJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
@@ -237,7 +238,7 @@ func ansibleRun(j types.AnsibleJob) {
 
 	}
 
-	cmd, err := getCmd(&j, socket, pid)
+	cmd, cleanup, err := getCmd(&j, socket, pid)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
@@ -247,6 +248,9 @@ func ansibleRun(j types.AnsibleJob) {
 		jobFail(j)
 		return
 	}
+
+	// cleanup credential files
+	defer cleanup()
 
 	var b bytes.Buffer
 	cmd.Stdout = &b
@@ -267,7 +271,7 @@ func ansibleRun(j types.AnsibleJob) {
 	}
 
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut) * time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
@@ -290,7 +294,7 @@ func ansibleRun(j types.AnsibleJob) {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
+func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup func(), err error) {
 
 	// ansible-playbook parameters
 	pPlaybook := []string{
@@ -302,22 +306,22 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 	pSecure := []string{}
 
 	// check whether the username not empty
-	if len(j.MachineCred.Username) > 0 {
-		uname := j.MachineCred.Username
+	if len(j.Machine.Username) > 0 {
+		uname := j.Machine.Username
 
 		// append domain if exist
-		if len(j.MachineCred.Domain) > 0 {
-			uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
+		if len(j.Machine.Domain) > 0 {
+			uname = j.Machine.Username + "@" + j.Machine.Domain
 		}
 
 		pPlaybook = append(pPlaybook, "-u", uname)
 
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_SSH {
-			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.MachineCred.Password)+"")
+		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindSSH {
+			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + util.CipherDecrypt(j.Machine.Password) + "")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
-		if len(j.MachineCred.Password) > 0 && j.MachineCred.Kind == common.CREDENTIAL_KIND_WIN {
+		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindWIN {
 			kinit(*j)
 		}
 	}
@@ -326,18 +330,18 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 		pPlaybook = append(pPlaybook, "-b")
 
 		// default become method is sudo
-		if len(j.MachineCred.BecomeMethod) > 0 {
-			pPlaybook = append(pPlaybook, "--become-method="+j.MachineCred.BecomeMethod)
+		if len(j.Machine.BecomeMethod) > 0 {
+			pPlaybook = append(pPlaybook, "--become-method=" + j.Machine.BecomeMethod)
 		}
 
 		// default become user is root
-		if len(j.MachineCred.BecomeUsername) > 0 {
-			pPlaybook = append(pPlaybook, "--become-user="+j.MachineCred.BecomeUsername)
+		if len(j.Machine.BecomeUsername) > 0 {
+			pPlaybook = append(pPlaybook, "--become-user=" + j.Machine.BecomeUsername)
 		}
 
 		// for now this is more convenient than --ask-become-pass with sshpass
-		if len(j.MachineCred.BecomePassword) > 0 {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass="+util.CipherDecrypt(j.MachineCred.BecomePassword)+"'")
+		if len(j.Machine.BecomePassword) > 0 {
+			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.Machine.BecomePassword) + "'")
 		}
 	}
 
@@ -354,9 +358,10 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 	pargs = append(pargs, j.Job.Playbook)
 	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
-	cmd := exec.Command("ansible-playbook", pargs...)
+	cmd = exec.Command("ansible-playbook", pargs...)
 	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
-	cmd.Env = []string{
+
+	env := []string{
 		"TERM=xterm",
 		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"HOME_PATH=" + util.Config.ProjectsHome + "/",
@@ -378,14 +383,33 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (*exec.Cmd, error) {
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
 
-	j.Job.JobENV = cmd.Env
+	// Assign job env here to ensure that sensitive information will
+	// not be exposed
+	j.Job.JobENV = env
+	var f *os.File
+
+	if j.Cloud.Cloud {
+		env, f, err = misc.GetCloudCredential(env, j.Cloud)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	cmd.Env = env
 
 	log.WithFields(log.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
 	}).Infoln("Job Directory and Environment")
 
-	return cmd, nil
+	return cmd, func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Errorln("Unable to remove rackfile")
+		}
+		if err := os.Remove(f.Name()); err != nil {
+			log.Errorln("Unable to remove gcefile")
+		}
+	}, nil
 }
 
 func buildParams(j types.AnsibleJob, params []string) []string {
@@ -440,7 +464,7 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 
 	// --skip-tags=SKIP_TAGS
 	if len(j.Job.SkipTags) > 0 {
-		params = append(params, "--skip-tags="+j.Job.SkipTags)
+		params = append(params, "--skip-tags=" + j.Job.SkipTags)
 	}
 
 	// --force-handlers
@@ -449,7 +473,7 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 	}
 
 	if len(j.Job.StartAtTask) > 0 {
-		params = append(params, "--start-at-task="+j.Job.StartAtTask)
+		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
 	}
 
 	extras := map[string]interface{}{
@@ -474,13 +498,13 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 func kinit(j types.AnsibleJob) error {
 
 	// Create two command structs for echo and kinit
-	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.MachineCred.Password))
+	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.Machine.Password))
 
-	uname := j.MachineCred.Username
+	uname := j.Machine.Username
 
 	// if credential domain specified
-	if len(j.MachineCred.Domain) > 0 {
-		uname = j.MachineCred.Username + "@" + j.MachineCred.Domain
+	if len(j.Machine.Domain) > 0 {
+		uname = j.Machine.Username + "@" + j.Machine.Domain
 	}
 
 	kinit := exec.Command("kinit", uname)

@@ -6,8 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"io"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 //Example usage:
@@ -23,7 +24,7 @@ import (
 //text := Decrypt(cryptoText)
 //fmt.Printf(text)
 
-// Encrypt string to base64 crypto using AES
+// CipherEncrypt encrypts string to base64 crypto using AES
 func CipherEncrypt(text string) string {
 	// key := []byte(keyText)
 	plaintext := []byte(text)
@@ -38,7 +39,7 @@ func CipherEncrypt(text string) string {
 	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
 	iv := ciphertext[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		log.Errorln("Error occured when reading AES blocks", err.Error())
+		log.Errorln("Error occurred when reading AES blocks", err.Error())
 		return ""
 	}
 
@@ -49,20 +50,20 @@ func CipherEncrypt(text string) string {
 	return base64.URLEncoding.EncodeToString(ciphertext)
 }
 
-// Decrypt from base64 to decrypted string
+// CipherDecrypt from base64 to decrypted string
 func CipherDecrypt(cryptoText string) string {
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
 	block, err := aes.NewCipher([]byte(Config.Salt))
 	if err != nil {
-		log.Errorln("Error occured when generating new cipher block", err.Error())
+		log.Errorln("Error occurred when generating new cipher block", err.Error())
 		return ""
 	}
 
 	// The IV needs to be unique, but not secure. Therefore it's common to
 	// include it at the beginning of the ciphertext.
 	if len(ciphertext) < aes.BlockSize {
-		log.Errorln("Ciper text is too short")
+		log.Errorln("Cipher text is too short")
 	}
 	iv := ciphertext[:aes.BlockSize]
 	ciphertext = ciphertext[aes.BlockSize:]

@@ -1,4 +1,4 @@
-package ansible
+package sync
 
 import (
 	"time"
@@ -8,10 +8,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/types"
 )
 
-func start(t types.AnsibleJob) {
+func start(t types.SyncJob) {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -31,7 +31,7 @@ func start(t types.AnsibleJob) {
 	}
 }
 
-func status(t types.AnsibleJob, s string) {
+func status(t types.SyncJob, s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -47,7 +47,7 @@ func status(t types.AnsibleJob, s string) {
 	}
 }
 
-func jobFail(t types.AnsibleJob) {
+func jobFail(t types.SyncJob) {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -77,10 +77,9 @@ func jobFail(t types.AnsibleJob) {
 	}
 
 	updateProject(t)
-	updateJobTemplate(t)
 }
 
-func jobCancel(t types.AnsibleJob) {
+func jobCancel(t types.SyncJob) {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -111,10 +110,9 @@ func jobCancel(t types.AnsibleJob) {
 	}
 
 	updateProject(t)
-	updateJobTemplate(t)
 }
 
-func jobError(t types.AnsibleJob) {
+func jobError(t types.SyncJob) {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -144,10 +142,9 @@ func jobError(t types.AnsibleJob) {
 	}
 
 	updateProject(t)
-	updateJobTemplate(t)
 }
 
-func jobSuccess(t types.AnsibleJob) {
+func jobSuccess(t types.SyncJob) {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -177,25 +174,25 @@ func jobSuccess(t types.AnsibleJob) {
 	}
 
 	updateProject(t)
-	updateJobTemplate(t)
 }
 
-func updateProject(t types.AnsibleJob) {
+func updateProject(t types.SyncJob) {
 	d := bson.M{
 		"$set": bson.M{
-			"last_job_run":    t.Job.Started,
-			"last_job_failed": t.Job.Failed,
-			"status":          t.Job.Status,
+			"last_updated":       t.Job.Finished,
+			"last_update_failed": t.Job.Failed,
+			"status":             t.Job.Status,
 		},
 	}
-	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
+
+	if err := db.Projects().UpdateId(t.ProjectID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err,
 		}).Errorln("Failed to update project")
 	}
 }
 
-func updateJobTemplate(t types.AnsibleJob) {
+func updateJobTemplate(t types.SyncJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -204,7 +201,7 @@ func updateJobTemplate(t types.AnsibleJob) {
 		},
 	}
 
-	if err := db.JobTemplates().UpdateId(t.Template.ID, d); err != nil {
+	if err := db.JobTemplates().UpdateId(t.JobTemplateID, d); err != nil {
 		log.WithFields(log.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,

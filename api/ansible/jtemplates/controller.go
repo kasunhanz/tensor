@@ -16,13 +16,13 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/roles"
-	"github.com/pearsonappeng/tensor/runners/sync"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/sync"
+	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -451,7 +451,7 @@ func UpdateJTemplate(c *gin.Context) {
 		}).Errorln("Failed to add new Activity")
 	}
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
@@ -459,7 +459,7 @@ func UpdateJTemplate(c *gin.Context) {
 }
 
 // PatchJTemplate is a Gin handler function which partially updates a Job Template using request payload.
-// patch will only update feilds which included in the POST body
+// patch will only update fields which included in the POST body
 // A success returns 200 status code
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
@@ -1013,7 +1013,7 @@ func Launch(c *gin.Context) {
 			})
 			return
 		}
-		runnerJob.NetworkCred = credential
+		runnerJob.Network = credential
 	}
 
 	if job.CloudCredentialID != nil {
@@ -1029,7 +1029,7 @@ func Launch(c *gin.Context) {
 			})
 			return
 		}
-		runnerJob.CloudCred = credential
+		runnerJob.Cloud = credential
 	}
 
 	// get inventory information
@@ -1057,7 +1057,7 @@ func Launch(c *gin.Context) {
 		})
 		return
 	}
-	runnerJob.MachineCred = credential
+	runnerJob.Machine = credential
 
 	// get project information
 	var project common.Project

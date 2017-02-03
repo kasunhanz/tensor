@@ -8,18 +8,18 @@ import (
 )
 
 const (
-	CREDENTIAL_KIND_SSH        = "ssh"
-	CREDENTIAL_KIND_NET        = "net"
-	CREDENTIAL_KIND_WIN        = "windows"
-	CREDENTIAL_KIND_SCM        = "scm"
-	CREDENTIAL_KIND_AWS        = "aws"
-	CREDENTIAL_KIND_RAX        = "rax"
-	CREDENTIAL_KIND_VMWARE     = "vmware"
-	CREDENTIAL_KIND_SATELLITE6 = "satellite6"
-	CREDENTIAL_KIND_CLOUDFORMS = "cloudforms"
-	CREDENTIAL_KIND_GCE        = "gce"
-	CREDENTIAL_KIND_AZURE      = "azure"
-	CREDENTIAL_KIND_OPENSTACK  = "openstack"
+	CredentialKindSSH        = "ssh"
+	CredentialKindNET        = "net"
+	CredentialKindWIN        = "windows"
+	CredentialKindSCM        = "scm"
+	CredentialKindAWS        = "aws"
+	CredentialKindRAX        = "rax"
+	CredentialKindVMWARE     = "vmware"
+	CredentialKindSATELLITE6 = "satellite6"
+	CredentialKindCLOUDFORMS = "cloudforms"
+	CredentialKindGCE        = "gce"
+	CredentialKindAZURE      = "azure"
+	CredentialKindOPENSTACK  = "openstack"
 )
 
 // Credential is the model for Credential collection
@@ -37,6 +37,7 @@ type Credential struct {
 	Password          string         `bson:"password,omitempty" json:"password"`
 	SecurityToken     string         `bson:"security_token,omitempty" json:"security_token"`
 	Project           string         `bson:"project,omitempty" json:"project"`
+	Email             string         `bson:"email,omitempty" json:"email" binding:"omitempty,email"`
 	Domain            string         `bson:"domain,omitempty" json:"domain"`
 	SSHKeyData        string         `bson:"ssh_key_data,omitempty" json:"ssh_key_data"`
 	SSHKeyUnlock      string         `bson:"ssh_key_unlock,omitempty" json:"ssh_key_unlock"`
