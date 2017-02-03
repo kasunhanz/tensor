@@ -1,4 +1,4 @@
-package controllers
+package api
 
 import (
 	"net/http"
@@ -56,6 +56,7 @@ func Route(r *gin.Engine) {
 	{
 		v1.GET("/", util.GetAPIInfo)
 		v1.GET("/ping", util.GetPing)
+		v1.GET("/queue", QueueStats)
 		v1.POST("/authtoken", jwt.HeaderAuthMiddleware.LoginHandler)
 
 		// Include jwt authentication middleware
