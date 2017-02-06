@@ -18,10 +18,11 @@ import (
 	"github.com/pearsonappeng/tensor/runners/sync"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -224,21 +225,6 @@ func AddProject(c *gin.Context) {
 		})
 		return
 	}
-
-	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXProject,
-		ObjectID:    req.ID,
-		Description: "Project " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
-
 	// before set metadata update the project
 	if sysJobID, err := sync.UpdateProject(req); err != nil {
 		log.WithFields(log.Fields{
@@ -246,6 +232,8 @@ func AddProject(c *gin.Context) {
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
 	}
+	// add new activity to activity stream
+	activity.AddProjectActivity(common.Create, user, req)
 
 	metadata.ProjectMetadata(&req)
 
@@ -259,6 +247,7 @@ func AddProject(c *gin.Context) {
 func UpdateProject(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
+	tmpProject := project
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -331,21 +320,6 @@ func UpdateProject(c *gin.Context) {
 		})
 		return
 	}
-
-	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXProject,
-		ObjectID:    project.ID,
-		Description: "Project " + project.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
-
 	// before set metadata update the project
 	if sysJobID, err := sync.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
@@ -353,7 +327,8 @@ func UpdateProject(c *gin.Context) {
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
 	}
-
+	// add new activity to activity stream
+	activity.AddProjectActivity(common.Update, user, tmpProject, project)
 	// set `related` and `summary` feilds
 	metadata.ProjectMetadata(&project)
 
@@ -366,6 +341,7 @@ func UpdateProject(c *gin.Context) {
 func PatchProject(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
+	tmpProject := project
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -490,21 +466,6 @@ func PatchProject(c *gin.Context) {
 		})
 		return
 	}
-
-	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXProject,
-		ObjectID:    project.ID,
-		Description: "Project " + project.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
-
 	// before set metadata update the project
 	if sysJobID, err := sync.UpdateProject(project); err != nil {
 		log.WithFields(log.Fields{
@@ -512,7 +473,8 @@ func PatchProject(c *gin.Context) {
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
 	}
-
+	// add new activity to activity stream
+	activity.AddProjectActivity(common.Update, user, tmpProject, project)
 	// set `related` and `summary` feilds
 	metadata.ProjectMetadata(&project)
 	// send response with JSON rendered data
@@ -571,19 +533,7 @@ func RemoveProject(c *gin.Context) {
 	}()
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXProject,
-		ObjectID:    user.ID,
-		Description: "Project " + project.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
-
+	activity.AddProjectActivity(common.Delete, user, project)
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
@@ -694,44 +644,42 @@ func Teams(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns list of activities associated with
-// project object that is in the gin.Context
-// TODO: not complete
+// ActivityStream returns the activites of the user on projects
 func ActivityStream(c *gin.Context) {
 	project := c.MustGet(CTXProject).(common.Project)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": project.ID, "type": CTXProject}).All(&activities)
+	var activities []common.ActivityProject
+	var activity common.ActivityProject
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": project.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityProjectMetadata(&activity)
+		metadata.ProjectMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.ProjectMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Activity data from the db")
+	if err := iter.Close(); err != nil {
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
+		return
 	}
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,

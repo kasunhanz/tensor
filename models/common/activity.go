@@ -40,3 +40,31 @@ type ActivityOrganization struct {
 	Object1   Organization  `bson:"object1" json:"object1"`
 	Object2   *Organization `bson:"object2" json:"object2"`
 }
+
+// ActivityUser is the model for User collection
+type ActivityUser struct {
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	Type      string        `bson:"-" json:"type"`
+	URL       string        `bson:"-" json:"url"`
+	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	Related   gin.H         `bson:"-" json:"related"`
+	Summary   gin.H         `bson:"-" json:"summary_fields"`
+	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
+	Operation string        `bson:"operation" json:"operation"`
+	Object1   User          `bson:"object1" json:"object1"`
+	Object2   *User         `bson:"object2" json:"object2"`
+}
+
+// ActivityProject is the model for Project collection
+type ActivityProject struct {
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	Type      string        `bson:"-" json:"type"`
+	URL       string        `bson:"-" json:"url"`
+	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	Related   gin.H         `bson:"-" json:"related"`
+	Summary   gin.H         `bson:"-" json:"summary_fields"`
+	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
+	Operation string        `bson:"operation" json:"operation"`
+	Object1   Project       `bson:"object1" json:"object1"`
+	Object2   *Project      `bson:"object2" json:"object2"`
+}

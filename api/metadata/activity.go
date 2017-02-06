@@ -5,16 +5,29 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 )
 
-// ActivityMetadata attach metadata to ActivityOrganization
-func ActivityMetadata(ao *common.ActivityOrganization, typ string) {
+// ActivityOrganizationMetadata attach metadata to ActivityOrganization
+func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
 	ID := ao.ID.Hex()
 	ao.Type = "activity_stream"
-	ao.URL = "/v1/" + typ + "/" + ID + "/activity_stream/"
+	ao.URL = "/v1/organizations/" + ID + "/activity_stream/"
 	ao.Related = gin.H{}
-
-	activitySummary(ao)
+	ao.Summary = gin.H{}
 }
 
-func activitySummary(ao *common.ActivityOrganization) {
-	ao.Summary = gin.H{}
+// ActivityUserMetadata attach metadata to ActivityUser
+func ActivityUserMetadata(au *common.ActivityUser) {
+	ID := au.ID.Hex()
+	au.Type = "activity_stream"
+	au.URL = "/v1/users/" + ID + "/activity_stream/"
+	au.Related = gin.H{}
+	au.Summary = gin.H{}
+}
+
+// ActivityProjectMetadata attach metadata to ActivityProject
+func ActivityProjectMetadata(ap *common.ActivityProject) {
+	ID := ap.ID.Hex()
+	ap.Type = "activity_stream"
+	ap.URL = "/v1/projects/" + ID + "/activity_stream/"
+	ap.Related = gin.H{}
+	ap.Summary = gin.H{}
 }

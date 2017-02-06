@@ -686,7 +686,7 @@ func ActivityStream(c *gin.Context) {
 	iter := db.ActivityStream().Find(bson.M{"object1._id": organization.ID}).Iter()
 	// iterate over all and only get valid objects
 	for iter.Next(&activity) {
-		metadata.ActivityMetadata(&activity, CTXOrganization)
+		metadata.ActivityOrganizationMetadata(&activity)
 		metadata.OrganizationMetadata(&activity.Object1)
 		//apply metadata only when Object2 is available
 		if activity.Object2 != nil {
