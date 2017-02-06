@@ -31,3 +31,12 @@ func ActivityProjectMetadata(ap *common.ActivityProject) {
 	ap.Related = gin.H{}
 	ap.Summary = gin.H{}
 }
+
+// ActivityCredentialMetadata attach metadata to ActivityCredential
+func ActivityCredentialMetadata(ap *common.ActivityCredential) {
+	ID := ap.ID.Hex()
+	ap.Type = "activity_stream"
+	ap.URL = "/v1/credentials/" + ID + "/activity_stream/"
+	ap.Related = gin.H{}
+	ap.Summary = gin.H{}
+}
