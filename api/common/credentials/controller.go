@@ -382,10 +382,10 @@ func UpdateCredential(c *gin.Context) {
 		}).Errorln("Failed to add new Activity")
 	}
 
-	hideEncrypted(&req)
-	metadata.CredentialMetadata(&req)
+	hideEncrypted(&credential)
+	metadata.CredentialMetadata(&credential)
 
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, credential)
 }
 
 // PatchCredential is a Gin handler function which partially updates a credential using request payload.
