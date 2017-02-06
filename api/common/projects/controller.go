@@ -25,7 +25,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Keys for project releated items stored in the Gin Context
+// Keys for project related items stored in the Gin Context
 const (
 	CTXProject   = "project"
 	CTXUser      = "user"
@@ -272,6 +272,15 @@ func UpdateProject(c *gin.Context) {
 		return
 	}
 
+	// Reject the request if project type is going to change
+	if project.Kind != req.Kind && req.Kind != "" {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: []string{"Project Kind property cannot be modified."},
+		})
+		return
+	}
+
 	// check whether the organization exist or not
 	if !helpers.OrganizationExist(req.OrganizationID) {
 		c.JSON(http.StatusBadRequest, common.Error{
@@ -310,6 +319,7 @@ func UpdateProject(c *gin.Context) {
 	project.OrganizationID = req.OrganizationID
 	project.Description = req.Description
 	project.ScmURL = req.ScmURL
+	project.Kind = project.Kind // Constant cannot be changed
 	project.ScmBranch = req.ScmBranch
 	project.ScmClean = req.ScmClean
 	project.ScmDeleteOnUpdate = req.ScmDeleteOnUpdate
