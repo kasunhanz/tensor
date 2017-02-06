@@ -21,7 +21,7 @@ import (
 func Ginrus(logger *logrus.Logger, timeFormat string, utc bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		// some evil middlewares modify this values
+		// some evil middleware's modify this values
 		path := c.Request.URL.Path
 		c.Next()
 

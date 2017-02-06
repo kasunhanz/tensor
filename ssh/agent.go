@@ -59,8 +59,8 @@ func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 		log.Infof("net.Dial: %v", err)
 	}
 
-	ac := agent.NewClient(conn)
-	return ac, socket, pid, func() {
+	client = agent.NewClient(conn)
+	cleanup = func() {
 		proc, _ := os.FindProcess(pid)
 		if proc != nil {
 			proc.Kill()
@@ -68,6 +68,7 @@ func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 		conn.Close()
 		os.RemoveAll(filepath.Dir(socket))
 	}
+	return
 }
 
 // Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
@@ -125,7 +126,7 @@ func GetEncryptedKey(data []byte, password string) (agent.AddedKey, error) {
 		return key, errors.New("Key is not PEM Encrypted")
 	}
 
-	// encrypted key, unencrypt using password
+	// encrypted key, unencrypted using password
 	der, err := x509.DecryptPEMBlock(block, []byte(password))
 	if err != nil {
 		log.Errorln("Error while decrypting key")
