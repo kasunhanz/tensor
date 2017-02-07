@@ -14,14 +14,20 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"golang.org/x/crypto/bcrypt"
+	"github.com/pearsonappeng/tensor/api/helpers"
+	"strings"
 )
 
-const _CTX_USER = "_user"
-const _CTX_USER_ID = "user_id"
+const (
+	CTXUserA = "_user"
+	CTXUserID = "user_id"
+	CTXUser = "user"
+)
 
 func Middleware(c *gin.Context) {
 
-	userID, err := util.GetIdParam(_CTX_USER_ID, c)
+	userID, err := util.GetIdParam(CTXUserID, c)
 
 	if err != nil {
 		log.Errorln("Error while getting the User:", err) // log error to the system log
@@ -45,14 +51,14 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	c.Set(_CTX_USER, user)
+	c.Set(CTXUserA, user)
 	c.Next()
 }
 
 func GetUser(c *gin.Context) {
 	var user common.User
 
-	if u, exists := c.Get(_CTX_USER); exists {
+	if u, exists := c.Get(CTXUserA); exists {
 		user = u.(common.User)
 	} else {
 		user = c.MustGet("user").(common.User)
@@ -84,6 +90,7 @@ func GetUsers(c *gin.Context) {
 	for iter.Next(&tmpUser) {
 		metadata.UserMetadata(&tmpUser)
 		// good to go add to list
+		tmpUser.Password = "$encrypted$"
 		users = append(users, tmpUser)
 	}
 	if err := iter.Close(); err != nil {
@@ -112,8 +119,64 @@ func GetUsers(c *gin.Context) {
 }
 
 func AddUser(c *gin.Context) {
-	// get user from the gin.Context
-	user := c.MustGet(_CTX_USER).(common.User)
+	var req common.User
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Invlid JSON request")
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: util.GetValidationErrors(err),
+		})
+		return
+	}
+
+	if helpers.IsNotUniqueEmail(req.Email) {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: []string{"Email alredy in use"},
+		})
+		return
+	}
+
+	if helpers.IsNotUniqueUsername(req.Username) {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: []string{"Email alredy in use"},
+		})
+		return
+	}
+
+	req.ID = bson.NewObjectId()
+	pwdHash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 11)
+	req.Password = string(pwdHash)
+	req.Created = time.Now()
+	req.Modified = time.Now()
+
+	if err := db.Users().Insert(req); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Error while creating User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while creating User"},
+		})
+		return
+	}
+	// add new activity to activity stream
+	addActivity(req.ID, req.ID, "User " + req.FirstName + " " + req.LastName + " created")
+
+	req.Password = "$encrypted$"
+
+	metadata.UserMetadata(&req)
+
+	// send response with JSON rendered data
+	c.JSON(http.StatusCreated, req)
+}
+
+func UpdateUser(c *gin.Context) {
+	user := c.MustGet("_user").(common.User)
 
 	var req common.User
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -125,29 +188,58 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	user.ID = bson.NewObjectId()
-	user.Created = time.Now()
-
-	if err := db.Users().Insert(user); err != nil {
-		log.Errorln("Error while creating User:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating User"},
+	if user.Email != req.Email && helpers.IsNotUniqueEmail(req.Email) {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: []string{"Email alredy in use"},
 		})
 		return
 	}
-	// add new activity to activity stream
-	addActivity(user.ID, user.ID, "User "+user.FirstName+" "+user.LastName+" created")
 
-	// send response with JSON rendered data
-	c.JSON(http.StatusCreated, user)
+	if user.Username != req.Username && helpers.IsNotUniqueUsername(req.Username) {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:     http.StatusBadRequest,
+			Messages: []string{"Username alredy in use"},
+		})
+		return
+	}
+
+	user.Username = req.Username
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.Email = req.Email
+
+	if req.Password != "$encrypted$" {
+		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 11)
+		user.Password = string(pwdHash)
+	}
+
+	user.Modified = time.Now()
+
+	if err := db.Users().UpdateId(user.ID, user); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while updating User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while updating User"},
+		})
+		return
+	}
+
+	//hide password
+	user.Password = "$encrypted$"
+	metadata.UserMetadata(&user)
+
+	c.JSON(http.StatusOK, user)
 }
 
-func UpdateUser(c *gin.Context) {
-	oldUser := c.MustGet("_user").(common.User)
+func PatchUser(c *gin.Context) {
+	user := c.MustGet("_user").(common.User)
 
-	var user common.User
-	if err := c.BindJSON(&user); err != nil {
+	var req common.PatchUser
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
@@ -156,33 +248,168 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if err := db.Users().UpdateId(oldUser.ID,
-		bson.M{"first_name": user.FirstName, "last_name": user.LastName, "username": user.Username, "email": user.Email}); err != nil {
-		panic(err)
+	if req.Email != nil {
+		if user.Email != *req.Email && helpers.IsNotUniqueEmail(*req.Email) {
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:     http.StatusBadRequest,
+				Messages: []string{"Email alredy in use"},
+			})
+			return
+		}
 	}
 
-	c.AbortWithStatus(204)
+	if req.Username != nil {
+		if user.Username != *req.Username && helpers.IsNotUniqueUsername(*req.Username) {
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:     http.StatusBadRequest,
+				Messages: []string{"Username alredy in use"},
+			})
+			return
+		}
+	}
+
+	if req.Username != nil {
+		user.Username = strings.Trim(*req.Username, " ")
+	}
+
+	if req.FirstName != nil {
+		user.FirstName = *req.FirstName
+	}
+
+	if req.LastName != nil {
+		user.LastName = *req.LastName
+	}
+
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+
+	if req.Password != nil && *req.Password != "$encrypted$" {
+		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(*req.Password), 11)
+		user.Password = string(pwdHash)
+	}
+
+	user.Modified = time.Now()
+
+	if err := db.Users().UpdateId(user.ID, user); err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while updating User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while updating User"},
+		})
+		return
+	}
+
+	//hide password
+	user.Password = "$encrypted$"
+	metadata.UserMetadata(&user)
+
+	c.JSON(http.StatusOK, user)
 }
 
+// TODO: Complete this with authentication
 func DeleteUser(c *gin.Context) {
 	user := c.MustGet("_user").(common.User)
 
-	info, err := db.Projects().UpdateAll(nil, bson.M{"$pull": bson.M{"users": bson.M{"user_id": user.ID}}})
+	// Remove user from projects
+	_, err := db.Projects().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
 	}
 
-	log.Info(info.Matched)
+	// remove user from teams
+	_, err = db.Teams().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+	}
+
+	// remove user from organizations
+	_, err = db.Organizations().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+	}
+
+	// remove user from credentials
+	_, err = db.Credentials().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+	}
+
+	// remove user from job_templates
+	_, err = db.JobTemplates().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+	}
+
+	// remove user from terraform job templates
+	_, err = db.TerrafromJobTemplates().UpdateAll(nil, bson.M{"$pull": bson.M{"roles": bson.M{"user_id": user.ID}}})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+	}
+
 
 	if err := db.Users().RemoveId(user.ID); err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"User ID": user.ID.Hex(),
+			"Error":         err.Error(),
+		}).Errorln("Error while deleting User")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:     http.StatusInternalServerError,
+			Messages: []string{"Error while deleting User"},
+		})
+		return
 	}
 
-	c.AbortWithStatus(204)
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 func Projects(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var projts []common.Project
 	// new mongodb iterator
@@ -222,7 +449,7 @@ func Projects(c *gin.Context) {
 }
 
 func Credentials(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var creds []common.Credential
 	// new mongodb iterator
@@ -230,7 +457,8 @@ func Credentials(c *gin.Context) {
 	// loop through each result and modify for our needs
 	var tmpCredential common.Credential
 	// iterate over all and only get valid objects
-	for iter.Next(&tmpCredential) { // hide passwords, keys even they are already encrypted
+	for iter.Next(&tmpCredential) {
+		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCredential)
 		metadata.CredentialMetadata(&tmpCredential)
 		// add to list
@@ -263,7 +491,7 @@ func Credentials(c *gin.Context) {
 }
 
 func Teams(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var tms []common.Team
 	// new mongodb iterator
@@ -303,7 +531,7 @@ func Teams(c *gin.Context) {
 }
 
 func Organizations(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var orgs []common.Organization
 	// new mongodb iterator
@@ -343,7 +571,7 @@ func Organizations(c *gin.Context) {
 }
 
 func AdminsOfOrganizations(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var orgs []common.Organization
 	// new mongodb iterator
@@ -384,7 +612,7 @@ func AdminsOfOrganizations(c *gin.Context) {
 
 // TODO: not complete
 func ActivityStream(c *gin.Context) {
-	user := c.MustGet(_CTX_USER).(common.User)
+	user := c.MustGet(CTXUserA).(common.User)
 
 	var activities []common.Activity
 	err := db.ActivityStream().Find(bson.M{"actor_id": user.ID}).All(&activities)

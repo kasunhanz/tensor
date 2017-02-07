@@ -13,7 +13,7 @@ func GroupMetadata(grp *ansible.Group) {
 
 	ID := grp.ID.Hex()
 	grp.Type = "group"
-	grp.URL = "/v1/group/" + ID + "/"
+	grp.URL = "/v1/groups/" + ID + "/"
 	grp.Related = gin.H{
 		"created_by":         "/v1/users/" + grp.CreatedByID.Hex() + "/",
 		"job_host_summaries": "/v1/groups/" + grp.CreatedByID.Hex() + "job_host_summaries/",

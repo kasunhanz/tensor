@@ -66,10 +66,10 @@ func credentialSummary(c *common.Credential) {
 		}).Errorln("Error while getting created by User")
 	} else {
 		summary["created_by"] = gin.H{
-			"id":         modified.ID,
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
+			"id":         created.ID,
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
 		}
 	}
 

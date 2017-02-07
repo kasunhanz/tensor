@@ -30,7 +30,7 @@ const (
 // This function takes CTXCCTXTeamIDredentialID from Gin Context and retrieves team data from the collection
 // and store team data under key CTXTeam in Gin Context
 func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXTeam, c)
+	ID, err := util.GetIdParam(CTXTeamID, c)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -259,9 +259,9 @@ func UpdateTeam(c *gin.Context) {
 	team.ModifiedByID = user.ID
 
 	// update object
-	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
+	if err := db.Teams().UpdateId(team.ID, team); err != nil {
 		log.WithFields(log.Fields{
-			"Team ID": req.ID.Hex(),
+			"Team ID": team.ID.Hex(),
 			"Error":   err.Error(),
 		}).Errorln("Error while updating Team")
 		c.JSON(http.StatusInternalServerError, common.Error{
@@ -274,7 +274,7 @@ func UpdateTeam(c *gin.Context) {
 	// add new activity to activity stream
 	//addActivity(req.ID, user.ID, "Team "+team.Name+" updated")
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.TeamMetadata(&team)
 
 	// render JSON with 200 status code
@@ -327,22 +327,6 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	if req.Name != nil {
-		objID := team.OrganizationID
-		if req.OrganizationID != nil {
-			objID = *req.OrganizationID
-		}
-		// check wheather the team exist in the collection, if not fail.
-		// if the team unique then it is not in the collection, abort any updates
-		if helpers.IsUniqueTeam(*req.Name, objID) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Team with this Name and Organization does not exists."},
-			})
-			return
-		}
-	}
-
-	if req.Name != nil {
 		team.Name = strings.Trim(*req.Name, " ")
 	}
 
@@ -362,7 +346,7 @@ func PatchTeam(c *gin.Context) {
 	team.ModifiedByID = user.ID
 
 	// update object
-	if err := db.JobTemplates().UpdateId(team.ID, team); err != nil {
+	if err := db.Teams().UpdateId(team.ID, team); err != nil {
 		log.WithFields(log.Fields{
 			"Team ID": team.ID.Hex(),
 			"Error":   err.Error(),

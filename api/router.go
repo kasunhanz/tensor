@@ -109,6 +109,7 @@ func Route(r *gin.Engine) {
 				{
 					usr.GET("/", users.GetUser)
 					usr.PUT("/", users.UpdateUser)
+					usr.PATCH("/", users.PatchUser)
 					usr.DELETE("/", users.DeleteUser)
 					// 'User' related endpoints
 					usr.GET("/admin_of_organizations/", users.AdminsOfOrganizations)

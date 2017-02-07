@@ -389,7 +389,7 @@ func UpdateCredential(c *gin.Context) {
 }
 
 // PatchCredential is a Gin handler function which partially updates a credential using request payload.
-// This replaces specifed fields in the data, empty "" fields will be
+// This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func PatchCredential(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
@@ -617,8 +617,8 @@ func RemoveCredential(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-// OwnerTeams is a Gin hander function which returns the access control list of Teams that has permissions to access
-// specifed credential object.
+// OwnerTeams is a Gin handler function which returns the access control list of Teams that has permissions to access
+// specified credential object.
 func OwnerTeams(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
