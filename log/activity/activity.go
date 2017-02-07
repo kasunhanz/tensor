@@ -143,3 +143,25 @@ func AddInventoryActivity(action string, user common.User, req ...ansible.Invent
 		}).Errorln("Failed to add new Activity")
 	}
 }
+
+// AddHostActivity is resposible of creating new activity stream
+// for Host related activities
+func AddHostActivity(action string, user common.User, req ...ansible.Host) {
+	activity := ansible.ActivityHost{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Operation: action,
+		Object1:   req[0],
+	}
+	// Set Object2 for PUT and PATCH requests
+	if len(req) > 1 {
+		activity.Object2 = &req[1]
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}

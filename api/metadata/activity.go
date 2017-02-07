@@ -59,3 +59,12 @@ func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
 	ai.Related = gin.H{}
 	ai.Summary = gin.H{}
 }
+
+// ActivityHostMetadata attach metadata to ActivityHost
+func ActivityHostMetadata(ah *ansible.ActivityHost) {
+	ID := ah.ID.Hex()
+	ah.Type = "activity_stream"
+	ah.URL = "/v1/hosts/" + ID + "/activity_stream/"
+	ah.Related = gin.H{}
+	ah.Summary = gin.H{}
+}

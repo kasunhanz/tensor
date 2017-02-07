@@ -813,7 +813,7 @@ func Hosts(c *gin.Context) {
 // 	})
 // }
 
-// ActivityStream returns the activites of the user on Organizations
+// ActivityStream returns the activites of the user on Inventories
 func ActivityStream(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 

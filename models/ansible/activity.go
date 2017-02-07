@@ -20,3 +20,17 @@ type ActivityInventory struct {
 	Object1   Inventory     `bson:"object1" json:"object1"`
 	Object2   *Inventory    `bson:"object2" json:"object2"`
 }
+
+// ActivityHost is the model for Host collection
+type ActivityHost struct {
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	Type      string        `bson:"-" json:"type"`
+	URL       string        `bson:"-" json:"url"`
+	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	Related   gin.H         `bson:"-" json:"related"`
+	Summary   gin.H         `bson:"-" json:"summary_fields"`
+	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
+	Operation string        `bson:"operation" json:"operation"`
+	Object1   Host          `bson:"object1" json:"object1"`
+	Object2   *Host         `bson:"object2" json:"object2"`
+}
