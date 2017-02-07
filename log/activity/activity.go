@@ -165,3 +165,25 @@ func AddHostActivity(action string, user common.User, req ...ansible.Host) {
 		}).Errorln("Failed to add new Activity")
 	}
 }
+
+// AddGroupActivity is resposible of creating new activity stream
+// for Group related activities
+func AddGroupActivity(action string, user common.User, req ...ansible.Group) {
+	activity := ansible.ActivityGroup{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Operation: action,
+		Object1:   req[0],
+	}
+	// Set Object2 for PUT and PATCH requests
+	if len(req) > 1 {
+		activity.Object2 = &req[1]
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}

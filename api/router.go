@@ -265,7 +265,7 @@ func Route(r *gin.Engine) {
 					grp.GET("/potential_children/", notImplemented) //TODO: implement
 					grp.GET("/ad_hoc_commands/", notImplemented)    //TODO: implement
 					grp.GET("/all_hosts/", notImplemented)          //TODO: implement
-					grp.GET("/activity_stream/", notImplemented)    //TODO: implement
+					grp.GET("/activity_stream/", groups.ActivityStream)
 					grp.GET("/hosts/", notImplemented)              //TODO: implement
 					grp.GET("/children/", notImplemented)           //TODO: implement
 					grp.GET("/job_host_summaries/", notImplemented) //TODO: implement

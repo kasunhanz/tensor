@@ -68,3 +68,12 @@ func ActivityHostMetadata(ah *ansible.ActivityHost) {
 	ah.Related = gin.H{}
 	ah.Summary = gin.H{}
 }
+
+// ActivityGroupMetadata attach metadata to ActivityGroup
+func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
+	ID := ah.ID.Hex()
+	ah.Type = "activity_stream"
+	ah.URL = "/v1/groups/" + ID + "/activity_stream/"
+	ah.Related = gin.H{}
+	ah.Summary = gin.H{}
+}
