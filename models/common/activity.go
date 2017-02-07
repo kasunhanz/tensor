@@ -82,3 +82,17 @@ type ActivityCredential struct {
 	Object1   Credential    `bson:"object1" json:"object1"`
 	Object2   *Credential   `bson:"object2" json:"object2"`
 }
+
+// ActivityTeam is the model for Team collection
+type ActivityTeam struct {
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	Type      string        `bson:"-" json:"type"`
+	URL       string        `bson:"-" json:"url"`
+	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	Related   gin.H         `bson:"-" json:"related"`
+	Summary   gin.H         `bson:"-" json:"summary_fields"`
+	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
+	Operation string        `bson:"operation" json:"operation"`
+	Object1   Team          `bson:"object1" json:"object1"`
+	Object2   *Team         `bson:"object2" json:"object2"`
+}

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 )
 
@@ -33,10 +34,28 @@ func ActivityProjectMetadata(ap *common.ActivityProject) {
 }
 
 // ActivityCredentialMetadata attach metadata to ActivityCredential
-func ActivityCredentialMetadata(ap *common.ActivityCredential) {
-	ID := ap.ID.Hex()
-	ap.Type = "activity_stream"
-	ap.URL = "/v1/credentials/" + ID + "/activity_stream/"
-	ap.Related = gin.H{}
-	ap.Summary = gin.H{}
+func ActivityCredentialMetadata(ac *common.ActivityCredential) {
+	ID := ac.ID.Hex()
+	ac.Type = "activity_stream"
+	ac.URL = "/v1/credentials/" + ID + "/activity_stream/"
+	ac.Related = gin.H{}
+	ac.Summary = gin.H{}
+}
+
+// ActivityTeamMetadata attach metadata to ActivityTeam
+func ActivityTeamMetadata(at *common.ActivityTeam) {
+	ID := at.ID.Hex()
+	at.Type = "activity_stream"
+	at.URL = "/v1/teams/" + ID + "/activity_stream/"
+	at.Related = gin.H{}
+	at.Summary = gin.H{}
+}
+
+// ActivityInventoryMetadata attach metadata to ActivityInventory
+func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
+	ID := ai.ID.Hex()
+	ai.Type = "activity_stream"
+	ai.URL = "/v1/inventories/" + ID + "/activity_stream/"
+	ai.Related = gin.H{}
+	ai.Summary = gin.H{}
 }
