@@ -290,7 +290,6 @@ func UpdateGroup(c *gin.Context) {
 	group.Variables = req.Variables
 	group.InventoryID = req.InventoryID
 	group.ParentGroupID = req.ParentGroupID
-	group.ParentGroupID = req.ParentGroupID
 	group.Modified = time.Now()
 	group.ModifiedByID = user.ID
 
@@ -318,7 +317,7 @@ func UpdateGroup(c *gin.Context) {
 		}).Errorln("Failed to add new Activity")
 	}
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.GroupMetadata(&group)
 
 	// send response with JSON rendered data
@@ -414,7 +413,7 @@ func PatchGroup(c *gin.Context) {
 	group.ModifiedByID = user.ID
 
 	// update object
-	if err := db.Hosts().UpdateId(group.ID, group); err != nil {
+	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		log.Errorln("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
