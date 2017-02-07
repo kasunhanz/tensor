@@ -16,16 +16,16 @@ func GroupMetadata(grp *ansible.Group) {
 	grp.URL = "/v1/groups/" + ID + "/"
 	grp.Related = gin.H{
 		"created_by":         "/v1/users/" + grp.CreatedByID.Hex() + "/",
-		"job_host_summaries": "/v1/groups/" + grp.CreatedByID.Hex() + "job_host_summaries/",
-		"variable_data":      "/v1/groups/" + grp.CreatedByID.Hex() + "/variable_data/",
-		"job_events":         "/v1/groups/" + grp.CreatedByID.Hex() + "/job_events/",
-		"potential_children": "/v1/groups/" + grp.CreatedByID.Hex() + "/potential_children/",
-		"ad_hoc_commands":    "/v1/groups/" + grp.CreatedByID.Hex() + "/ad_hoc_commands/",
-		"all_hosts":          "/v1/groups/" + grp.CreatedByID.Hex() + "/all_hosts/",
-		"activity_stream":    "/v1/groups/" + grp.CreatedByID.Hex() + "/activity_stream/",
-		"hosts":              "/v1/groups/" + grp.CreatedByID.Hex() + "/hosts/",
-		"children":           "/v1/groups/" + grp.CreatedByID.Hex() + "/children/",
-		"inventory_sources":  "/v1/groups/" + grp.CreatedByID.Hex() + "/inventory_sources/",
+		"job_host_summaries": "/v1/groups/" + ID+ "job_host_summaries/",
+		"variable_data":      "/v1/groups/" + ID + "/variable_data/",
+		"job_events":         "/v1/groups/" + ID + "/job_events/",
+		"potential_children": "/v1/groups/" + ID + "/potential_children/",
+		"ad_hoc_commands":    "/v1/groups/" + ID + "/ad_hoc_commands/",
+		"all_hosts":          "/v1/groups/" + ID + "/all_hosts/",
+		"activity_stream":    "/v1/groups/" + ID + "/activity_stream/",
+		"hosts":              "/v1/groups/" + ID + "/hosts/",
+		"children":           "/v1/groups/" + ID + "/children/",
+		"inventory_sources":  "/v1/groups/" + ID + "/inventory_sources/",
 		"inventory":          "/v1/inventories/" + grp.InventoryID.Hex() + "/",
 		"inventory_source":   "/v1/inventory_sources/emptyid/",
 	}
@@ -72,10 +72,10 @@ func groupSummary(grp *ansible.Group) {
 		}).Errorln("Error while getting modified by User")
 	} else {
 		summary["modified_by"] = gin.H{
-			"id":         created.ID.Hex(),
-			"username":   created.Username,
-			"first_name": created.FirstName,
-			"last_name":  created.LastName,
+			"id":         modified.ID.Hex(),
+			"username":   modified.Username,
+			"first_name": modified.FirstName,
+			"last_name":  modified.LastName,
 		}
 	}
 
