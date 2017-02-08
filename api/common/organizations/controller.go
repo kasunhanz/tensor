@@ -656,6 +656,7 @@ func GetCredentials(c *gin.Context) {
 	}
 
 	for i, v := range creds {
+		hideEncrypted(&v)
 		metadata.CredentialMetadata(&v)
 		creds[i] = v
 	}
@@ -719,4 +720,16 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
+}
+
+// hideEncrypted is replaces encrypted fields by $encrypted$ string
+func hideEncrypted(c *common.Credential) {
+	encrypted := "$encrypted$"
+	c.Password = encrypted
+	c.SSHKeyData = encrypted
+	c.SSHKeyUnlock = encrypted
+	c.BecomePassword = encrypted
+	c.VaultPassword = encrypted
+	c.AuthorizePassword = encrypted
+	c.Secret = encrypted
 }

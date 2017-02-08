@@ -2,10 +2,10 @@ package metadata
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 // Create a new organization
@@ -27,7 +27,7 @@ func HostMetadata(host *ansible.Host) {
 		"activity_stream":       "/v1/hosts/" + ID + "/activity_stream/",
 		"all_groups":            "/v1/hosts/" + ID + "/all_groups/",
 		"ad_hoc_command_events": "/v1/hosts/" + ID + "/ad_hoc_command_events/",
-		"inventory":             "/v1/inventories/" + host.InventoryID + "/",
+		"inventory":             "/v1/inventories/" + host.InventoryID.Hex() + "/",
 	}
 
 	hostSummary(host)

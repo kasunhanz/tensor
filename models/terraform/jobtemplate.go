@@ -56,7 +56,7 @@ type JobTemplate struct {
 
 type PatchJobTemplate struct {
 	Name                *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	JobType             *string        `json:"job_type" binding:"omitempty,jobtype"`
+	JobType             *string        `json:"job_type" binding:"omitempty,terraform_jobtype"`
 	ProjectID           *bson.ObjectId `json:"project"`
 	MachineCredentialID *bson.ObjectId `json:"credential"`
 	Description         *string        `json:"description"`

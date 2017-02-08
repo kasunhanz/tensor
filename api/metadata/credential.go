@@ -2,9 +2,9 @@ package metadata
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func CredentialMetadata(c *common.Credential) {
@@ -24,7 +24,7 @@ func CredentialMetadata(c *common.Credential) {
 	}
 
 	if c.OrganizationID != nil {
-		related["organization"] = "/api/v1/organizations/" + *c.OrganizationID + "/"
+		related["organization"] = "/api/v1/organizations/" + (*c.OrganizationID).Hex() + "/"
 	}
 
 	c.Related = related
@@ -66,10 +66,10 @@ func credentialSummary(c *common.Credential) {
 		}).Errorln("Error while getting created by User")
 	} else {
 		summary["created_by"] = gin.H{
-			"id":         modified.ID,
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
+			"id":         created.ID,
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
 		}
 	}
 

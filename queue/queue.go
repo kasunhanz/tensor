@@ -18,11 +18,11 @@ const (
 )
 
 // Queue is to hold the redis connection created by
-// Connect function and make it availble globally
+// Connect function and make it available globally
 var Queue *rmq.RedisConnection
 
 // Connect creates a connection to Redis
-func Connect() {
+func Connect() (err error) {
 	hostname, e := os.Hostname()
 	// if in case Hostname fails generate randon uniuri
 	if e != nil {
@@ -32,7 +32,8 @@ func Connect() {
 		}).Info("Coud not determine server hostname using random string for connection tag")
 	}
 
-	Queue = rmq.OpenConnection("tensor_"+hostname, "tcp", util.Config.Redis.Host, 2)
+	Queue, err = rmq.OpenConnection("tensor_"+hostname, "tcp", util.Config.Redis.Host, 2)
+	return
 }
 
 // OpenAnsibleQueue returns rmq.Queue

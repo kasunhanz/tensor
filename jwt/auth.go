@@ -22,8 +22,8 @@ func init() {
 	HeaderAuthMiddleware = &jwt.GinJWTMiddleware{
 		Realm:      "api",
 		Key:        []byte(util.Config.Salt),
-		Timeout:    time.Hour,
-		MaxRefresh: time.Hour,
+		Timeout:    time.Minute * time.Duration(util.Config.JWTTimeout),
+		MaxRefresh: time.Minute * time.Duration(util.Config.JWTRefreshTimeout),
 		Authenticator: func(loginid string, password string, c *gin.Context) (string, bool) {
 
 			// Lowercase email or username

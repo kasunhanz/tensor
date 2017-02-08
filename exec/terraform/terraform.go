@@ -14,7 +14,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/misc"
+	"github.com/pearsonappeng/tensor/exec/types"
 
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
@@ -138,13 +139,13 @@ func terraformRun(j types.TerraformJob) {
 		cleanup()
 	}()
 
-	if len(j.MachineCred.SSHKeyData) > 0 {
-		if len(j.MachineCred.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.MachineCred.SSHKeyUnlock))
+	if len(j.Machine.SSHKeyData) > 0 {
+		if len(j.Machine.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Machine.SSHKeyUnlock))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
-				}).Errorln("Error while decyrpting Machine Credential")
+				}).Errorln("Error while decrypting Machine Credential")
 				j.Job.JobExplanation = err.Error()
 				jobFail(j)
 				return
@@ -152,14 +153,56 @@ func terraformRun(j types.TerraformJob) {
 			if client.Add(key); err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
-				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
+				}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
 				jobFail(j)
 				return
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
+		if err != nil {
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while decrypting Machine Credential")
+			j.Job.JobExplanation = err.Error()
+			jobFail(j)
+			return
+		}
+
+		if client.Add(key); err != nil {
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
+			j.Job.JobExplanation = err.Error()
+			jobFail(j)
+			return
+		}
+
+	}
+
+	if len(j.Network.SSHKeyData) > 0 {
+		if len(j.Network.SSHKeyUnlock) > 0 {
+			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Network.SSHKeyUnlock))
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while decrypting Machine Credential")
+				j.Job.JobExplanation = err.Error()
+				jobFail(j)
+				return
+			}
+			if client.Add(key); err != nil {
+				log.WithFields(log.Fields{
+					"Error": err.Error(),
+				}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
+				j.Job.JobExplanation = err.Error()
+				jobFail(j)
+				return
+			}
+		}
+
+		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"Error": err.Error(),
@@ -180,49 +223,7 @@ func terraformRun(j types.TerraformJob) {
 
 	}
 
-	if len(j.NetworkCred.SSHKeyData) > 0 {
-		if len(j.NetworkCred.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)), util.CipherDecrypt(j.NetworkCred.SSHKeyUnlock))
-			if err != nil {
-				log.WithFields(log.Fields{
-					"Error": err.Error(),
-				}).Errorln("Error while decyrpting Machine Credential")
-				j.Job.JobExplanation = err.Error()
-				jobFail(j)
-				return
-			}
-			if client.Add(key); err != nil {
-				log.WithFields(log.Fields{
-					"Error": err.Error(),
-				}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
-				j.Job.JobExplanation = err.Error()
-				jobFail(j)
-				return
-			}
-		}
-
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.MachineCred.SSHKeyData)))
-		if err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Error while decyrpting Machine Credential")
-			j.Job.JobExplanation = err.Error()
-			jobFail(j)
-			return
-		}
-
-		if client.Add(key); err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
-			j.Job.JobExplanation = err.Error()
-			jobFail(j)
-			return
-		}
-
-	}
-
-	cmd, err := getCmd(&j, socket, pid)
+	cmd, cleanup, err := getCmd(&j, socket, pid)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
@@ -232,6 +233,9 @@ func terraformRun(j types.TerraformJob) {
 		jobFail(j)
 		return
 	}
+
+	// cleanup credential files
+	defer cleanup()
 
 	var b bytes.Buffer
 	cmd.Stdout = &b
@@ -275,7 +279,7 @@ func terraformRun(j types.TerraformJob) {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func getCmd(j *types.TerraformJob, socket string, pid int) (*exec.Cmd, error) {
+func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, cleanup func(), err error) {
 
 	pargs := []string{}
 	pargs = buildParams(*j, pargs)
@@ -286,9 +290,9 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (*exec.Cmd, error) {
 
 	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
-	cmd := exec.Command("terraform", pargs...)
+	cmd = exec.Command("terraform", pargs...)
 	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
-	cmd.Env = []string{
+	env := []string{
 		"TERM=xterm",
 		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
 		"HOME_PATH=" + util.Config.ProjectsHome + "/",
@@ -309,14 +313,33 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (*exec.Cmd, error) {
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
 
-	j.Job.JobENV = cmd.Env
+	// Assign job env here to ensure that sensitive information will
+	// not be exposed
+	j.Job.JobENV = env
+	var f *os.File
+
+	if j.Cloud.Cloud {
+		env, f, err = misc.GetCloudCredential(env, j.Cloud)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	cmd.Env = env
 
 	log.WithFields(log.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
 	}).Infoln("Job Directory and Environment")
 
-	return cmd, nil
+	return cmd, func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Errorln("Unable to remove rackfile")
+		}
+		if err := os.Remove(f.Name()); err != nil {
+			log.Errorln("Unable to remove gcefile")
+		}
+	}, nil
 }
 
 func buildParams(j types.TerraformJob, params []string) []string {

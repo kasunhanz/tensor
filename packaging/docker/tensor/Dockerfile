@@ -29,6 +29,10 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     setuptools && \
     pip install --upgrade \
     "pywinrm>=0.1.1" \
+    "azure==2.0.0rc5" \
+    pyrax \
+    apache-libcloud \
+    boto \
     kerberos \
     requests_kerberos && \
     apt-get -y install /tmp/tensor.deb && \

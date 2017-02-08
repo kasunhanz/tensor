@@ -11,7 +11,7 @@ type SyncJob struct {
 	Job            ansible.Job
 	ProjectID      bson.ObjectId
 	JobTemplateID  bson.ObjectId
-	SCMCred        common.Credential
+	SCM            common.Credential
 	Project        common.Project
 	User           common.User
 	Token          string

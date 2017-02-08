@@ -21,9 +21,9 @@ import (
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXCredential   = "credential"
+	CTXCredential = "credential"
 	CTXCredentialID = "credential_id"
-	CTXUser         = "user"
+	CTXUser = "user"
 )
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
@@ -361,14 +361,14 @@ func UpdateCredential(c *gin.Context) {
 	// add new activity to activity stream
 	activity.AddCredentialActivity(common.Update, user, tmpCredential, credential)
 
-	hideEncrypted(&req)
-	metadata.CredentialMetadata(&req)
+	hideEncrypted(&credential)
+	metadata.CredentialMetadata(&credential)
 
-	c.JSON(http.StatusOK, req)
+	c.JSON(http.StatusOK, credential)
 }
 
 // PatchCredential is a Gin handler function which partially updates a credential using request payload.
-// This replaces specifed fields in the data, empty "" fields will be
+// This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func PatchCredential(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
@@ -408,32 +408,53 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	if req.Password != nil && *req.Password != "$encrypted$" {
-		credential.Password = util.CipherEncrypt(*req.Password)
+		credential.Password = ""
+		if len(*req.Password) > 0 {
+			credential.Password = util.CipherEncrypt(*req.Password)
+		}
 	}
 
 	if req.SSHKeyData != nil && *req.SSHKeyData != "$encrypted$" {
-		credential.SSHKeyData = util.CipherEncrypt(*req.SSHKeyData)
+		credential.SSHKeyData = ""
+		if len(*req.SSHKeyData) > 0 {
+			credential.SSHKeyData = util.CipherEncrypt(*req.SSHKeyData)
+		}
 
 		if req.SSHKeyUnlock != nil && *req.SSHKeyUnlock != "$encrypted$" {
-			credential.SSHKeyUnlock = util.CipherEncrypt(*req.SSHKeyUnlock)
+			credential.SSHKeyUnlock = ""
+			if len(*req.SSHKeyUnlock) > 0 {
+				credential.SSHKeyUnlock = util.CipherEncrypt(*req.SSHKeyUnlock)
+			}
 		}
 	}
 
 	if req.BecomePassword != nil && *req.BecomePassword != "$encrypted$" {
-		credential.BecomePassword = util.CipherEncrypt(*req.BecomePassword)
+		credential.BecomePassword = ""
+		if len(*req.BecomePassword) > 0 {
+			credential.BecomePassword = util.CipherEncrypt(*req.BecomePassword)
+		}
 	}
 
 	if req.VaultPassword != nil && *req.VaultPassword != "$encrypted$" {
-		credential.VaultPassword = util.CipherEncrypt(*req.VaultPassword)
+		credential.VaultPassword = ""
+		if len(*req.VaultPassword) > 0 {
+			credential.VaultPassword = util.CipherEncrypt(*req.VaultPassword)
+		}
 	}
 
 	if req.AuthorizePassword != nil && *req.AuthorizePassword != "$encrypted$" {
-		credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
+		credential.AuthorizePassword = ""
+		if len(*req.AuthorizePassword) > 0 {
+			credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
+		}
 	}
 
-	// replace following feilds if precent
+	// replace following fields if percent
 	if req.Secret != nil && *req.Secret != "$encrypted$" {
-		credential.Secret = util.CipherEncrypt(*req.Secret)
+		credential.Secret = ""
+		if len(*req.Secret) > 0 {
+			credential.Secret = util.CipherEncrypt(*req.Secret)
+		}
 	}
 
 	if req.Name != nil {
@@ -554,8 +575,8 @@ func RemoveCredential(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-// OwnerTeams is a Gin hander function which returns the access control list of Teams that has permissions to access
-// specifed credential object.
+// OwnerTeams is a Gin handler function which returns the access control list of Teams that has permissions to access
+// specified credential object.
 func OwnerTeams(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 

@@ -15,8 +15,8 @@ import (
 	"github.com/pearsonappeng/tensor/jwt"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
-	"github.com/pearsonappeng/tensor/runners/sync"
-	"github.com/pearsonappeng/tensor/runners/types"
+	"github.com/pearsonappeng/tensor/exec/sync"
+	"github.com/pearsonappeng/tensor/exec/types"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
@@ -838,7 +838,7 @@ func Launch(c *gin.Context) {
 			})
 			return
 		}
-		runnerJob.NetworkCred = credential
+		runnerJob.Network = credential
 	}
 
 	if job.CloudCredentialID != nil {
@@ -854,7 +854,7 @@ func Launch(c *gin.Context) {
 			})
 			return
 		}
-		runnerJob.CloudCred = credential
+		runnerJob.Cloud = credential
 	}
 
 	if job.MachineCredentialID != nil {
@@ -869,7 +869,7 @@ func Launch(c *gin.Context) {
 			})
 			return
 		}
-		runnerJob.MachineCred = credential
+		runnerJob.Machine = credential
 	}
 
 	// get project information

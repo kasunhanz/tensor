@@ -32,21 +32,24 @@ type RedisConfig struct {
 }
 
 type configType struct {
-	MongoDB MongoDBConfig `yaml:"mongodb"`
+	MongoDB             MongoDBConfig `yaml:"mongodb"`
 
-	Redis RedisConfig `yaml:"redis"`
+	Redis               RedisConfig `yaml:"redis"`
 	// Format `:port_num` eg, :3000
-	Port string `yaml:"port"`
+	Port                string `yaml:"port"`
 
 	// Tensor stores projects here
-	ProjectsHome string `yaml:"projects_home"`
+	ProjectsHome        string `yaml:"projects_home"`
 
 	// cookie hashing & encryption
-	Salt string `yaml:"salt"`
+	Salt                string `yaml:"salt"`
 
 	AnsibleJobTimeOut   int `yaml:"ansible_job_timeout"`
 	SyncJobTimeOut      int `yaml:"sync_job_timeout"`
 	TerraformJobTimeOut int `yaml:"terraform_job_timeout"`
+
+	JWTTimeout          int `ymal:"jwt_timeout"`
+	JWTRefreshTimeout   int`ymal:"jwt_refresh_timeout"`
 }
 
 var Config *configType
@@ -125,6 +128,21 @@ func init() {
 	} else if Config.SyncJobTimeOut == 0 {
 		Config.SyncJobTimeOut = 3600
 	}
+
+	if len(os.Getenv("TENSOR_JWT_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_JWT_TIMEOUT"))
+		Config.JWTTimeout = time
+	} else if Config.JWTTimeout == 0 {
+		Config.JWTTimeout = 3600
+	}
+
+	if len(os.Getenv("TENSOR_JWT_REFRESH_TIMEOUT")) > 0 {
+		time, _ := strconv.Atoi(os.Getenv("TENSOR_JWT_REFRESH_TIMEOUT"))
+		Config.JWTRefreshTimeout = time
+	} else if Config.JWTRefreshTimeout == 0 {
+		Config.JWTRefreshTimeout = 3600
+	}
+
 
 	if len(os.Getenv("TENSOR_DB_USER")) > 0 {
 		Config.MongoDB.Username = os.Getenv("TENSOR_DB_USER")

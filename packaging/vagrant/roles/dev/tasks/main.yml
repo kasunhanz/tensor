@@ -23,6 +23,14 @@
   register: go_version
   changed_when: false
 
+- name: Install cloud dependencies
+  pip: "name={{ item }}"
+  with_items:
+    - "azure==2.0.0rc5"
+    - pyrax
+    - apache-libcloud
+    - boto
+
 - name: Download the Go tarball
   get_url:
     url: "{{ go_download_location }}"

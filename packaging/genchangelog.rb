@@ -73,6 +73,6 @@ end
 
 # If we added a temporary tag, let's remove it
 
-if !repo_has_tag?
- cleanup_temporary_tag
+unless repo_has_tag?
+  cleanup_temporary_tag
 end

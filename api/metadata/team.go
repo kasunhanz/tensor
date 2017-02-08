@@ -62,10 +62,10 @@ func teamSummary(tm *common.Team) {
 		}).Errorln("Error while getting created by User")
 	} else {
 		summary["created_by"] = gin.H{
-			"id":         modified.ID.Hex(),
-			"username":   modified.Username,
-			"first_name": modified.FirstName,
-			"last_name":  modified.LastName,
+			"id":         created.ID.Hex(),
+			"username":   created.Username,
+			"first_name": created.FirstName,
+			"last_name":  created.LastName,
 		}
 	}
 
