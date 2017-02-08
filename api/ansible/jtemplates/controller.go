@@ -19,6 +19,7 @@ import (
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
@@ -298,18 +299,7 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXJobTemplate,
-		ObjectID:    req.ID,
-		Description: "Job Template " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddJobTemplateActivity(common.Create, user, req)
 	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&req)
 
@@ -324,6 +314,7 @@ func AddJTemplate(c *gin.Context) {
 func UpdateJTemplate(c *gin.Context) {
 	// get template from the gin.Context
 	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	tmpJobTemplate := jobTemplate
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -432,18 +423,7 @@ func UpdateJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXJobTemplate,
-		ObjectID:    req.ID,
-		Description: "Job Template " + jobTemplate.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
 
 	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&jobTemplate)
@@ -460,6 +440,7 @@ func UpdateJTemplate(c *gin.Context) {
 func PatchJTemplate(c *gin.Context) {
 	// get template from the gin.Context
 	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	tmpJobTemplate := jobTemplate
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -665,18 +646,7 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXJobTemplate,
-		ObjectID:    jobTemplate.ID,
-		Description: "Job Template " + jobTemplate.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
 
 	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&jobTemplate)
@@ -708,52 +678,37 @@ func RemoveJTemplate(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXJobTemplate,
-		ObjectID:    user.ID,
-		Description: "Job Template " + jobTemplate.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddJobTemplateActivity(common.Delete, user, jobTemplate)
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-// ActivityStream returns serialized list of Activity models associated with the Job Template
-// Resulting data structure contains:
-// {
-//  "count\": 99,
-//  "next\": null,
-//  "previous\": null,
-//  "results\": [
-// 	...
-// 	]
-// }
-// The `count` field indicates the total number of activity streams found for the given query.
-// The `next` and `previous` fields provides links to additional results if there are more than will fit on a single page.
-// The `results` list contains zero or more activity stream records.
-// success returns 200 status code
-// failure reruns 500 status code
-//
+// ActivityStream returns the activites of the user on Job templates
 func ActivityStream(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jtemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": jobTemplate.ID, "type": CTXJobTemplate}).All(&activities)
+	var activities []ansible.ActivityJobTemplate
+	var activity ansible.ActivityJobTemplate
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": jtemplate.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityJobTemplateMetadata(&activity)
+		metadata.JTemplateMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.JTemplateMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Activity data from the database")
+	if err := iter.Close(); err != nil {
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -762,9 +717,6 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}

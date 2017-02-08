@@ -10,6 +10,7 @@ import (
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -232,18 +233,7 @@ func AddCredential(c *gin.Context) {
 	// TODO: add user to role
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXCredential,
-		ObjectID:    req.ID,
-		Description: "Credential " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddCredentialActivity(common.Create, user, req)
 
 	hideEncrypted(&req)
 	metadata.CredentialMetadata(&req)
@@ -256,9 +246,9 @@ func AddCredential(c *gin.Context) {
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object.
 func UpdateCredential(c *gin.Context) {
-
 	user := c.MustGet(CTXUser).(common.User)
 	credential := c.MustGet(CTXCredential).(common.Credential)
+	tmpCredential := credential
 
 	var req common.Credential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -351,18 +341,7 @@ func UpdateCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXCredential,
-		ObjectID:    req.ID,
-		Description: "Credential " + req.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddCredentialActivity(common.Update, user, tmpCredential, credential)
 
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
@@ -376,6 +355,7 @@ func UpdateCredential(c *gin.Context) {
 func PatchCredential(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 	credential := c.MustGet(CTXCredential).(common.Credential)
+	tmpCredential := credential
 
 	var req common.PatchCredential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -545,18 +525,7 @@ func PatchCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXCredential,
-		ObjectID:    credential.ID,
-		Description: "Credential " + credential.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddCredentialActivity(common.Update, user, tmpCredential, credential)
 
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
@@ -583,18 +552,7 @@ func RemoveCredential(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     u.ID,
-		Type:        CTXCredential,
-		ObjectID:    u.ID,
-		Description: "Credential " + crd.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddCredentialActivity(common.Delete, u, crd)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }
@@ -700,22 +658,33 @@ func OwnerUsers(c *gin.Context) {
 	})
 }
 
-// ActivityStream is a Gin handler function which returns list of activities associated with
-// credential object that is in the Gin Context
-// TODO: not complete
+// ActivityStream returns the activites of the user on Credentials
 func ActivityStream(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": credential.ID, "type": CTXCredential}).All(&activities)
+	var activities []common.ActivityCredential
+	var activity common.ActivityCredential
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": credential.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityCredentialMetadata(&activity)
+		metadata.CredentialMetadata(&activity.Object1)
+		hideEncrypted(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.CredentialMetadata(activity.Object2)
+			hideEncrypted(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Activity data from the database")
+	if err := iter.Close(); err != nil {
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -724,20 +693,9 @@ func ActivityStream(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,

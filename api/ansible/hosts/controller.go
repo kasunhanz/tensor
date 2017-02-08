@@ -14,6 +14,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
@@ -180,18 +181,7 @@ func AddHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXHost,
-		ObjectID:    req.ID,
-		Description: "Host " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddHostActivity(common.Create, user, req)
 
 	metadata.HostMetadata(&req)
 
@@ -203,6 +193,7 @@ func AddHost(c *gin.Context) {
 // unspecified fields will be removed from the database object
 func UpdateHost(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
+	tmpHost := host
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req ansible.Host
@@ -265,18 +256,7 @@ func UpdateHost(c *gin.Context) {
 		})
 	}
 
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXHost,
-		ObjectID:    req.ID,
-		Description: "Host " + req.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddHostActivity(common.Update, user, tmpHost, host)
 
 	metadata.HostMetadata(&host)
 
@@ -289,6 +269,7 @@ func UpdateHost(c *gin.Context) {
 // removed from the database object. Unspecified fields will ignored.
 func PatchHost(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
+	tmpHost := host
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req ansible.PatchHost
@@ -385,18 +366,7 @@ func PatchHost(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXHost,
-		ObjectID:    host.ID,
-		Description: "Host " + host.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddHostActivity(common.Update, user, tmpHost, host)
 
 	// set `related` and `summary` feilds
 	metadata.HostMetadata(&host)
@@ -564,20 +534,31 @@ func AllGroups(c *gin.Context) {
 	})
 }
 
-// ActivityStream is a Gin handler function which returns list of activities associated with
-// credential object that is in the Gin Context
-// TODO: not complete
+// ActivityStream returns the activites of the user on Hosts
 func ActivityStream(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": host.ID, "type": CTXHost}).All(&activities)
+	var activities []ansible.ActivityHost
+	var activity ansible.ActivityHost
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": host.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityHostMetadata(&activity)
+		metadata.HostMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.HostMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
+	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
 		return
 	}

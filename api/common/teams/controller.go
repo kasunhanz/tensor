@@ -14,11 +14,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
 	CTXTeam = "team"
 	CTXUser = "user"
@@ -26,7 +27,7 @@ const (
 )
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
-// This function takes CTXCCTXTeamIDredentialID from Gin Context and retrieves team data from the collection
+// This function takes CTXTeamID from Gin Context and retrieves team data from the collection
 // and store team data under key CTXTeam in Gin Context
 func Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTeamID, c)
@@ -188,18 +189,7 @@ func AddTeam(c *gin.Context) {
 		return
 	}
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXTeam,
-		ObjectID:    req.ID,
-		Description: "Group " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddTeamActivity(common.Create, user, req)
 
 	metadata.TeamMetadata(&req)
 	// send response with JSON rendered data
@@ -210,6 +200,7 @@ func AddTeam(c *gin.Context) {
 func UpdateTeam(c *gin.Context) {
 	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
+	tmpTeam := team
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -263,7 +254,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	//addActivity(req.ID, user.ID, "Team "+team.Name+" updated")
+	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
 
 	// set `related` and `summary` fields
 	metadata.TeamMetadata(&team)
@@ -278,6 +269,7 @@ func UpdateTeam(c *gin.Context) {
 func PatchTeam(c *gin.Context) {
 	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
+	tmpTeam := team
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -350,18 +342,7 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXTeam,
-		ObjectID:    team.ID,
-		Description: "Team " + team.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
 
 	// set `related` and `summary` feilds
 	metadata.TeamMetadata(&team)
@@ -388,18 +369,7 @@ func RemoveTeam(c *gin.Context) {
 		return
 	}
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXTeam,
-		ObjectID:    user.ID,
-		Description: "Team " + team.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddTeamActivity(common.Delete, user, team)
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -560,43 +530,42 @@ func Projects(c *gin.Context) {
 	})
 }
 
-// ActivityStream is a Gin handler function which returns list of activities associated with
-// credential object that is in the Gin Context
-// TODO: not complete
+// ActivityStream returns the activites of the user on Teams
 func ActivityStream(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": team.ID, "type": CTXTeam}).All(activities)
+	var activities []common.ActivityTeam
+	var activity common.ActivityTeam
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": team.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityTeamMetadata(&activity)
+		metadata.TeamMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.TeamMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Activity data from the database")
+	if err := iter.Close(); err != nil {
+		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
+		return
 	}
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Activity Stream page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
