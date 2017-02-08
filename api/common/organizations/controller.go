@@ -9,6 +9,7 @@ import (
 	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
@@ -204,20 +205,8 @@ func AddOrganization(c *gin.Context) {
 		})
 		return
 	}
-
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXOrganization,
-		ObjectID:    req.ID,
-		Description: "Organization " + req.Name + " created",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddOrganizationActivity(common.Create, user, req)
 
 	metadata.OrganizationMetadata(&req)
 	// send response with JSON rendered data
@@ -308,20 +297,8 @@ func RemoveOrganization(c *gin.Context) {
 		})
 		return
 	}
-
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXOrganization,
-		ObjectID:    user.ID,
-		Description: "Organization " + organization.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddOrganizationActivity(common.Delete, user, organization)
 
 	// abort with 204 status code
 	c.AbortWithStatus(http.StatusNoContent)
@@ -332,6 +309,7 @@ func RemoveOrganization(c *gin.Context) {
 // unspecified fields will be removed from the database object.
 func UpdateOrganization(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
+	tmpOrg := organization
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -374,18 +352,7 @@ func UpdateOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXOrganization,
-		ObjectID:    req.ID,
-		Description: "Organization " + organization.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddOrganizationActivity(common.Update, user, tmpOrg, organization)
 
 	metadata.OrganizationMetadata(&organization)
 	// send response with JSON rendered data
@@ -397,6 +364,7 @@ func UpdateOrganization(c *gin.Context) {
 // removed from the database object. Unspecified fields will be ignored.
 func PatchOrganization(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
+	tmpOrg := organization
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -451,18 +419,7 @@ func PatchOrganization(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXOrganization,
-		ObjectID:    organization.ID,
-		Description: "Organization " + organization.Name + " updated",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
+	activity.AddOrganizationActivity(common.Update, user, tmpOrg, organization)
 
 	metadata.OrganizationMetadata(&organization)
 	// send response with JSON rendered data
@@ -720,18 +677,31 @@ func GetCredentials(c *gin.Context) {
 	})
 }
 
-// TODO: not complete
+// ActivityStream returns the activites of the user on Organizations
 func ActivityStream(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"object_id": organization.ID, "type": CTXOrganization}).All(&activities)
+	var activities []common.ActivityOrganization
+	var activity common.ActivityOrganization
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": organization.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityOrganizationMetadata(&activity)
+		metadata.OrganizationMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.OrganizationMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
+	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while Activities"},
+			Messages: []string{"Error while getting Activities"},
 		})
 		return
 	}
