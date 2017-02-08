@@ -1,4 +1,4 @@
-package roles
+package rbac
 
 import (
 	"github.com/pearsonappeng/tensor/db"
@@ -9,7 +9,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func JobRead(user common.User, jtemplate ansible.Job) bool {
+func jobRead(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -41,10 +41,10 @@ func JobRead(user common.User, jtemplate ansible.Job) bool {
 	// if object has granted team get those teams to list
 	for _, v := range jtemplate.Roles {
 		if v.Type == "team" {
-			teams = append(teams, v.TeamID)
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID {
+		if v.Type == "user" && v.GranteeID == user.ID {
 			return true
 		}
 	}
@@ -62,7 +62,7 @@ func JobRead(user common.User, jtemplate ansible.Job) bool {
 	return false
 }
 
-func JoWrite(user common.User, jtemplate ansible.Job) bool {
+func jobWrite(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -79,7 +79,7 @@ func JoWrite(user common.User, jtemplate ansible.Job) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": OrganizationAdmin}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
@@ -93,11 +93,11 @@ func JoWrite(user common.User, jtemplate ansible.Job) bool {
 	// using roles list
 	// if object has granted team get those teams to list
 	for _, v := range jtemplate.Roles {
-		if v.Type == "team" && (v.Role == JOB_ADMIN) {
-			teams = append(teams, v.TeamID)
+		if v.Type == "team" && (v.Role == JobAdmin) {
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID && (v.Role == JOB_ADMIN) {
+		if v.Type == "user" && v.GranteeID == user.ID && (v.Role == JobAdmin) {
 			return true
 		}
 	}
@@ -120,7 +120,7 @@ func JoWrite(user common.User, jtemplate ansible.Job) bool {
 	return false
 }
 
-func JobExecute(user common.User, jtemplate ansible.Job) bool {
+func jobExecute(user common.User, jtemplate ansible.Job) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -137,7 +137,7 @@ func JobExecute(user common.User, jtemplate ansible.Job) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": project.OrganizationID, "roles.role": OrganizationAdmin}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational admin:", err)
 		return false
@@ -154,11 +154,11 @@ func JobExecute(user common.User, jtemplate ansible.Job) bool {
 	// using roles list
 	// if object has granted team get those teams to list
 	for _, v := range project.Roles {
-		if v.Type == "team" && (v.Role == JOB_ADMIN || v.Role == JOB_EXECUTE) {
-			teams = append(teams, v.TeamID)
+		if v.Type == "team" && (v.Role == JobAdmin || v.Role == JobExecute) {
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID && (v.Role == JOB_ADMIN || v.Role == JOB_EXECUTE) {
+		if v.Type == "user" && v.GranteeID == user.ID && (v.Role == JobAdmin || v.Role == JobExecute) {
 			return true
 		}
 	}

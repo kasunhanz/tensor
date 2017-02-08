@@ -53,6 +53,10 @@ type Project struct {
 	Roles                 []AccessControl `bson:"roles" json:"-"`
 }
 
+func (*Project) GetType() string {
+	return "project"
+}
+
 // PatchProject is the model for PATCH requests
 type PatchProject struct {
 	Name                  *string        `json:"name" binding:"omitempty,min=1,max=500"`

@@ -9,7 +9,7 @@ import (
 )
 
 type JobTemplate struct {
-	ID bson.ObjectId `bson:"_id" json:"id"`
+	ID                  bson.ObjectId `bson:"_id" json:"id"`
 
 	// required
 	Name                string         `bson:"name" json:"name" binding:"required,min=1,max=500"`
@@ -28,30 +28,34 @@ type JobTemplate struct {
 	Parallelism         uint8          `bson:"parallelism,omitempty" json:"parallelism"`
 
 	// output only
-	LastJobRun      *time.Time     `bson:"last_job_run,omitempty" json:"last_job_run" binding:"omitempty,naproperty"`
-	NextJobRun      *time.Time     `bson:"next_job_run,omitempty" json:"next_job_run" binding:"omitempty,naproperty"`
-	Status          string         `bson:"status,omitempty" json:"status" binding:"omitempty,naproperty"`
-	CurrentJobID    *bson.ObjectId `bson:"current_job_id,omitempty" json:"current_job" binding:"omitempty,naproperty"`
-	CurrentUpdateID *bson.ObjectId `bson:"current_update_id,omitempty" json:"current_update" binding:"omitempty,naproperty"`
-	LastJobID       *bson.ObjectId `bson:"last_job_id,omitempty" json:"last_job" binding:"omitempty,naproperty"`
-	NextScheduleID  *bson.ObjectId `bson:"next_schedule_id,omitempty" json:"next_schedule" binding:"omitempty,naproperty"`
-	LastJobFailed   bool           `bson:"last_job_failed,omitempty" json:"last_job_failed" binding:"omitempty,naproperty"`
-	HasSchedules    bool           `bson:"has_schedules,omitempty" json:"has_schedules" binding:"omitempty,naproperty"`
+	LastJobRun          *time.Time     `bson:"last_job_run,omitempty" json:"last_job_run" binding:"omitempty,naproperty"`
+	NextJobRun          *time.Time     `bson:"next_job_run,omitempty" json:"next_job_run" binding:"omitempty,naproperty"`
+	Status              string         `bson:"status,omitempty" json:"status" binding:"omitempty,naproperty"`
+	CurrentJobID        *bson.ObjectId `bson:"current_job_id,omitempty" json:"current_job" binding:"omitempty,naproperty"`
+	CurrentUpdateID     *bson.ObjectId `bson:"current_update_id,omitempty" json:"current_update" binding:"omitempty,naproperty"`
+	LastJobID           *bson.ObjectId `bson:"last_job_id,omitempty" json:"last_job" binding:"omitempty,naproperty"`
+	NextScheduleID      *bson.ObjectId `bson:"next_schedule_id,omitempty" json:"next_schedule" binding:"omitempty,naproperty"`
+	LastJobFailed       bool           `bson:"last_job_failed,omitempty" json:"last_job_failed" binding:"omitempty,naproperty"`
+	HasSchedules        bool           `bson:"has_schedules,omitempty" json:"has_schedules" binding:"omitempty,naproperty"`
 
-	Kind string `bson:"kind,omitempty" json:"-"`
+	Kind                string `bson:"kind,omitempty" json:"-"`
 
-	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
-	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
+	CreatedByID         bson.ObjectId `bson:"created_by_id" json:"-"`
+	ModifiedByID        bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Created  time.Time `bson:"created" json:"created" binding:"omitempty,naproperty"`
-	Modified time.Time `bson:"modified" json:"modified" binding:"omitempty,naproperty"`
+	Created             time.Time `bson:"created" json:"created" binding:"omitempty,naproperty"`
+	Modified            time.Time `bson:"modified" json:"modified" binding:"omitempty,naproperty"`
 
-	Type    string `bson:"-" json:"type"`
-	URL     string `bson:"-" json:"url"`
-	Related gin.H  `bson:"-" json:"related"`
-	Summary gin.H  `bson:"-" json:"summary_fields"`
+	Type                string `bson:"-" json:"type"`
+	URL                 string `bson:"-" json:"url"`
+	Related             gin.H  `bson:"-" json:"related"`
+	Summary             gin.H  `bson:"-" json:"summary_fields"`
 
-	Roles []common.AccessControl `bson:"roles" json:"-"`
+	Roles               []common.AccessControl `bson:"roles" json:"-"`
+}
+
+func (*JobTemplate) GetType() string {
+	return "terraform_job_template"
 }
 
 type PatchJobTemplate struct {

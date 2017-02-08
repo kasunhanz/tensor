@@ -1,4 +1,4 @@
-package roles
+package rbac
 
 import (
 	"github.com/pearsonappeng/tensor/db"
@@ -6,9 +6,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/models"
 )
 
-func ProjectRead(user common.User, project common.Project) bool {
+func projectRead(user common.User, project models.RootModel) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -16,11 +17,15 @@ func ProjectRead(user common.User, project common.Project) bool {
 	}
 
 	// check whether the user is an member of the objects' organization
-	// since this is read it doesn't matter what permission assined to the user
-	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID}).Count()
+	// since this is read it doesn't matter what permission assigned to the user
+	count, err := db.Organizations().Find(bson.M{
+		"roles.user_id": user.ID,
+		"organization_id": project.GetOrganizationID(),
+		"roles.role": OrganizationAdmin,
+	}).Count()
+
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational memeber:", err)
-		return false
 	}
 	if count > 0 {
 		return true
@@ -30,21 +35,24 @@ func ProjectRead(user common.User, project common.Project) bool {
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range project.Roles {
-		if v.Type == "team" {
-			teams = append(teams, v.TeamID)
+	for _, v := range project.GetRoles() {
+		if v.Type == RoleTypeTeam {
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID {
 			return true
 		}
 	}
 
-	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}).Count()
+	// Check team permissions && whether the user is in an team which has appropriate permissions
+	count, err = db.Teams().Find(bson.M{
+		"_id:": bson.M{"$in": teams},
+		"roles.user_id": user.ID,
+	}).Count()
+
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
-		return false
 	}
 	if count > 0 {
 		return true
@@ -53,7 +61,8 @@ func ProjectRead(user common.User, project common.Project) bool {
 	return false
 }
 
-func ProjectWrite(user common.User, project common.Project) bool {
+
+func projectWrite(user common.User, project models.RootModel) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -62,10 +71,14 @@ func ProjectWrite(user common.User, project common.Project) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, error := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, error := db.Organizations().Find(bson.M{"" +
+		"roles.user_id": user.ID,
+		"organization_id": project.GetOrganizationID(),
+		"roles.role": OrganizationAdmin,
+	}).Count()
+
 	if error != nil {
 		log.Errorln("Error while checking the user and organizational admin:", error)
-		return false
 	}
 	if count > 0 {
 		return true
@@ -75,12 +88,12 @@ func ProjectWrite(user common.User, project common.Project) bool {
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range project.Roles {
-		if v.Type == "team" && (v.Role == PROJECT_ADMIN || v.Role == PROJECT_UPDATE) {
-			teams = append(teams, v.TeamID)
+	for _, v := range project.GetRoles() {
+		if v.Type == RoleTypeTeam && v.Role == ProjectAdmin {
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID && (v.Role == PROJECT_ADMIN || v.Role == PROJECT_UPDATE) {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID && v.Role == ProjectAdmin {
 			return true
 		}
 	}
@@ -94,7 +107,6 @@ func ProjectWrite(user common.User, project common.Project) bool {
 	count, error = db.Teams().Find(query).Count()
 	if error != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", error)
-		return false
 	}
 	if count > 0 {
 		return true
@@ -103,7 +115,7 @@ func ProjectWrite(user common.User, project common.Project) bool {
 	return false
 }
 
-func ProjectUse(user common.User, project common.Project) bool {
+func projectUse(user common.User, project models.RootModel) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -112,10 +124,13 @@ func ProjectUse(user common.User, project common.Project) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, error := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "organization_id": project.OrganizationID, "roles.role": ORGANIZATION_ADMIN}).Count()
+	count, error := db.Organizations().Find(bson.M{
+		"roles.user_id": user.ID,
+		"organization_id": project.GetOrganizationID(),
+		"roles.role": OrganizationAdmin,
+	}).Count()
 	if error != nil {
 		log.Errorln("Error while checking the user and organizational admin:", error)
-		return false
 	}
 	if count > 0 {
 		return true
@@ -126,12 +141,12 @@ func ProjectUse(user common.User, project common.Project) bool {
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range project.Roles {
-		if v.Type == "team" && (v.Role == PROJECT_ADMIN || v.Role == PROJECT_USE) {
-			teams = append(teams, v.TeamID)
+	for _, v := range project.GetRoles() {
+		if v.Type == RoleTypeTeam && (v.Role == ProjectAdmin || v.Role == ProjectUse) {
+			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.UserID == user.ID && (v.Role == PROJECT_ADMIN || v.Role == PROJECT_USE) {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID && (v.Role == ProjectAdmin || v.Role == ProjectUse) {
 			return true
 		}
 	}
@@ -145,7 +160,6 @@ func ProjectUse(user common.User, project common.Project) bool {
 	count, error = db.Teams().Find(query).Count()
 	if error != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", error)
-		return false
 	}
 	if count > 0 {
 		return true

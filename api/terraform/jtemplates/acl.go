@@ -11,9 +11,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/rbac"
 )
 
 // AccessList is Gin Handler function
@@ -49,7 +49,7 @@ func AccessList(c *gin.Context) {
 		if v.Type == "user" {
 			// if an organization admin
 			switch v.Role {
-			case roles.ORGANIZATION_ADMIN:
+			case rbac.OrganizationAdmin:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -64,14 +64,14 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_ADMIN,
+							"name":          rbac.OrganizationAdmin,
 						},
 					}
 
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			// if an organization auditor or member
-			case roles.ORGANIZATION_MEMBER:
+			case rbac.OrganizationMember:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -85,14 +85,14 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_MEMBER,
+							"name":          rbac.OrganizationMember,
 						},
 					}
 
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			// if an organization auditor
-			case roles.ORGANIZATION_AUDITOR:
+			case rbac.OrganizationAuditor:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -105,10 +105,10 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_AUDITOR,
+							"name":          rbac.OrganizationAuditor,
 						},
 					}
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func AccessList(c *gin.Context) {
 		if v.Type == "user" {
 			// if an job template admin
 			switch v.Role {
-			case roles.JOB_TEMPLATE_ADMIN:
+			case rbac.JobTemplateAdmin:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -135,14 +135,14 @@ func AccessList(c *gin.Context) {
 								"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
 							},
 							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_ADMIN,
+							"name":          rbac.JobTemplateAdmin,
 						},
 					}
 
-					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+					allaccess[v.GranteeID].DirectAccess = append(allaccess[v.GranteeID].DirectAccess, access)
 				}
 			// if an job template execute
-			case roles.JOB_TEMPLATE_EXECUTE:
+			case rbac.JobTemplateExecute:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -156,10 +156,10 @@ func AccessList(c *gin.Context) {
 								"job_template": "/api/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
 							},
 							"resource_type": "job_template",
-							"name":          roles.JOB_TEMPLATE_EXECUTE,
+							"name":          rbac.JobTemplateExecute,
 						},
 					}
-					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+					allaccess[v.GranteeID].DirectAccess = append(allaccess[v.GranteeID].DirectAccess, access)
 				}
 			}
 		}

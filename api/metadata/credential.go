@@ -95,38 +95,38 @@ func credentialSummary(c *common.Credential) {
 		case "user":
 			{
 				var user common.User
-				if err := db.Users().FindId(v.UserID).One(&user); err != nil {
+				if err := db.Users().FindId(v.GranteeID).One(&user); err != nil {
 					log.WithFields(log.Fields{
-						"User ID":       v.UserID.Hex(),
+						"User ID":       v.GranteeID.Hex(),
 						"Credential":    c.Name,
 						"Credential ID": c.ID.Hex(),
 					}).Warnln("Error while getting owner user")
 					continue
 				}
 				owners = append(owners, gin.H{
-					"url":         "/v1/users/" + v.UserID + "/",
+					"url":         "/v1/users/" + v.GranteeID + "/",
 					"description": "",
 					"type":        "user",
-					"id":          v.UserID,
+					"id":          v.GranteeID,
 					"name":        user.Username,
 				})
 			}
 		case "team":
 			{
 				var team common.Team
-				if err := db.Teams().FindId(v.TeamID).One(&team); err != nil {
+				if err := db.Teams().FindId(v.GranteeID).One(&team); err != nil {
 					log.WithFields(log.Fields{
-						"Team ID":       v.TeamID.Hex(),
+						"Team ID":       v.GranteeID.Hex(),
 						"Credential":    c.Name,
 						"Credential ID": c.ID.Hex(),
 					}).Warnln("Error while getting owner team")
 					continue
 				}
 				owners = append(owners, gin.H{
-					"url":         "/v1/teams/" + v.TeamID + "/",
+					"url":         "/v1/teams/" + v.GranteeID + "/",
 					"description": team.Description,
 					"type":        "team",
-					"id":          v.TeamID,
+					"id":          v.GranteeID,
 					"name":        team.Name,
 				})
 			}

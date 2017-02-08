@@ -1,4 +1,4 @@
-package roles
+package rbac
 
 import (
 	"github.com/pearsonappeng/tensor/db"
@@ -6,9 +6,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/models"
 )
 
-func TeamRead(user common.User, team common.Team) bool {
+func teamRead(user common.User, team models.RootModel) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser || user.IsSystemAuditor {
@@ -17,17 +18,19 @@ func TeamRead(user common.User, team common.Team) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is read it doesn't matter what permission assined to the user
-	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "_id": team.OrganizationID}).Count()
+	count, err := db.Organizations().Find(bson.M{
+		"roles.user_id": user.ID,
+		"_id": team.GetOrganizationID(),
+	}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational memeber:", err)
-		return false
 	}
 	if count > 0 {
 		return true
 	}
 
-	for _, v := range team.Roles {
-		if v.Type == "user" && v.UserID == user.ID {
+	for _, v := range team.GetRoles() {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID {
 			return true
 		}
 	}
@@ -35,7 +38,7 @@ func TeamRead(user common.User, team common.Team) bool {
 	return false
 }
 
-func TeamWrite(user common.User, team common.Team) bool {
+func teamWrite(user common.User, team  models.RootModel) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -44,17 +47,20 @@ func TeamWrite(user common.User, team common.Team) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{"roles.user_id": user.ID, "roles.role": ORGANIZATION_ADMIN, "_id": team.OrganizationID}).Count()
+	count, err := db.Organizations().Find(bson.M{
+		"roles.user_id": user.ID,
+		"roles.role": OrganizationAdmin,
+		"_id": team.GetOrganizationID(),
+	}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational admin:", err)
-		return false
 	}
 	if count > 0 {
 		return true
 	}
 
-	for _, v := range team.Roles {
-		if v.Type == "user" && v.UserID == user.ID && v.Role == TEAM_ADMIN {
+	for _, v := range team.GetRoles() {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID && v.Role == TeamAdmin {
 			return true
 		}
 	}

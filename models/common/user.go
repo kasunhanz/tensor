@@ -9,10 +9,10 @@ import (
 
 // User is model for user collection
 type User struct {
-	ID      bson.ObjectId `bson:"_id" json:"id"`
-	Type    string        `bson:"-" json:"type"`
-	URL     string        `bson:"-" json:"url"`
-	Related gin.H         `bson:"-" json:"related"`
+	ID              bson.ObjectId `bson:"_id" json:"id"`
+	Type            string        `bson:"-" json:"type"`
+	URL             string        `bson:"-" json:"url"`
+	Related         gin.H         `bson:"-" json:"related"`
 
 	Username        string         `bson:"username" json:"username" binding:"required,min=1,max=30"`
 	FirstName       string         `bson:"first_name" json:"first_name,min=1,max=30"`
@@ -22,12 +22,16 @@ type User struct {
 	IsSystemAuditor bool           `bson:"is_system_auditor" json:"is_system_auditor"`
 	Password        string         `bson:"password,omitempty" json:"password"`
 
-	Deleted bool `bson:"deleted" json:"-"`
+	Deleted         bool `bson:"deleted" json:"-"`
 
-	Created  time.Time `bson:"created" json:"created"`
-	Modified time.Time `bson:"modified" json:"modified"`
+	Created         time.Time `bson:"created" json:"created"`
+	Modified        time.Time `bson:"modified" json:"modified"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles           []AccessControl `bson:"roles" json:"-"`
+}
+
+func (*User) GetType() string {
+	return "user"
 }
 
 type PatchUser struct {
@@ -41,11 +45,11 @@ type PatchUser struct {
 }
 
 type AccessUser struct {
-	ID      bson.ObjectId `bson:"_id" json:"id"`
-	Type    string        `bson:"-" json:"type"`
-	URL     string        `bson:"-" json:"url"`
-	Related gin.H         `bson:"-" json:"related"`
-	Summary *AccessType   `bson:"-" json:"summary_fields"`
+	ID              bson.ObjectId `bson:"_id" json:"id"`
+	Type            string        `bson:"-" json:"type"`
+	URL             string        `bson:"-" json:"url"`
+	Related         gin.H         `bson:"-" json:"related"`
+	Summary         *AccessType   `bson:"-" json:"summary_fields"`
 
 	Created         time.Time     `bson:"created" json:"created"`
 	Username        string        `bson:"username" json:"username" binding:"required"`

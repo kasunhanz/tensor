@@ -2,9 +2,10 @@ package common
 
 import "gopkg.in/mgo.v2/bson"
 
+// AccessControl type for storing roles in a object
+// ResourceID ObjectIds highly likely unique
 type AccessControl struct {
-	UserID bson.ObjectId `bson:"user_id,omitempty" json:"user_id,omitempty"`
-	TeamID bson.ObjectId `bson:"team_id,omitempty" json:"team_id,omitempty"`
-	Type   string        `bson:"type" json:"type"` // Team or a User
-	Role   string        `bson:"role" json:"role"`
+	GranteeID bson.ObjectId `bson:"grantee_id,omitempty" json:"grantee_id,omitempty"`
+	Type      string        `bson:"type" json:"type"` // Team or a User
+	Role      string        `bson:"role" json:"role"`
 }

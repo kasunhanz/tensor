@@ -20,15 +20,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for project related items stored in the Gin Context
 const (
-	CTXProject   = "project"
-	CTXUser      = "user"
+	CTXProject = "project"
+	CTXUser = "user"
 	CTXProjectID = "project_id"
 )
 
@@ -81,7 +80,6 @@ func GetProject(c *gin.Context) {
 
 // GetProjects returns a JSON array of projects
 func GetProjects(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -104,15 +102,8 @@ func GetProjects(c *gin.Context) {
 	var tmpProject common.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProject) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.ProjectRead(user, tmpProject) {
-			log.WithFields(log.Fields{
-				"User ID":    user.ID.Hex(),
-				"Project ID": tmpProject.ID.Hex(),
-			}).Debugln("User does not have read permissions")
-			continue
-		}
 		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
 		projects = append(projects, tmpProject)
@@ -641,7 +632,7 @@ func Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
 			}
 		}
 		return nil
@@ -671,7 +662,7 @@ func Teams(c *gin.Context) {
 	var tmpTeam common.Team
 	for _, v := range team.Roles {
 		if v.Type == "team" {
-			err := db.Teams().FindId(v.TeamID).One(&tmpTeam)
+			err := db.Teams().FindId(v.GranteeID).One(&tmpTeam)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Error": err.Error(),
@@ -753,7 +744,6 @@ func ActivityStream(c *gin.Context) {
 
 // ProjectUpdates is a Gin handler function which returns project update jobs
 func ProjectUpdates(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -784,11 +774,8 @@ func ProjectUpdates(c *gin.Context) {
 	var tmpJob ansible.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.JobRead(user, tmpJob) {
-			continue
-		}
 		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jobs = append(jobs, tmpJob)

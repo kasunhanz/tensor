@@ -11,15 +11,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXJob   = "job"
-	CTXUser  = "user"
+	CTXJob = "job"
+	CTXUser = "user"
 	CTXJobID = "job_id"
 )
 
@@ -74,8 +73,6 @@ func GetJob(c *gin.Context) {
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetJobs(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
-
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Match([]string{"status", "type", "failed"}, match)
@@ -100,11 +97,8 @@ func GetJobs(c *gin.Context) {
 	var tmpJob ansible.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.JobRead(user, tmpJob) {
-			continue
-		}
 		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jobs = append(jobs, tmpJob)

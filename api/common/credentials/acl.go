@@ -9,7 +9,7 @@ import (
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/roles"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -37,7 +37,7 @@ func AccessList(c *gin.Context) {
 		if v.Type == "user" {
 			// if an organization admin
 			switch v.Role {
-			case roles.ORGANIZATION_ADMIN:
+			case rbac.OrganizationAdmin:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -52,14 +52,14 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_ADMIN,
+							"name":          rbac.OrganizationAdmin,
 						},
 					}
 
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			// if an organization auditor or member
-			case roles.ORGANIZATION_MEMBER:
+			case rbac.OrganizationMember:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -73,14 +73,14 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_MEMBER,
+							"name":          rbac.OrganizationMember,
 						},
 					}
 
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			// if an organization auditor
-			case roles.ORGANIZATION_AUDITOR:
+			case rbac.OrganizationAuditor:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -93,10 +93,10 @@ func AccessList(c *gin.Context) {
 								"organization": "/v1/organizations/" + organization.ID.Hex() + "/",
 							},
 							"resource_type": "organization",
-							"name":          roles.ORGANIZATION_AUDITOR,
+							"name":          rbac.OrganizationAuditor,
 						},
 					}
-					allaccess[v.UserID].IndirectAccess = append(allaccess[v.UserID].IndirectAccess, access)
+					allaccess[v.GranteeID].IndirectAccess = append(allaccess[v.GranteeID].IndirectAccess, access)
 				}
 			}
 		}
@@ -108,7 +108,7 @@ func AccessList(c *gin.Context) {
 		if v.Type == "user" {
 			// if an inventory admin
 			switch v.Role {
-			case roles.CREDENTIAL_ADMIN:
+			case rbac.CredentialAdmin:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -123,14 +123,14 @@ func AccessList(c *gin.Context) {
 								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
 							},
 							"resource_type": "credential",
-							"name":          roles.INVENTORY_ADMIN,
+							"name":          rbac.InventoryAdmin,
 						},
 					}
 
-					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+					allaccess[v.GranteeID].DirectAccess = append(allaccess[v.GranteeID].DirectAccess, access)
 				}
 			// if an inventory
-			case roles.INVENTORY_USE:
+			case rbac.InventoryUse:
 				{
 					access := gin.H{
 						"descendant_roles": []string{
@@ -144,10 +144,10 @@ func AccessList(c *gin.Context) {
 								"inventory": "/v1/credentials/" + credential.ID.Hex() + "/",
 							},
 							"resource_type": "credential",
-							"name":          roles.INVENTORY_USE,
+							"name":          rbac.InventoryUse,
 						},
 					}
-					allaccess[v.UserID].DirectAccess = append(allaccess[v.UserID].DirectAccess, access)
+					allaccess[v.GranteeID].DirectAccess = append(allaccess[v.GranteeID].DirectAccess, access)
 				}
 			}
 		}

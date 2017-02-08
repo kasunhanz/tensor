@@ -14,15 +14,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXTeam   = "team"
-	CTXUser   = "user"
+	CTXTeam = "team"
+	CTXUser = "user"
 	CTXTeamID = "team_id"
 )
 
@@ -76,7 +75,6 @@ func GetTeam(c *gin.Context) {
 // GetTeams is a Gin handler function which returns list of teams
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetTeams(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -99,15 +97,8 @@ func GetTeams(c *gin.Context) {
 	var tmpTeam common.Team
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpTeam) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.TeamRead(user, tmpTeam) {
-			log.WithFields(log.Fields{
-				"User ID": user.ID.Hex(),
-				"Team ID": tmpTeam.ID.Hex(),
-			}).Debugln("User does not have read permissions")
-			continue
-		}
 		metadata.TeamMetadata(&tmpTeam)
 		// good to go add to list
 		teams = append(teams, tmpTeam)
@@ -423,7 +414,7 @@ func Users(c *gin.Context) {
 	for _, v := range team.Roles {
 		if v.Type == "user" {
 			var user common.User
-			err := db.Users().FindId(v.UserID).One(&user)
+			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Team ID": team.ID,
@@ -467,7 +458,6 @@ func Users(c *gin.Context) {
 
 // Credentials is Gin handler function which returns credentials associated with a team
 func Credentials(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var credentials []common.Credential
@@ -477,11 +467,8 @@ func Credentials(c *gin.Context) {
 	var tmpCred common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCred) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.CredentialRead(user, tmpCred) {
-			continue
-		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
 		metadata.CredentialMetadata(&tmpCred)
@@ -528,7 +515,6 @@ func Credentials(c *gin.Context) {
 
 // Projects is a Gin handler function which returns projects associated with a team
 func Projects(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var projects []common.Project
@@ -538,11 +524,8 @@ func Projects(c *gin.Context) {
 	var tmpProject common.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProject) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.ProjectRead(user, tmpProject) {
-			continue
-		}
 		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
 		projects = append(projects, tmpProject)

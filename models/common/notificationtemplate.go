@@ -29,3 +29,7 @@ type NotificationTemplate struct {
 
 	Access []AccessControl `bson:"access" json:"-"`
 }
+
+func (*NotificationTemplate) GetType() string {
+	return "notification_template"
+}

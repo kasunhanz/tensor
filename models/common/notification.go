@@ -8,7 +8,7 @@ import (
 )
 
 type Notification struct {
-	ID bson.ObjectId `bson:"_id" json:"id"`
+	ID                     bson.ObjectId `bson:"_id" json:"id"`
 
 	Status                 string `bson:"status" json:"status"`
 	Error                  string `bson:"error" json:"error"`
@@ -19,16 +19,20 @@ type Notification struct {
 	Body                   string `bson:"body" json:"body"`
 	NotificationTemplateID string `bson:"notification_template_id" json:"notification_template_id"`
 
-	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
-	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
+	CreatedByID            bson.ObjectId `bson:"created_by_id" json:"-"`
+	ModifiedByID           bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Created  time.Time `bson:"created" json:"created"`
-	Modified time.Time `bson:"modified" json:"modified"`
+	Created                time.Time `bson:"created" json:"created"`
+	Modified               time.Time `bson:"modified" json:"modified"`
 
-	Type          string `bson:"-" json:"type"`
-	URL           string `bson:"-" json:"url"`
-	Related       gin.H  `bson:"-" json:"related"`
-	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
+	Type                   string `bson:"-" json:"type"`
+	URL                    string `bson:"-" json:"url"`
+	Related                gin.H  `bson:"-" json:"related"`
+	SummaryFields          gin.H  `bson:"-" json:"summary_fields"`
 
-	Access []AccessControl `bson:"access" json:"-"`
+	Access                 []AccessControl `bson:"access" json:"-"`
+}
+
+func (*Notification) GetType() string {
+	return "notification"
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
@@ -22,9 +21,9 @@ import (
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXOrganization   = "organization"
+	CTXOrganization = "organization"
 	CTXOrganizationID = "organization_id"
-	CTXUser           = "user"
+	CTXUser = "user"
 )
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
@@ -60,17 +59,8 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	user := c.MustGet(CTXUser).(common.User)
 
-	// reject the request if the user doesn't have permissions
-	if !roles.OrganizationRead(user, organization) {
-		c.JSON(http.StatusUnauthorized, common.Error{
-			Code:     http.StatusUnauthorized,
-			Messages: []string{"Unauthorized"},
-		})
-		c.Abort()
-		return
-	}
+	// TODO: reject the request if the user doesn't have permissions
 
 	c.Set(CTXOrganization, organization)
 	c.Next()
@@ -88,7 +78,6 @@ func GetOrganization(c *gin.Context) {
 // GetOrganizations is a Gin handler function which returns list of organization
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetOrganizations(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -110,11 +99,8 @@ func GetOrganizations(c *gin.Context) {
 	var tmpOrganization common.Organization
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpOrganization) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.OrganizationRead(user, tmpOrganization) {
-			continue
-		}
 		metadata.OrganizationMetadata(&tmpOrganization)
 		// good to go add to list
 		organizations = append(organizations, tmpOrganization)
@@ -521,7 +507,7 @@ func GetAdmins(c *gin.Context) {
 		// get user with role admin
 		if v.Type == "user" && v.Role == "admin" {
 			var user common.User
-			err := db.Users().FindId(v.UserID).One(&user)
+			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
 				log.Errorln("Error while getting owner users for organization", organization.ID, err)
 				continue //skip iteration
@@ -533,7 +519,7 @@ func GetAdmins(c *gin.Context) {
 		//get teams with role admin and team users to output slice
 		if v.Type == "team" && v.Role == "admin" {
 			var team common.Team
-			err := db.Teams().FindId(v.TeamID).One(&team)
+			err := db.Teams().FindId(v.GranteeID).One(&team)
 			if err != nil {
 				log.Errorln("Error while getting team for organization role", organization.ID, err)
 				continue // ignore and continue
@@ -542,7 +528,7 @@ func GetAdmins(c *gin.Context) {
 			for _, v := range team.Roles {
 				var user common.User
 				if v.Type == "user" {
-					err := db.Users().FindId(v.UserID).One(&user)
+					err := db.Users().FindId(v.GranteeID).One(&user)
 					if err != nil {
 						log.Errorln("Error while getting owner users for organization", organization.ID, err)
 						continue // ignore and continue

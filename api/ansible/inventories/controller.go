@@ -14,7 +14,6 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
@@ -23,8 +22,8 @@ import (
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXInventory   = "inventory"
-	CTXUser        = "user"
+	CTXInventory = "inventory"
+	CTXUser = "user"
 	CTXInventoryID = "inventory_id"
 )
 
@@ -620,7 +619,6 @@ func Script(c *gin.Context) {
 func JobTemplates(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
 
 	var jobTemplate []ansible.JobTemplate
 	// new mongodb iterator
@@ -629,11 +627,8 @@ func JobTemplates(c *gin.Context) {
 	var tmpJobTemplate ansible.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.JobTemplateRead(user, tmpJobTemplate) {
-			continue
-		}
 		metadata.JTemplateMetadata(&tmpJobTemplate)
 		// good to go add to list
 		jobTemplate = append(jobTemplate, tmpJobTemplate)
@@ -668,7 +663,6 @@ func JobTemplates(c *gin.Context) {
 func RootGroups(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
 
 	var groups []ansible.Group
 	query := bson.M{
@@ -684,11 +678,8 @@ func RootGroups(c *gin.Context) {
 	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
-		// if the user doesn't have access to inventory
+		// TODO: if the user doesn't have access to inventory
 		// skip to next
-		if !roles.InventoryRead(user, inv) {
-			continue
-		}
 		metadata.GroupMetadata(&tmpGroup)
 		// good to go add to list
 		groups = append(groups, tmpGroup)
@@ -723,7 +714,6 @@ func RootGroups(c *gin.Context) {
 func Groups(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
 
 	var groups []ansible.Group
 	query := bson.M{
@@ -735,11 +725,8 @@ func Groups(c *gin.Context) {
 	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
-		// if the user doesn't have access to inventory
+		// TODO: if the user doesn't have access to inventory
 		// skip to next
-		if !roles.InventoryRead(user, inv) {
-			continue
-		}
 		metadata.GroupMetadata(&tmpGroup)
 		// good to go add to list
 		groups = append(groups, tmpGroup)
@@ -774,7 +761,6 @@ func Groups(c *gin.Context) {
 func Hosts(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
 
 	var hosts []ansible.Host
 	query := bson.M{
@@ -786,11 +772,8 @@ func Hosts(c *gin.Context) {
 	var tmpHost ansible.Host
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
-		// if the user doesn't have access to host
+		// TODO: if the user doesn't have access to host
 		// skip to next
-		if !roles.InventoryRead(user, inv) {
-			continue
-		}
 		metadata.HostMetadata(&tmpHost)
 		// good to go add to list
 		hosts = append(hosts, tmpHost)

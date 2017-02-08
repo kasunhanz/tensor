@@ -8,26 +8,26 @@ import (
 )
 
 const (
-	CredentialKindSSH        = "ssh"
-	CredentialKindNET        = "net"
-	CredentialKindWIN        = "windows"
-	CredentialKindSCM        = "scm"
-	CredentialKindAWS        = "aws"
-	CredentialKindRAX        = "rax"
-	CredentialKindVMWARE     = "vmware"
+	CredentialKindSSH = "ssh"
+	CredentialKindNET = "net"
+	CredentialKindWIN = "windows"
+	CredentialKindSCM = "scm"
+	CredentialKindAWS = "aws"
+	CredentialKindRAX = "rax"
+	CredentialKindVMWARE = "vmware"
 	CredentialKindSATELLITE6 = "satellite6"
 	CredentialKindCLOUDFORMS = "cloudforms"
-	CredentialKindGCE        = "gce"
-	CredentialKindAZURE      = "azure"
-	CredentialKindOPENSTACK  = "openstack"
+	CredentialKindGCE = "gce"
+	CredentialKindAZURE = "azure"
+	CredentialKindOPENSTACK = "openstack"
 )
 
 // Credential is the model for Credential collection
 type Credential struct {
-	ID bson.ObjectId `bson:"_id" json:"id"`
+	ID                bson.ObjectId `bson:"_id" json:"id"`
 	// required feilds
-	Name string `bson:"name" json:"name" binding:"required,min=1,max=500"`
-	Kind string `bson:"kind" json:"kind" binding:"required,credentialkind"`
+	Name              string `bson:"name" json:"name" binding:"required,min=1,max=500"`
+	Kind              string `bson:"kind" json:"kind" binding:"required,credentialkind"`
 
 	//optional feilds
 	Cloud             bool           `bson:"cloud,omitempty" json:"cloud"`
@@ -53,18 +53,22 @@ type Credential struct {
 	AuthorizePassword string         `bson:"authorize_password,omitempty" json:"authorize_password"`
 	OrganizationID    *bson.ObjectId `bson:"organization_id,omitempty" json:"organization"`
 
-	Created  time.Time `bson:"created" json:"created"`
-	Modified time.Time `bson:"modified" json:"modified"`
+	Created           time.Time `bson:"created" json:"created"`
+	Modified          time.Time `bson:"modified" json:"modified"`
 
-	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
-	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
+	CreatedByID       bson.ObjectId `bson:"created_by_id" json:"-"`
+	ModifiedByID      bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Type    string `bson:"-" json:"type"`
-	URL     string `bson:"-" json:"url"`
-	Related gin.H  `bson:"-" json:"related"`
-	Summary gin.H  `bson:"-" json:"summary_fields"`
+	Type              string `bson:"-" json:"type"`
+	URL               string `bson:"-" json:"url"`
+	Related           gin.H  `bson:"-" json:"related"`
+	Summary           gin.H  `bson:"-" json:"summary_fields"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles             []AccessControl `bson:"roles" json:"-"`
+}
+
+func (*Credential) GetType() string {
+	return "credential"
 }
 
 type PatchCredential struct {

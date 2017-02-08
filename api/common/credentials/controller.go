@@ -11,7 +11,6 @@ import (
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
@@ -43,7 +42,6 @@ func Middleware(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	user := c.MustGet(CTXUser).(common.User)
 
 	var credential common.Credential
 	if err = db.Credentials().FindId(bson.ObjectIdHex(ID)).One(&credential); err != nil {
@@ -59,15 +57,7 @@ func Middleware(c *gin.Context) {
 		return
 	}
 
-	// reject the request if the user doesn't have permissions
-	if !roles.CredentialRead(user, credential) {
-		c.JSON(http.StatusUnauthorized, common.Error{
-			Code:     http.StatusUnauthorized,
-			Messages: []string{"Unauthorized"},
-		})
-		c.Abort()
-		return
-	}
+	// TODO: reject the request if the user doesn't have permissions
 
 	c.Set(CTXCredential, credential)
 	c.Next()
@@ -86,7 +76,6 @@ func GetCredential(c *gin.Context) {
 // GetCredentials is a Gin handler function which returns list of credentials
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetCredentials(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -111,15 +100,8 @@ func GetCredentials(c *gin.Context) {
 	var tmpCred common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCred) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.CredentialRead(user, tmpCred) {
-			log.WithFields(log.Fields{
-				"User ID":       user.ID.Hex(),
-				"Credential ID": tmpCred.ID.Hex(),
-			}).Debugln("User does not have read permissions")
-			continue
-		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
 		metadata.CredentialMetadata(&tmpCred)
@@ -247,7 +229,7 @@ func AddCredential(c *gin.Context) {
 		return
 	}
 
-	roles.AddCredentialUser(req, user.ID, roles.CREDENTIAL_ADMIN)
+	// TODO: add user to role
 
 	// add new activity to activity stream
 	if err := db.ActivityStream().Insert(common.Activity{
@@ -627,7 +609,7 @@ func OwnerTeams(c *gin.Context) {
 	for _, v := range credential.Roles {
 		if v.Type == "team" {
 			var team common.Team
-			err := db.Teams().FindId(v.TeamID).One(&team)
+			err := db.Teams().FindId(v.GranteeID).One(&team)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Credential ID": credential.ID,
@@ -677,7 +659,7 @@ func OwnerUsers(c *gin.Context) {
 	for _, v := range credential.Roles {
 		if v.Type == "user" {
 			var user common.User
-			err := db.Users().FindId(v.UserID).One(&user)
+			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"Credential ID": credential.ID,

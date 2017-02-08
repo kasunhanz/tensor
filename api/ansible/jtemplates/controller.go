@@ -17,7 +17,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/queue"
-	"github.com/pearsonappeng/tensor/roles"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/util"
@@ -28,8 +27,8 @@ import (
 
 // Keys for credential releated items stored in the Gin Context
 const (
-	CTXJobTemplate   = "job_template"
-	CTXUser          = "user"
+	CTXJobTemplate = "job_template"
+	CTXUser = "user"
 	CTXJobTemplateID = "job_template_id"
 )
 
@@ -99,8 +98,6 @@ func GetJTemplate(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func GetJTemplates(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
-
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
@@ -122,11 +119,8 @@ func GetJTemplates(c *gin.Context) {
 	var tmpJobTemplate ansible.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
-		// if the user doesn't have access to credential
+		// TODO: if the user doesn't have access to credential
 		// skip to next
-		if !roles.JobTemplateRead(user, tmpJobTemplate) {
-			continue
-		}
 		metadata.JTemplateMetadata(&tmpJobTemplate)
 		// good to go add to list
 		jobTemplates = append(jobTemplates, tmpJobTemplate)
