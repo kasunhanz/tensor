@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -71,7 +70,6 @@ func (p *QueryParser) Lookups(fields []string, query bson.M) bson.M {
 	query = p.Ne(fields, query)
 	query = p.Gte(fields, query)
 
-	log.Infoln(query)
 	return query
 }
 
@@ -86,7 +84,7 @@ func (p *QueryParser) Exact(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__exact"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: ""}}
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "^" + ar[j] + "$", Options: ""}}
 			}
 		}
 	}
@@ -102,7 +100,7 @@ func (p *QueryParser) IExact(s []string, query bson.M) bson.M {
 		ic := s[i] + "__iexact"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: "i"}}
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "^" + ar[j] + "$", Options: "i"}}
 			}
 		}
 	}
@@ -117,7 +115,7 @@ func (p *QueryParser) Contains(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__contains"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/.*" + ar[j] + ".*/", Options: ""}}
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: ".*" + ar[j] + ".*", Options: ""}}
 			}
 		}
 	}
@@ -133,7 +131,7 @@ func (p *QueryParser) IContains(s []string, query bson.M) bson.M {
 		ic := s[i] + "__icontains"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/.*" + ar[j] + ".*/", Options: "i"}}
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: ".*" + ar[j] + ".*", Options: "i"}}
 			}
 		}
 	}
@@ -148,7 +146,7 @@ func (p *QueryParser) Startswith(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__startswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "/", Options: ""}}
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "^" + ar[j], Options: ""}}
 			}
 		}
 	}
@@ -164,7 +162,7 @@ func (p *QueryParser) IStartswith(s []string, query bson.M) bson.M {
 		ic := s[i] + "__istartswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "/", Options: "i"}}
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "^" + ar[j], Options: "i"}}
 			}
 		}
 	}
@@ -179,7 +177,7 @@ func (p *QueryParser) Endswith(fields []string, query bson.M) bson.M {
 		ic := fields[i] + "__endswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/^" + ar[j] + "$/", Options: ""}}
+				query[fields[i]] = bson.M{"$regex": bson.RegEx{Pattern: "^" + ar[j] + "$", Options: ""}}
 			}
 		}
 	}
@@ -195,7 +193,7 @@ func (p *QueryParser) IEndswith(s []string, query bson.M) bson.M {
 		ic := s[i] + "__iendswith"
 		if ar := p.From[ic]; len(ar) > 0 {
 			for j := range ar {
-				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "/" + ar[j] + "$/", Options: "i"}}
+				query[s[i]] = bson.M{"$regex": bson.RegEx{Pattern: "" + ar[j] + "$", Options: "i"}}
 			}
 		}
 	}

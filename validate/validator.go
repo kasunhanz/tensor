@@ -1,4 +1,4 @@
-package util
+package validate
 
 import (
 	"reflect"
@@ -52,14 +52,14 @@ var (
 	rxTerraformJobType = regexp.MustCompile(TerraformJobType)
 )
 
-type SpaceValidator struct {
+type Validator struct {
 	once     sync.Once
 	validate *validator.Validate
 }
 
-var _ binding.StructValidator = &SpaceValidator{}
+var _ binding.StructValidator = &Validator{}
 
-func (v *SpaceValidator) ValidateStruct(obj interface{}) error {
+func (v *Validator) ValidateStruct(obj interface{}) error {
 	if kindOfData(obj) == reflect.Struct {
 		v.lazyinit()
 		if err := v.validate.Struct(obj); err != nil {
@@ -69,7 +69,7 @@ func (v *SpaceValidator) ValidateStruct(obj interface{}) error {
 	return nil
 }
 
-func (v *SpaceValidator) lazyinit() {
+func (v *Validator) lazyinit() {
 	v.once.Do(func() {
 		v.validate = validator.New()
 		v.validate.SetTagName("binding")
@@ -83,7 +83,7 @@ func (v *SpaceValidator) lazyinit() {
 		v.validate.RegisterValidation("become_method", isBecome)
 		v.validate.RegisterValidation("dnsname", isDNSName)
 		v.validate.RegisterValidation("iphost", isHost)
-		v.validate.RegisterValidation("credentialkind", isCredentialKind)
+		v.validate.RegisterValidation("credential_kind", isCredentialKind)
 		v.validate.RegisterValidation("naproperty", naProperty)
 		v.validate.RegisterValidation("scmtype", isScmType)
 		v.validate.RegisterValidation("jobtype", isJobType)
@@ -92,10 +92,10 @@ func (v *SpaceValidator) lazyinit() {
 
 		//translations
 		// credentialkind
-		v.validate.RegisterTranslation("credentialkind", trans, func(ut ut.Translator) error {
-			return ut.Add("credentialkind", "{0} must have either one of windows,ssh,net,scm,aws,rax,vmware,satellite6,cloudforms,gce,azure,openstack", true)
+		v.validate.RegisterTranslation("credential_kind", trans, func(ut ut.Translator) error {
+			return ut.Add("credential_kind", "{0} must have either one of windows,ssh,net,scm,aws,rax,vmware,satellite6,cloudforms,gce,azure,openstack", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
-			t, _ := ut.T("credentialkind", fe.Field())
+			t, _ := ut.T("credential_kind", fe.Field())
 
 			return t
 		})

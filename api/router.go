@@ -5,20 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/ansible/groups"
-	"github.com/pearsonappeng/tensor/api/ansible/hosts"
-	"github.com/pearsonappeng/tensor/api/ansible/inventories"
-	"github.com/pearsonappeng/tensor/api/ansible/jobs"
-	"github.com/pearsonappeng/tensor/api/ansible/jtemplates"
-	"github.com/pearsonappeng/tensor/api/common/credentials"
-	"github.com/pearsonappeng/tensor/api/common/dashboard"
-	"github.com/pearsonappeng/tensor/api/common/organizations"
-	"github.com/pearsonappeng/tensor/api/common/projects"
-	"github.com/pearsonappeng/tensor/api/common/teams"
-	"github.com/pearsonappeng/tensor/api/common/users"
-	"github.com/pearsonappeng/tensor/api/sockets"
-	tjobs "github.com/pearsonappeng/tensor/api/terraform/jobs"
-	tjtemplate "github.com/pearsonappeng/tensor/api/terraform/jtemplates"
 	"github.com/pearsonappeng/tensor/cors"
 	"github.com/pearsonappeng/tensor/jwt"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -33,10 +19,10 @@ func Route(r *gin.Engine) {
 	// Apply the middleware to the router (works with groups too)
 	r.Use(cors.Middleware(cors.Config{
 		Origins:         "*",
-		Methods:         "GET, PUT, POST, DELETE, PATCH",
-		RequestHeaders:  "Origin, Authorization, Content-Type",
-		ExposedHeaders:  "",
-		MaxAge:          50 * time.Second,
+		Methods:         "POST, GET, OPTIONS, PUT, DELETE",
+		RequestHeaders:  "X-Requested-With, Content-Type, Origin, Authorization, Accept, Client-Security-Token, Accept-Encoding, x-access-token",
+		ExposedHeaders:  "Content-Length",
+		MaxAge:          86400 * time.Second,
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
@@ -62,24 +48,27 @@ func Route(r *gin.Engine) {
 		// Include jwt authentication middleware
 		v1.Use(jwt.HeaderAuthMiddleware.MiddlewareFunc())
 		{
+			dashboard := new(DashBoardController)
+			users := new(UserController)
+
 			v1.GET("/refresh_token", jwt.HeaderAuthMiddleware.RefreshHandler)
 			v1.GET("/config", getSystemInfo)
 			v1.GET("/dashboard", dashboard.GetInfo)
-			v1.GET("/ws", sockets.Handler)
-			v1.GET("/me", users.GetUser)
+			v1.GET("/me", users.One)
 
+			organizations := new(OrganizationController)
 			// Organizations endpoints
 			orgz := v1.Group("/organizations")
 			{
-				orgz.GET("/", organizations.GetOrganizations)
-				orgz.POST("/", organizations.AddOrganization)
+				orgz.GET("/", organizations.All)
+				orgz.POST("/", organizations.Create)
 
 				org := orgz.Group("/:organization_id", organizations.Middleware)
 				{
-					org.GET("/", organizations.GetOrganization)
-					org.PUT("/", organizations.UpdateOrganization)
-					org.PATCH("/", organizations.PatchOrganization)
-					org.DELETE("/", organizations.RemoveOrganization)
+					org.GET("/", organizations.One)
+					org.PUT("/", organizations.Update)
+					org.PATCH("/", organizations.Patch)
+					org.DELETE("/", organizations.Delete)
 
 					// 'Organization' related endpoints
 					org.GET("/users/", organizations.GetUsers)
@@ -102,15 +91,15 @@ func Route(r *gin.Engine) {
 			usrs := v1.Group("/users")
 			{
 				// Users endpoints
-				usrs.GET("/", users.GetUsers)
-				usrs.POST("/", users.AddUser)
+				usrs.GET("/", users.All)
+				usrs.POST("/", users.Create)
 
 				usr := usrs.Group("/:user_id", users.Middleware)
 				{
-					usr.GET("/", users.GetUser)
-					usr.PUT("/", users.UpdateUser)
-					usr.PATCH("/", users.PatchUser)
-					usr.DELETE("/", users.DeleteUser)
+					usr.GET("/", users.One)
+					usr.PUT("/", users.Update)
+					usr.PATCH("/", users.Patch)
+					usr.DELETE("/", users.Delete)
 					// 'User' related endpoints
 					usr.GET("/admin_of_organizations/", users.AdminsOfOrganizations)
 					usr.GET("/organizations/", users.Organizations)
@@ -126,20 +115,21 @@ func Route(r *gin.Engine) {
 
 			prjcts := v1.Group("/projects")
 			{
+				projects := new(ProjectController)
 				// Projects endpoints
-				prjcts.GET("/", projects.GetProjects)
-				prjcts.POST("/", projects.AddProject)
+				prjcts.GET("/", projects.All)
+				prjcts.POST("/", projects.Create)
 
 				prjct := prjcts.Group("/:project_id", projects.Middleware)
 				{
-					prjct.GET("/", projects.GetProject)
-					prjct.PUT("/", projects.UpdateProject)
-					prjct.PATCH("/", projects.PatchProject)
-					prjct.DELETE("/", projects.RemoveProject)
+					prjct.GET("/", projects.One)
+					prjct.PUT("/", projects.Update)
+					prjct.PATCH("/", projects.Patch)
+					prjct.DELETE("/", projects.Delete)
 
-					// 'Project' releated endpoints
+					// 'Project' related endpoints
 					prjct.GET("/activity_stream/", projects.ActivityStream)
-					prjct.GET("/teams/", projects.Teams)
+					prjct.GET("/teams/", projects.OwnerTeams)
 					prjct.GET("/playbooks/", projects.Playbooks)
 					prjct.GET("/access_list/", projects.AccessList)
 					prjct.GET("/update/", projects.SCMUpdateInfo)
@@ -152,16 +142,17 @@ func Route(r *gin.Engine) {
 
 			crdntls := v1.Group("/credentials")
 			{
+				credentials := new(CredentialController)
 				// Credentials endpoints
-				crdntls.GET("/", credentials.GetCredentials)
-				crdntls.POST("/", credentials.AddCredential)
+				crdntls.GET("/", credentials.All)
+				crdntls.POST("/", credentials.Create)
 
 				crdntl := crdntls.Group(":credential_id", credentials.Middleware)
 				{
-					crdntl.GET("/", credentials.GetCredential)
-					crdntl.PUT("/", credentials.UpdateCredential)
-					crdntl.PATCH("/", credentials.PatchCredential)
-					crdntl.DELETE("/", credentials.RemoveCredential)
+					crdntl.GET("/", credentials.One)
+					crdntl.PUT("/", credentials.Update)
+					crdntl.PATCH("/", credentials.Patch)
+					crdntl.DELETE("/", credentials.Delete)
 
 					// 'Credential' releated endpoints
 					crdntl.GET("/owner_teams/", credentials.OwnerTeams)
@@ -174,16 +165,17 @@ func Route(r *gin.Engine) {
 
 			tms := v1.Group("/teams")
 			{
+				teams := new(TeamController)
 				// Teams endpoints
-				tms.GET("/", teams.GetTeams)
-				tms.POST("/", teams.AddTeam)
+				tms.GET("/", teams.All)
+				tms.POST("/", teams.Create)
 
 				tm := tms.Group("/:team_id", teams.Middleware)
 				{
-					tm.GET("/", teams.GetTeam)
-					tm.PUT("/", teams.UpdateTeam)
-					tm.PATCH("/", teams.PatchTeam)
-					tm.DELETE("/", teams.RemoveTeam)
+					tm.GET("/", teams.One)
+					tm.PUT("/", teams.Update)
+					tm.PATCH("/", teams.Patch)
+					tm.DELETE("/", teams.Delete)
 
 					// 'Team' releated endpoints
 					tm.GET("/users/", teams.Users)
@@ -196,16 +188,17 @@ func Route(r *gin.Engine) {
 
 			invtrs := v1.Group("/inventories")
 			{
+				inventories := new(InventoryController)
 				// Inventories endpoints
-				invtrs.GET("/", inventories.GetInventories)
-				invtrs.POST("/", inventories.AddInventory)
+				invtrs.GET("/", inventories.All)
+				invtrs.POST("/", inventories.Create)
 
 				intr := invtrs.Group("/:inventory_id", inventories.Middleware)
 				{
-					intr.GET("/", inventories.GetInventory)
-					intr.PUT("/", inventories.UpdateInventory)
-					intr.PATCH("/", inventories.PatchInventory)
-					intr.DELETE("/", inventories.RemoveInventory)
+					intr.GET("/", inventories.One)
+					intr.PUT("/", inventories.Update)
+					intr.PATCH("/", inventories.Patch)
+					intr.DELETE("/", inventories.Delete)
 					intr.GET("/script/", inventories.Script)
 
 					// 'Inventory' releated endpoints
@@ -224,16 +217,17 @@ func Route(r *gin.Engine) {
 
 			hsts := v1.Group("/hosts")
 			{
+				hosts := new(HostController)
 				// Hosts endpoints
-				hsts.GET("/", hosts.GetHosts)
-				hsts.POST("/", hosts.AddHost)
+				hsts.GET("/", hosts.All)
+				hsts.POST("/", hosts.Create)
 
 				hst := hsts.Group("/:host_id", hosts.Middleware)
 				{
-					hst.GET("/", hosts.GetHost)
-					hst.PUT("/", hosts.UpdateHost)
-					hst.PATCH("/", hosts.PatchHost)
-					hst.DELETE("/", hosts.RemoveHost)
+					hst.GET("/", hosts.One)
+					hst.PUT("/", hosts.Update)
+					hst.PATCH("/", hosts.Patch)
+					hst.DELETE("/", hosts.Delete)
 
 					// 'Host' releated endpoints
 					hst.GET("/job_host_summaries/", notImplemented) //TODO: implement
@@ -250,16 +244,17 @@ func Route(r *gin.Engine) {
 
 			grps := v1.Group("/groups")
 			{
+				groups := new(GroupController)
 				// Groups endpoints
-				grps.GET("/", groups.GetGroups)
-				grps.POST("/", groups.AddGroup)
+				grps.GET("/", groups.All)
+				grps.POST("/", groups.Create)
 
 				grp := grps.Group("/:group_id", groups.Middleware)
 				{
-					grp.GET("/", groups.GetGroup)
-					grp.PUT("/", groups.UpdateGroup)
-					grp.PATCH("/", groups.PatchGroup)
-					grp.DELETE("/", groups.RemoveGroup)
+					grp.GET("/", groups.One)
+					grp.PUT("/", groups.Update)
+					grp.PATCH("/", groups.Patch)
+					grp.DELETE("/", groups.Delete)
 
 					// 'Group' related endpoints
 					grp.GET("/variable_data/", groups.VariableData)
@@ -276,16 +271,17 @@ func Route(r *gin.Engine) {
 
 			ajtmps := v1.Group("/job_templates")
 			{
+				jtemplate := new(JobTemplateController)
 				// Job Templates endpoints for Ansible
-				ajtmps.GET("/", jtemplate.GetJTemplates)
-				ajtmps.POST("/", jtemplate.AddJTemplate)
+				ajtmps.GET("/", jtemplate.All)
+				ajtmps.POST("/", jtemplate.Create)
 
 				jtmp := ajtmps.Group("/:job_template_id", jtemplate.Middleware)
 				{
-					jtmp.GET("/", jtemplate.GetJTemplate)
-					jtmp.PUT("/", jtemplate.UpdateJTemplate)
-					jtmp.PATCH("/", jtemplate.PatchJTemplate)
-					jtmp.DELETE("/", jtemplate.RemoveJTemplate)
+					jtmp.GET("/", jtemplate.One)
+					jtmp.PUT("/", jtemplate.Update)
+					jtmp.PATCH("/", jtemplate.Patch)
+					jtmp.DELETE("/", jtemplate.Delete)
 
 					// 'Job Template' releated endpoints
 					jtmp.GET("/jobs/", jtemplate.Jobs)
@@ -304,12 +300,13 @@ func Route(r *gin.Engine) {
 
 			ajbs := v1.Group("/jobs")
 			{
+				jobs := new(JobController)
 				// Jobs endpoints for Ansible
-				ajbs.GET("/", jobs.GetJobs)
+				ajbs.GET("/", jobs.All)
 
 				jb := ajbs.Group("/:job_id", jobs.Middleware)
 				{
-					jb.GET("/", jobs.GetJob)
+					jb.GET("/", jobs.One)
 					jb.GET("/cancel/", jobs.CancelInfo)
 					jb.POST("/cancel/", jobs.Cancel)
 					jb.GET("/stdout/", jobs.StdOut)
@@ -329,16 +326,17 @@ func Route(r *gin.Engine) {
 			{
 				tjtmps := terraform.Group("/job_templates/")
 				{
+					tjtemplate := new(TJobTmplController)
 					// Job Templates endpoints for Terraform
-					tjtmps.GET("/", tjtemplate.GetJTemplates)
-					tjtmps.POST("/", tjtemplate.AddJTemplate)
+					tjtmps.GET("/", tjtemplate.All)
+					tjtmps.POST("/", tjtemplate.Create)
 
 					jtmp := tjtmps.Group("/:job_template_id", tjtemplate.Middleware)
 					{
-						jtmp.GET("/", tjtemplate.GetJTemplate)
-						jtmp.PUT("/", tjtemplate.UpdateJTemplate)
-						jtmp.PATCH("/", tjtemplate.PatchJTemplate)
-						jtmp.DELETE("/", tjtemplate.RemoveJTemplate)
+						jtmp.GET("/", tjtemplate.One)
+						jtmp.PUT("/", tjtemplate.Update)
+						jtmp.PATCH("/", tjtemplate.Patch)
+						jtmp.DELETE("/", tjtemplate.Delete)
 
 						// 'Job Template' endpoints
 						jtmp.GET("/jobs/", tjtemplate.Jobs)
@@ -357,12 +355,13 @@ func Route(r *gin.Engine) {
 
 				tjbs := terraform.Group("/jobs")
 				{
+					tjobs := new(TerraformJobController)
 					// Jobs endpoints for Terraform
-					tjbs.GET("/", tjobs.GetJobs)
+					tjbs.GET("/", tjobs.All)
 
 					jb := tjbs.Group("/:job_id", tjobs.Middleware)
 					{
-						jb.GET("/", tjobs.GetJob)
+						jb.GET("/", tjobs.One)
 						jb.GET("/cancel/", tjobs.CancelInfo)
 						jb.POST("/cancel/", tjobs.Cancel)
 						jb.GET("/stdout/", tjobs.StdOut)

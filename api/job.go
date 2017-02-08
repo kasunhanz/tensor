@@ -1,4 +1,4 @@
-package jobs
+package api
 
 import (
 	"net/http"
@@ -15,17 +15,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
 	CTXJob = "job"
-	CTXUser = "user"
 	CTXJobID = "job_id"
 )
 
+type JobController struct{}
+
 // Middleware generates a middleware handler function that works inside of a Gin request.
-// This function takes CTXJobID from Gin Context and retrives credential data from the collection
+// This function takes CTXJobID from Gin Context and retrieves credential data from the collection
 // and store credential data under key CTXJob in Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl JobController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXJobID, c)
 
 	if err != nil {
@@ -62,7 +63,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetJob is a Gin handler function which returns the job as a JSON object
-func GetJob(c *gin.Context) {
+func (ctrl JobController) One(c *gin.Context) {
 	job := c.MustGet(CTXJob).(ansible.Job)
 
 	metadata.JobMetadata(&job)
@@ -72,7 +73,7 @@ func GetJob(c *gin.Context) {
 
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetJobs(c *gin.Context) {
+func (ctrl JobController) All(c *gin.Context) {
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Match([]string{"status", "type", "failed"}, match)
@@ -144,7 +145,7 @@ func GetJobs(c *gin.Context) {
 // CancelInfo to determine if the job can be cancelled.
 // The response will include the following field:
 // can_cancel: [boolean] Indicates whether this job can be canceled
-func CancelInfo(c *gin.Context) {
+func (ctrl JobController) CancelInfo(c *gin.Context) {
 	//get Job set by the middleware
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, gin.H{"can_cancel": false})
@@ -153,13 +154,13 @@ func CancelInfo(c *gin.Context) {
 // Cancel cancels the pending job.
 // The response status code will be 202 if successful, or 405 if the job cannot be
 // canceled.
-func Cancel(c *gin.Context) {
+func (ctrl JobController) Cancel(c *gin.Context) {
 	//get Job set by the middleware
 	c.AbortWithStatus(http.StatusMethodNotAllowed)
 }
 
 // StdOut returns ANSI standard output of a Job
-func StdOut(c *gin.Context) {
+func (ctrl JobController) StdOut(c *gin.Context) {
 	//get Job set by the middleware
 	job := c.MustGet(CTXJob).(ansible.Job)
 

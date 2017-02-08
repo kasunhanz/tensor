@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // team is the model for organization
@@ -33,6 +34,23 @@ type Team struct {
 
 func (*Team) GetType() string {
 	return "team"
+}
+
+func (team *Team) IsUnique() bool {
+	count, err := db.Teams().Find(bson.M{"name": team.Name, "organization_id": team.OrganizationID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (team *Team) OrganizationExist() bool {
+	count, err := db.Organizations().FindId(team.OrganizationID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
 }
 
 type PatchTeam struct {

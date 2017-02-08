@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // Project is the model for project
@@ -56,6 +57,40 @@ type Project struct {
 func (*Project) GetType() string {
 	return "project"
 }
+
+func (project *Project) IsUnique() bool {
+	count, err := db.Projects().Find(bson.M{"name": project.Name, "organization_id": project.OrganizationID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (project *Project) Exist() bool {
+	count, err := db.Projects().FindId(project.ID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (project *Project) OrganizationExist() bool {
+	count, err := db.Organizations().FindId(project.OrganizationID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (project *Project) SCMCredentialExist() bool {
+	count, err := db.Credentials().Find(bson.M{"_id": project.ScmCredentialID, "kind": CredentialKindSCM}).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
 
 // PatchProject is the model for PATCH requests
 type PatchProject struct {

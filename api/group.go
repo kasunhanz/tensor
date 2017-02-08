@@ -1,4 +1,4 @@
-package groups
+package api
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -17,21 +16,23 @@ import (
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 )
 
-// Keys for group releated items stored in the Gin Context
+// Keys for group related items stored in the Gin Context
 const (
-	CTXGroup   = "group"
-	CTXUser    = "user"
+	CTXGroup = "group"
 	CTXGroupID = "group_id"
 )
+
+type GroupController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes host_id parameter from the Gin Context and fetches host data from the database
 // it will set host data under key host in the Gin Context.
-func Middleware(c *gin.Context) {
+func (ctrl GroupController) Middleware(c *gin.Context) {
 
 	ID, err := util.GetIdParam(CTXGroupID, c)
 
@@ -69,7 +70,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetGroup is a Gin handler function which returns the host as a JSON object.
-func GetGroup(c *gin.Context) {
+func (ctrl GroupController) One(c *gin.Context) {
 	group := c.MustGet(CTXGroup).(ansible.Group)
 
 	metadata.GroupMetadata(&group)
@@ -79,7 +80,7 @@ func GetGroup(c *gin.Context) {
 
 // GetGroups is a Gin handler function which returns list of Groups
 // This takes lookup parameters and order parameters to filder and sort output data.
-func GetGroups(c *gin.Context) {
+func (ctrl GroupController) All(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
@@ -151,7 +152,7 @@ func GetGroups(c *gin.Context) {
 
 // AddGroup is a Gin handler function which creates a new group using request payload.
 // This accepts Group model.
-func AddGroup(c *gin.Context) {
+func (ctrl GroupController) Create(c *gin.Context) {
 	var req ansible.Group
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
@@ -163,13 +164,13 @@ func AddGroup(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// if the group exist in the collection it is not unique
-	if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Group with this Name and Inventory already exists."},
@@ -177,8 +178,9 @@ func AddGroup(c *gin.Context) {
 		return
 	}
 
+
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID) {
+	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
@@ -188,7 +190,7 @@ func AddGroup(c *gin.Context) {
 
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
-		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+		if !req.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
@@ -228,7 +230,7 @@ func AddGroup(c *gin.Context) {
 // UpdateGroup is a handler function which updates a group using request payload.
 // This replaces all the fields in the database. empty "" fields and
 // unspecified fields will be removed from the database object.
-func UpdateGroup(c *gin.Context) {
+func (ctrl GroupController) Update(c *gin.Context) {
 	// get Group from the gin.Context
 	group := c.MustGet(CTXGroup).(ansible.Group)
 	tmpGroup := group
@@ -240,13 +242,13 @@ func UpdateGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID) {
+	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
@@ -256,7 +258,7 @@ func UpdateGroup(c *gin.Context) {
 
 	if req.Name != group.Name {
 		// if the group exist in the collection it is not unique
-		if helpers.IsNotUniqueGroup(req.Name, req.InventoryID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
@@ -266,8 +268,8 @@ func UpdateGroup(c *gin.Context) {
 	}
 
 	// check whether the group exist or not
-	if req.ParentGroupID != nil {
-		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+	if req.ParentGroupID != nil && *req.ParentGroupID != group.ID {
+		if !req.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
@@ -307,7 +309,7 @@ func UpdateGroup(c *gin.Context) {
 // PatchGroup is a Gin handler function which partially updates a group using request payload.
 // This replaces specified fields in the database, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
-func PatchGroup(c *gin.Context) {
+func (ctrl GroupController) Patch(c *gin.Context) {
 	// get Group from the gin.Context
 	group := c.MustGet(CTXGroup).(ansible.Group)
 	tmpGroup := group
@@ -319,14 +321,16 @@ func PatchGroup(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the inventory exist or not
 	if req.InventoryID != nil {
-		if !helpers.InventoryExist(*req.InventoryID) {
+		group.InventoryID = *req.InventoryID
+
+		if !group.InventoryExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
@@ -338,14 +342,10 @@ func PatchGroup(c *gin.Context) {
 	// since this is a patch request if the name specified check the
 	// inventory name is unique
 	if req.Name != nil && *req.Name != group.Name {
-		objID := group.InventoryID
-		// if inventory id specified use it otherwise use
-		// old inventory id
-		if req.InventoryID != nil {
-			objID = *req.InventoryID
-		}
+		group.Name = strings.Trim(*req.Name, " ")
+
 		// if the group exist in the collection it is not unique
-		if helpers.IsNotUniqueGroup(*req.Name, objID) {
+		if !group.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group with this Name and Inventory already exists."},
@@ -355,8 +355,9 @@ func PatchGroup(c *gin.Context) {
 	}
 
 	// check whether the group exist or not
-	if req.ParentGroupID != nil {
-		if !helpers.ParentGroupExist(*req.ParentGroupID) {
+	if req.ParentGroupID != nil && *req.ParentGroupID != group.ID {
+		group.ParentGroupID = req.ParentGroupID
+		if !group.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
@@ -365,29 +366,12 @@ func PatchGroup(c *gin.Context) {
 		}
 	}
 
-	if req.Name != nil {
-		group.Name = strings.Trim(*req.Name, " ")
-	}
-
 	if req.Description != nil {
 		group.Description = strings.Trim(*req.Description, " ")
 	}
 
 	if req.Variables != nil {
 		group.Variables = *req.Variables
-	}
-
-	if req.InventoryID != nil {
-		group.InventoryID = *req.InventoryID
-	}
-
-	if req.ParentGroupID != nil {
-		// if empty string then make the credential null
-		if len(*req.ParentGroupID) == 12 {
-			group.ParentGroupID = req.ParentGroupID
-		} else {
-			group.ParentGroupID = nil
-		}
 	}
 
 	group.Modified = time.Now()
@@ -414,7 +398,7 @@ func PatchGroup(c *gin.Context) {
 }
 
 // RemoveGroup is a Gin handler function which removes a group object from the database
-func RemoveGroup(c *gin.Context) {
+func (ctrl GroupController) Delete(c *gin.Context) {
 	// get Group from the gin.Context
 	group := c.MustGet(CTXGroup).(ansible.Group)
 	// get user from the gin.Context
@@ -481,7 +465,7 @@ func RemoveGroup(c *gin.Context) {
 }
 
 // VariableData is Gin handler function which returns host group variables
-func VariableData(c *gin.Context) {
+func (ctrl GroupController) VariableData(c *gin.Context) {
 	group := c.MustGet(CTXGroup).(ansible.Group)
 
 	variables := gin.H{}
@@ -498,8 +482,8 @@ func VariableData(c *gin.Context) {
 	c.JSON(http.StatusOK, variables)
 }
 
-// ActivityStream returns the activites of the user on Groups
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on Groups
+func (ctrl GroupController) ActivityStream(c *gin.Context) {
 	group := c.MustGet(CTXGroup).(ansible.Group)
 
 	var activities []ansible.ActivityGroup

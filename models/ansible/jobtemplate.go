@@ -6,6 +6,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 type JobTemplate struct {
@@ -72,6 +73,78 @@ type JobTemplate struct {
 
 func (*JobTemplate) GetType() string {
 	return "job_template"
+}
+
+func (jt *JobTemplate) IsUnique() bool {
+	count, err := db.JobTemplates().Find(bson.M{"name": jt.Name, "project_id": jt.ProjectID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (jt *JobTemplate) ProjectExist() bool {
+	count, err := db.Projects().FindId(jt.ProjectID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (jt *JobTemplate) InventoryExist() bool {
+	count, err := db.Inventories().FindId(jt.InventoryID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (jt *JobTemplate) MachineCredentialExist() bool {
+	query := bson.M{
+		"_id": jt.MachineCredentialID,
+		"kind": bson.M{
+			"$in": []string{
+				common.CredentialKindSSH,
+				common.CredentialKindWIN,
+			},
+		},
+	}
+	count, err := db.Credentials().Find(query).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (jt *JobTemplate) NetworkCredentialExist() bool {
+	count, err := db.Credentials().Find(bson.M{"_id": jt.NetworkCredentialID, "kind": common.CredentialKindNET}).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (jt *JobTemplate) CloudCredentialExist() bool {
+	query := bson.M{
+		"_id": jt.CloudCredentialID,
+		"kind": bson.M{
+			"$in": []string{
+				common.CredentialKindAWS,
+				common.CredentialKindAZURE,
+				common.CredentialKindCLOUDFORMS,
+				common.CredentialKindGCE,
+				common.CredentialKindOPENSTACK,
+				common.CredentialKindSATELLITE6,
+				common.CredentialKindVMWARE,
+			},
+		},
+	}
+	count, err := db.Credentials().Find(query).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
 }
 
 type PatchJobTemplate struct {

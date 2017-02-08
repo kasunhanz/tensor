@@ -1,4 +1,4 @@
-package inventories
+package api
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -19,19 +18,21 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
 	CTXInventory = "inventory"
-	CTXUser = "user"
 	CTXInventoryID = "inventory_id"
 )
+
+type InventoryController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes project_id parameter from Gin Context and fetches project data from the database
 // this set project data under key project in Gin Context.
-func Middleware(c *gin.Context) {
+func (ctrl InventoryController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXInventoryID, c)
 
 	if err != nil {
@@ -62,7 +63,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetInventory is a Gin handler function which returns the project as a JSON object
-func GetInventory(c *gin.Context) {
+func (ctrl InventoryController) One(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	metadata.InventoryMetadata(&inventory)
@@ -73,7 +74,7 @@ func GetInventory(c *gin.Context) {
 
 // GetInventories is a Gin handler function which returns list of inventories
 // This takes lookup parameters and order parameters to filter and sort output data.
-func GetInventories(c *gin.Context) {
+func (ctrl InventoryController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -123,7 +124,7 @@ func GetInventories(c *gin.Context) {
 
 // AddInventory is a Gin handler function which creates a new inventory using request payload.
 // This accepts Inventory model.
-func AddInventory(c *gin.Context) {
+func (ctrl InventoryController) Create(c *gin.Context) {
 	var req ansible.Inventory
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -131,14 +132,14 @@ func AddInventory(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization not in the collection
 	// if not fail
-	if helpers.OrganizationNotExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -147,7 +148,7 @@ func AddInventory(c *gin.Context) {
 	}
 
 	// if inventory exists in the collection
-	if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory with this Name already exists."},
@@ -182,7 +183,7 @@ func AddInventory(c *gin.Context) {
 // UpdateInventory is a Gin handler function which updates a credential using request payload.
 // This replaces all the fields in the database, empty "" fiels and unspecified fields will be
 // removed from the database.
-func UpdateInventory(c *gin.Context) {
+func (ctrl InventoryController) Update(c *gin.Context) {
 	// get Inventory from the gin.Context
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	tmpInventory := inventory
@@ -190,19 +191,18 @@ func UpdateInventory(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req ansible.Inventory
-	err := binding.JSON.Bind(c.Request, &req)
-	if err != nil {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization not in the collection
 	// if not fail
-	if helpers.OrganizationNotExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -212,7 +212,7 @@ func UpdateInventory(c *gin.Context) {
 
 	if req.Name != inventory.Name {
 		// if inventory exists in the collection
-		if helpers.IsNotUniqueInventory(req.Name, req.OrganizationID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
@@ -229,8 +229,7 @@ func UpdateInventory(c *gin.Context) {
 	inventory.Modified = time.Now()
 	inventory.ModifiedByID = user.ID
 
-	err = db.Inventories().UpdateId(inventory.ID, inventory)
-	if err != nil {
+	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Errorln("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -241,7 +240,7 @@ func UpdateInventory(c *gin.Context) {
 	// add new activity to activity stream
 	activity.AddInventoryActivity(common.Update, user, tmpInventory, inventory)
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.InventoryMetadata(&inventory)
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, inventory)
@@ -250,7 +249,7 @@ func UpdateInventory(c *gin.Context) {
 // PatchInventory is a Gin handler function which partially updates a inventory using request payload.
 // This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. unspecified fields will be ignored.
-func PatchInventory(c *gin.Context) {
+func (ctrl InventoryController) Patch(c *gin.Context) {
 	// get Inventory from the gin.Context
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	tmpInventory := inventory
@@ -262,29 +261,28 @@ func PatchInventory(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if req.OrganizationID != nil {
+		inventory.OrganizationID = *req.OrganizationID
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		if !inventory.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
+				Messages: []string{"Organization does not exist."},
 			})
 			return
 		}
 	}
 
 	if req.Name != nil && *req.Name != inventory.Name {
-		ogID := inventory.OrganizationID
-		if req.OrganizationID != nil {
-			ogID = *req.OrganizationID
-		}
+		inventory.Name = strings.Trim(*req.Name, " ")
+
 		// if inventory exists in the collection
-		if helpers.IsNotUniqueInventory(*req.Name, ogID) {
+		if !inventory.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory with this Name already exists."},
@@ -293,16 +291,8 @@ func PatchInventory(c *gin.Context) {
 		}
 	}
 
-	if req.Name != nil {
-		inventory.Name = strings.Trim(*req.Name, " ")
-	}
-
 	if req.Description != nil {
 		inventory.Description = strings.Trim(*req.Description, " ")
-	}
-
-	if req.OrganizationID != nil {
-		inventory.OrganizationID = *req.OrganizationID
 	}
 
 	if req.Variables != nil {
@@ -332,7 +322,7 @@ func PatchInventory(c *gin.Context) {
 }
 
 // RemoveInventory is a Gin handler function which removes a inventory object from the database
-func RemoveInventory(c *gin.Context) {
+func (ctrl InventoryController) Delete(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
@@ -377,7 +367,7 @@ func RemoveInventory(c *gin.Context) {
 // inventory output
 // note: we are not using var varname []string specially because
 // output json must include [] for each array and {} for each object
-func Script(c *gin.Context) {
+func (ctrl InventoryController) Script(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	// query variables
@@ -575,7 +565,7 @@ func Script(c *gin.Context) {
 
 // JobTemplates is a Gin Handler function which returns list of Job Templates
 // that includes the inventory.
-func JobTemplates(c *gin.Context) {
+func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
 
@@ -619,7 +609,7 @@ func JobTemplates(c *gin.Context) {
 
 // RootGroups is a Gin handler function which returns list of root groups
 // of the inventory.
-func RootGroups(c *gin.Context) {
+func (ctrl InventoryController) RootGroups(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
 
@@ -670,7 +660,7 @@ func RootGroups(c *gin.Context) {
 
 // Groups is a Gin Handler function which returns all the groups of
 // an Inventory.
-func Groups(c *gin.Context) {
+func (ctrl InventoryController) Groups(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
 
@@ -717,7 +707,7 @@ func Groups(c *gin.Context) {
 
 // Hosts is a Gin handler function which returns all hosts
 // associated with the inventory.
-func Hosts(c *gin.Context) {
+func (ctrl InventoryController) Hosts(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 	// get user from the gin.Context
 
@@ -762,42 +752,8 @@ func Hosts(c *gin.Context) {
 	})
 }
 
-// // ActivityStream is a Gin handler function which returns list of activities associated with
-// // inventory object that is in the Gin Context.
-// // TODO: not complete
-// func ActivityStream(c *gin.Context) {
-// 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
-
-// 	var activities []common.Activity
-// 	err := db.ActivityStream().Find(bson.M{"object_id": inventory.ID, "type": CTXInventory}).All(&activities)
-
-// 	if err != nil {
-// 		log.Errorln("Error while retriving Activity data from the db:", err)
-// 		c.JSON(http.StatusInternalServerError, common.Error{
-// 			Code:     http.StatusInternalServerError,
-// 			Messages: []string{"Error while Activities"},
-// 		})
-// 		return
-// 	}
-
-// 	count := len(activities)
-// 	pgi := util.NewPagination(c, count)
-// 	//if page is incorrect return 404
-// 	if pgi.HasPage() {
-// 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
-// 		return
-// 	}
-// 	// send response with JSON rendered data
-// 	c.JSON(http.StatusOK, common.Response{
-// 		Count:    count,
-// 		Next:     pgi.NextPage(),
-// 		Previous: pgi.PreviousPage(),
-// 		Results:  activities[pgi.Skip():pgi.End()],
-// 	})
-// }
-
 // ActivityStream returns the activites of the user on Inventories
-func ActivityStream(c *gin.Context) {
+func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	var activities []ansible.ActivityInventory
@@ -843,7 +799,7 @@ func ActivityStream(c *gin.Context) {
 
 // Tree is a Gin handler function which generete a json tree of the
 // inventory.
-func Tree(c *gin.Context) {
+func (ctrl InventoryController) Tree(c *gin.Context) {
 	inv := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	var groups []ansible.Group
@@ -934,7 +890,7 @@ func Tree(c *gin.Context) {
 }
 
 // VariableData is a Gin Handler function which returns variable data for the inventory.
-func VariableData(c *gin.Context) {
+func (ctrl InventoryController) VariableData(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	variables := gin.H{}

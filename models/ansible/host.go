@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 type Host struct {
@@ -37,6 +38,31 @@ type Host struct {
 
 func (*Host) GetType() string {
 	return "host"
+}
+
+func (host *Host) IsUnique() bool {
+	count, err := db.Hosts().Find(bson.M{"name": host.Name, "inventory_id": host.InventoryID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (host *Host) InventoryExist() bool {
+	count, err := db.Inventories().FindId(host.InventoryID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (host *Host) GroupExist() bool {
+	count, err := db.Groups().FindId(host.GroupID).Count()
+	if err == nil && count == 1 {
+		return true
+	}
+	return false
 }
 
 type PatchHost struct {

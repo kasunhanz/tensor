@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // Organization is the model for organization collection
@@ -30,6 +31,24 @@ type Organization struct {
 func (*Organization) GetType() string {
 	return "organization"
 }
+
+func (org *Organization) IsUnique() bool {
+	count, err := db.Organizations().Find(bson.M{"name": org.Name}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (org *Organization) Exist() bool {
+	count, err := db.Organizations().FindId(org.ID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
 
 type PatchOrganization struct {
 	Name        *string `json:"name" binding:"omitempty,min=1,max=500"`

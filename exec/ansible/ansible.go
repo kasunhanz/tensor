@@ -403,11 +403,10 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 	}).Infoln("Job Directory and Environment")
 
 	return cmd, func() {
-		if err := os.Remove(f.Name()); err != nil {
-			log.Errorln("Unable to remove rackfile")
-		}
-		if err := os.Remove(f.Name()); err != nil {
-			log.Errorln("Unable to remove gcefile")
+		if f != nil {
+			if err := os.Remove(f.Name()); err != nil {
+				log.Errorln("Unable to remove cloud credential")
+			}
 		}
 	}, nil
 }

@@ -1,4 +1,4 @@
-package hosts
+package api
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -19,19 +18,21 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
-	CTXHost   = "host"
-	CTXUser   = "user"
+	CTXHost = "host"
 	CTXHostID = "host_id"
 )
+
+type HostController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // Middleware takes CTXHostID parameter from the Gin Context and fetches host data from the database
 // it set host data under key CTXHost in the Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl HostController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXHostID, c)
 
 	if err != nil {
@@ -60,7 +61,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetHost is a Gin Handler function, returns the host as a JSON object
-func GetHost(c *gin.Context) {
+func (ctrl HostController) One(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 	metadata.HostMetadata(&host)
 
@@ -70,7 +71,7 @@ func GetHost(c *gin.Context) {
 
 // GetHosts is Gin handler function which returns list of hosts
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetHosts(c *gin.Context) {
+func (ctrl HostController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 
@@ -122,7 +123,7 @@ func GetHosts(c *gin.Context) {
 
 // AddHost is a Gin handler function which creates a new host using request payload
 // This accepts Host model.
-func AddHost(c *gin.Context) {
+func (ctrl HostController) Create(c *gin.Context) {
 	var req ansible.Host
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -130,13 +131,13 @@ func AddHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// if the host exist in the collection it is not unique
-	if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
+	if !req.IsUnique() {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
@@ -146,7 +147,7 @@ func AddHost(c *gin.Context) {
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID) {
+	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
@@ -156,7 +157,7 @@ func AddHost(c *gin.Context) {
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
-		if !helpers.GroupExist(*req.GroupID) {
+		if !req.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
@@ -191,7 +192,7 @@ func AddHost(c *gin.Context) {
 // UpdateHost is a handler function which updates a credential using request payload.
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object
-func UpdateHost(c *gin.Context) {
+func (ctrl HostController) Update(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 	tmpHost := host
 	user := c.MustGet(CTXUser).(common.User)
@@ -202,12 +203,12 @@ func UpdateHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 	}
 
 	// check whether the inventory exist or not
-	if !helpers.InventoryExist(req.InventoryID) {
+	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Inventory does not exists."},
@@ -217,7 +218,7 @@ func UpdateHost(c *gin.Context) {
 
 	if req.Name != host.Name {
 		// if the host exist in the collection it is not unique
-		if helpers.IsNotUniqueHost(req.Name, req.InventoryID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Host with this Name and Inventory already exists."},
@@ -228,7 +229,7 @@ func UpdateHost(c *gin.Context) {
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
-		if !helpers.GroupExist(*req.GroupID) {
+		if !req.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
@@ -267,7 +268,7 @@ func UpdateHost(c *gin.Context) {
 // PatchHost is a Gin handler function which partially updates a credential using request payload.
 // This replaces specified fields in the database, empty "" fields will be
 // removed from the database object. Unspecified fields will ignored.
-func PatchHost(c *gin.Context) {
+func (ctrl HostController) Patch(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 	tmpHost := host
 	user := c.MustGet(CTXUser).(common.User)
@@ -278,13 +279,14 @@ func PatchHost(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 	}
 
 	// check whether the inventory exist or not
 	if req.InventoryID != nil {
-		if !helpers.InventoryExist(*req.InventoryID) {
+		host.InventoryID = *req.InventoryID
+		if !host.InventoryExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Inventory does not exists."},
@@ -294,12 +296,9 @@ func PatchHost(c *gin.Context) {
 	}
 
 	if req.Name != nil && *req.Name != host.Name {
-		invID := host.ID
-		if req.InventoryID != nil {
-			invID = *req.InventoryID
-		}
+		host.Name = strings.Trim(*req.Name, " ")
 		// if the host exist in the collection it is not unique
-		if helpers.IsNotUniqueHost(*req.Name, invID) {
+		if !host.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Host with this Name and Inventory already exists."},
@@ -310,21 +309,13 @@ func PatchHost(c *gin.Context) {
 
 	// check whether the group exist or not
 	if req.GroupID != nil {
-		if !helpers.GroupExist(*req.GroupID) {
+		if !host.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Group does not exists."},
 			})
 			return
 		}
-	}
-
-	if req.Name != nil {
-		host.Name = *req.Name
-	}
-
-	if req.InventoryID != nil {
-		host.InventoryID = *req.InventoryID
 	}
 
 	if req.Description != nil {
@@ -368,7 +359,7 @@ func PatchHost(c *gin.Context) {
 	// add new activity to activity stream
 	activity.AddHostActivity(common.Update, user, tmpHost, host)
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.HostMetadata(&host)
 
 	// send response with JSON rendered data
@@ -376,7 +367,7 @@ func PatchHost(c *gin.Context) {
 }
 
 // RemoveHost is a Gin handler function which removes a host object from the database
-func RemoveHost(c *gin.Context) {
+func (ctrl HostController) Delete(c *gin.Context) {
 	// get Host from the gin.Context
 	host := c.MustGet(CTXHost).(ansible.Host)
 	// get user from the gin.Context
@@ -410,7 +401,7 @@ func RemoveHost(c *gin.Context) {
 
 // VariableData is a Gin Handler function which returns variables for
 // the host as JSON formatted object.
-func VariableData(c *gin.Context) {
+func (ctrl HostController) VariableData(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 
 	variables := gin.H{}
@@ -430,7 +421,7 @@ func VariableData(c *gin.Context) {
 
 // Groups is a Gin handler function which returns parent group of the host
 // TODO: not implemented
-func Groups(c *gin.Context) {
+func (ctrl HostController) Groups(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 
 	var group ansible.Group
@@ -461,7 +452,7 @@ func Groups(c *gin.Context) {
 
 // AllGroups is a Gin handler function which returns parent groups of a host
 // TODO: not implemented
-func AllGroups(c *gin.Context) {
+func (ctrl HostController) AllGroups(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 
 	var outobjects []ansible.Group
@@ -534,8 +525,8 @@ func AllGroups(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on Hosts
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on Hosts
+func (ctrl HostController) ActivityStream(c *gin.Context) {
 	host := c.MustGet(CTXHost).(ansible.Host)
 
 	var activities []ansible.ActivityHost

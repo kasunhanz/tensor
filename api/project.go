@@ -1,4 +1,4 @@
-package projects
+package api
 
 import (
 	"io"
@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -23,19 +22,21 @@ import (
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for project related items stored in the Gin Context
 const (
 	CTXProject = "project"
-	CTXUser = "user"
 	CTXProjectID = "project_id"
 )
+
+type ProjectController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes CTXProjectID from Gin Context and retrieves project data from the collection
 // and store credential data under key CTXProject in Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl ProjectController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXProjectID, c)
 
 	if err != nil {
@@ -71,7 +72,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetProject returns the project as a JSON object
-func GetProject(c *gin.Context) {
+func (ctrl ProjectController) One(c *gin.Context) {
 	project := c.MustGet(CTXProject).(common.Project)
 	metadata.ProjectMetadata(&project)
 
@@ -80,7 +81,7 @@ func GetProject(c *gin.Context) {
 }
 
 // GetProjects returns a JSON array of projects
-func GetProjects(c *gin.Context) {
+func (ctrl ProjectController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -149,7 +150,7 @@ func GetProjects(c *gin.Context) {
 
 // AddProject is a Gin handler function which creates a new project using request payload.
 // This accepts Project model.
-func AddProject(c *gin.Context) {
+func (ctrl ProjectController) Create(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req common.Project
@@ -160,13 +161,13 @@ func AddProject(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -175,7 +176,7 @@ func AddProject(c *gin.Context) {
 	}
 
 	// if a project exists within the Organization, reject the request
-	if helpers.IsNotUniqueProject(req.Name, req.OrganizationID) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Project with this Name and Organization already exists."},
@@ -185,7 +186,7 @@ func AddProject(c *gin.Context) {
 
 	// check whether the scm credential exist or not
 	if req.ScmCredentialID != nil {
-		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+		if !req.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"SCM Credential does not exists."},
@@ -235,7 +236,7 @@ func AddProject(c *gin.Context) {
 // UpdateProject is a Gin handler function which updates a project using request payload.
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object.
-func UpdateProject(c *gin.Context) {
+func (ctrl ProjectController) Update(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
 	tmpProject := project
@@ -247,7 +248,7 @@ func UpdateProject(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -262,7 +263,7 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -272,7 +273,7 @@ func UpdateProject(c *gin.Context) {
 
 	if req.Name != project.Name {
 		// if a project exists within the Organization, reject the request
-		if helpers.IsNotUniqueProject(req.Name, req.OrganizationID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Project with this Name and Organization already exists."},
@@ -283,7 +284,7 @@ func UpdateProject(c *gin.Context) {
 
 	// check whether the ScmCredential exist or not
 	if req.ScmCredentialID != nil {
-		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+		if !req.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"SCM Credential does not exists."},
@@ -339,7 +340,7 @@ func UpdateProject(c *gin.Context) {
 
 // PatchProject partially updates a project
 // this only updates given files in the request playload
-func PatchProject(c *gin.Context) {
+func (ctrl ProjectController) Patch(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
 	tmpProject := project
@@ -351,14 +352,15 @@ func PatchProject(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if req.OrganizationID != nil {
+		project.OrganizationID = *req.OrganizationID
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		if !project.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -368,12 +370,8 @@ func PatchProject(c *gin.Context) {
 	}
 
 	if req.Name != nil && *req.Name != project.Name {
-		ogID := project.OrganizationID
-		if req.OrganizationID != nil {
-			ogID = *req.OrganizationID
-		}
 		// if a project exists within the Organization, reject the request
-		if helpers.IsNotUniqueProject(*req.Name, ogID) {
+		if !project.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Project with this Name and Organization already exists."},
@@ -384,8 +382,9 @@ func PatchProject(c *gin.Context) {
 
 	// check whether the ScmCredential exist
 	// if the credential is empty
-	if req.ScmCredentialID != nil && len(*req.ScmCredentialID) == 12 {
-		if !helpers.SCMCredentialExist(*req.ScmCredentialID) {
+	if req.ScmCredentialID != nil {
+		project.ScmCredentialID = req.ScmCredentialID
+		if !project.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"SCM Credential does not exists."},
@@ -406,11 +405,6 @@ func PatchProject(c *gin.Context) {
 	if req.ScmType != nil {
 		project.ScmType = *req.ScmType
 	}
-
-	if req.OrganizationID != nil {
-		project.OrganizationID = *req.OrganizationID
-	}
-
 	if req.Description != nil {
 		project.Description = *req.Description
 	}
@@ -429,15 +423,6 @@ func PatchProject(c *gin.Context) {
 
 	if req.ScmDeleteOnUpdate != nil {
 		project.ScmDeleteOnUpdate = *req.ScmDeleteOnUpdate
-	}
-
-	if req.ScmCredentialID != nil {
-		// if empty string then make the credential null
-		if len(*req.ScmCredentialID) == 12 {
-			project.ScmCredentialID = req.ScmCredentialID
-		} else {
-			project.ScmCredentialID = nil
-		}
 	}
 
 	if req.ScmDeleteOnNextUpdate != nil {
@@ -483,7 +468,7 @@ func PatchProject(c *gin.Context) {
 }
 
 // RemoveProject is a Gin handler function which removes a project object from the database
-func RemoveProject(c *gin.Context) {
+func (ctrl ProjectController) Delete(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
 	// get user from the gin.Context
@@ -540,7 +525,7 @@ func RemoveProject(c *gin.Context) {
 }
 
 // Playbooks returs array of playbooks contains in project directory
-func Playbooks(c *gin.Context) {
+func (ctrl ProjectController) Playbooks(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
 
@@ -604,7 +589,7 @@ func Playbooks(c *gin.Context) {
 
 // Teams returns the list of teams that has permission to access
 // project object in the gin.Context
-func Teams(c *gin.Context) {
+func (ctrl ProjectController) OwnerTeams(c *gin.Context) {
 	team := c.MustGet(CTXProject).(common.Project)
 
 	var tms []common.Team
@@ -645,24 +630,24 @@ func Teams(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on projects
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on projects
+func (ctrl ProjectController) ActivityStream(c *gin.Context) {
 	project := c.MustGet(CTXProject).(common.Project)
 
 	var activities []common.ActivityProject
-	var activity common.ActivityProject
+	var act common.ActivityProject
 	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": project.ID}).Iter()
 	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityProjectMetadata(&activity)
-		metadata.ProjectMetadata(&activity.Object1)
+	for iter.Next(&act) {
+		metadata.ActivityProjectMetadata(&act)
+		metadata.ProjectMetadata(&act.Object1)
 		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.ProjectMetadata(activity.Object2)
+		if act.Object2 != nil {
+			metadata.ProjectMetadata(act.Object2)
 		}
 		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
@@ -691,7 +676,7 @@ func ActivityStream(c *gin.Context) {
 }
 
 // ProjectUpdates is a Gin handler function which returns project update jobs
-func ProjectUpdates(c *gin.Context) {
+func (ctrl ProjectController) ProjectUpdates(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 
@@ -759,12 +744,12 @@ func ProjectUpdates(c *gin.Context) {
 }
 
 // SCMUpdateInfo returns whether a project can be updated or not
-func SCMUpdateInfo(c *gin.Context) {
+func (ctrl ProjectController) SCMUpdateInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"can_update": true})
 }
 
 // SCMUpdate creates a new system job to update a project
-func SCMUpdate(c *gin.Context) {
+func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
 
@@ -775,7 +760,7 @@ func SCMUpdate(c *gin.Context) {
 			// Return 400 if request has bad JSON format
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
-				Messages: util.GetValidationErrors(err),
+				Messages: validate.GetValidationErrors(err),
 			})
 			return
 		}

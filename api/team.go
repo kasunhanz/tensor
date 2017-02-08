@@ -1,4 +1,4 @@
-package teams
+package api
 
 import (
 	"net/http"
@@ -6,30 +6,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
 	CTXTeam = "team"
-	CTXUser = "user"
 	CTXTeamID = "team_id"
 )
+
+type TeamController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes CTXTeamID from Gin Context and retrieves team data from the collection
 // and store team data under key CTXTeam in Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl TeamController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTeamID, c)
 
 	if err != nil {
@@ -65,7 +66,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetTeam is a Gin handler function which returns the team as a JSON object
-func GetTeam(c *gin.Context) {
+func (ctrl TeamController) One(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 	metadata.TeamMetadata(&team)
 
@@ -75,7 +76,7 @@ func GetTeam(c *gin.Context) {
 
 // GetTeams is a Gin handler function which returns list of teams
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetTeams(c *gin.Context) {
+func (ctrl TeamController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 
@@ -136,7 +137,7 @@ func GetTeams(c *gin.Context) {
 }
 
 // AddTeam creates a new team
-func AddTeam(c *gin.Context) {
+func (ctrl TeamController) Create(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req common.Team
@@ -147,13 +148,13 @@ func AddTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -162,7 +163,7 @@ func AddTeam(c *gin.Context) {
 	}
 
 	// if the team exist in the collection it is not unique
-	if helpers.IsNotUniqueTeam(req.Name, req.OrganizationID) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Team with this Name and Organization already exists."},
@@ -197,7 +198,7 @@ func AddTeam(c *gin.Context) {
 }
 
 // UpdateTeam will update the Job Template
-func UpdateTeam(c *gin.Context) {
+func (ctrl TeamController) Update(c *gin.Context) {
 	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
 	tmpTeam := team
@@ -209,13 +210,13 @@ func UpdateTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
-	if !helpers.OrganizationExist(req.OrganizationID) {
+	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization does not exists."},
@@ -225,7 +226,7 @@ func UpdateTeam(c *gin.Context) {
 
 	if req.Name != team.Name {
 		// if the team exist in the collection it is not unique
-		if helpers.IsNotUniqueTeam(req.Name, req.OrganizationID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Team with this Name and Organization already exists."},
@@ -264,9 +265,9 @@ func UpdateTeam(c *gin.Context) {
 }
 
 // PatchTeam is a Gin handler function which partially updates a team using request payload.
-// This replaces specifed fields in the data, empty "" fields will be
+// This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
-func PatchTeam(c *gin.Context) {
+func (ctrl TeamController) Patch(c *gin.Context) {
 	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
 	tmpTeam := team
@@ -278,14 +279,15 @@ func PatchTeam(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if req.OrganizationID != nil {
+		team.OrganizationID = *req.OrganizationID
 		// check whether the organization exist or not
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		if !team.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -295,12 +297,14 @@ func PatchTeam(c *gin.Context) {
 	}
 
 	if req.Name != nil && *req.Name != team.Name {
-		ogID := team.OrganizationID
+		team.Name = strings.Trim(*req.Name, " ")
+		team.OrganizationID = team.OrganizationID
+
 		if req.OrganizationID != nil {
-			ogID = *req.OrganizationID
+			team.OrganizationID = *req.OrganizationID
 		}
 		// if the team exist in the collection it is not unique
-		if helpers.IsNotUniqueTeam(*req.Name, ogID) {
+		if !team.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Team with this Name and Organization already exists."},
@@ -309,18 +313,9 @@ func PatchTeam(c *gin.Context) {
 		}
 	}
 
-	if req.Name != nil {
-		team.Name = strings.Trim(*req.Name, " ")
-	}
-
 	if req.Description != nil {
 		team.Description = strings.Trim(*req.Description, " ")
 	}
-
-	if req.OrganizationID != nil {
-		team.OrganizationID = *req.OrganizationID
-	}
-
 	if req.OrganizationID != nil {
 		team.OrganizationID = *req.OrganizationID
 	}
@@ -344,7 +339,7 @@ func PatchTeam(c *gin.Context) {
 	// add new activity to activity stream
 	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.TeamMetadata(&team)
 
 	// render JSON with 200 status code
@@ -352,7 +347,7 @@ func PatchTeam(c *gin.Context) {
 }
 
 // RemoveTeam is a Gin handler function which removes a team object from the database
-func RemoveTeam(c *gin.Context) {
+func (ctrl TeamController) Delete(c *gin.Context) {
 	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
 	// get user from the gin.Context
@@ -376,7 +371,7 @@ func RemoveTeam(c *gin.Context) {
 }
 
 // Users is a Gin handler function which returns users associated with a team
-func Users(c *gin.Context) {
+func (ctrl TeamController) Users(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var usrs []common.User
@@ -427,7 +422,7 @@ func Users(c *gin.Context) {
 }
 
 // Credentials is Gin handler function which returns credentials associated with a team
-func Credentials(c *gin.Context) {
+func (ctrl TeamController) Credentials(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var credentials []common.Credential
@@ -484,7 +479,7 @@ func Credentials(c *gin.Context) {
 }
 
 // Projects is a Gin handler function which returns projects associated with a team
-func Projects(c *gin.Context) {
+func (ctrl TeamController) Projects(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var projects []common.Project
@@ -530,8 +525,8 @@ func Projects(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on Teams
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on Teams
+func (ctrl TeamController) ActivityStream(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var activities []common.ActivityTeam
@@ -573,15 +568,4 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
-}
-
-// hideEncrypted is replace encrypted fields by $encrypted$
-func hideEncrypted(c *common.Credential) {
-	encrypted := "$encrypted$"
-	c.Password = encrypted
-	c.SSHKeyData = encrypted
-	c.SSHKeyUnlock = encrypted
-	c.BecomePassword = encrypted
-	c.VaultPassword = encrypted
-	c.AuthorizePassword = encrypted
 }

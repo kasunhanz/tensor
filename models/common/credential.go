@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 const (
@@ -25,11 +26,11 @@ const (
 // Credential is the model for Credential collection
 type Credential struct {
 	ID                bson.ObjectId `bson:"_id" json:"id"`
-	// required feilds
+	// required fields
 	Name              string `bson:"name" json:"name" binding:"required,min=1,max=500"`
-	Kind              string `bson:"kind" json:"kind" binding:"required,credentialkind"`
+	Kind              string `bson:"kind" json:"kind" binding:"required,credential_kind"`
 
-	//optional feilds
+	//optional fields
 	Cloud             bool           `bson:"cloud,omitempty" json:"cloud"`
 	Description       string         `bson:"description,omitempty" json:"description"`
 	Host              string         `bson:"host,omitempty" json:"host"`
@@ -71,9 +72,81 @@ func (*Credential) GetType() string {
 	return "credential"
 }
 
+func (crd *Credential) IsUnique() bool {
+	count, err := db.Credentials().Find(bson.M{"name": crd.Name}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (crd *Credential) MachineCredentialExist() bool {
+	query := bson.M{
+		"_id": crd.ID,
+		"kind": bson.M{
+			"$in": []string{
+				CredentialKindSSH,
+				CredentialKindWIN,
+			},
+		},
+	}
+	count, err := db.Credentials().Find(query).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (crd *Credential) NetworkCredentialExist() bool {
+	count, err := db.Credentials().Find(bson.M{"_id": crd.ID, "kind": CredentialKindNET}).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (crd *Credential) CloudCredentialExist() bool {
+	query := bson.M{
+		"_id": crd.ID,
+		"kind": bson.M{
+			"$in": []string{
+				CredentialKindAWS,
+				CredentialKindAZURE,
+				CredentialKindCLOUDFORMS,
+				CredentialKindGCE,
+				CredentialKindOPENSTACK,
+				CredentialKindSATELLITE6,
+				CredentialKindVMWARE,
+			},
+		},
+	}
+	count, err := db.Credentials().Find(query).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (crd *Credential) SCMCredentialExist() bool {
+	count, err := db.Credentials().Find(bson.M{"_id": crd.ID, "kind": CredentialKindSCM}).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (crd *Credential) OrganizationExist() bool {
+	count, err := db.Organizations().FindId(crd.OrganizationID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
 type PatchCredential struct {
 	Name              *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	Kind              *string        `json:"kind" binding:"omitempty,credentialkind"`
+	Kind              *string        `json:"kind" binding:"omitempty,credential_kind"`
 	Cloud             *bool          `json:"cloud"`
 	Description       *string        `json:"description"`
 	Host              *string        `json:"host"`

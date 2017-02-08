@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/api/sockets"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/log"
 	"github.com/pearsonappeng/tensor/queue"
@@ -14,6 +13,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"github.com/pearsonappeng/tensor/api"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
 func main() {
@@ -40,9 +40,8 @@ func main() {
 		db.MongoDb.Session.Close()
 	}()
 
-	//Define custom validator
-	binding.Validator = &util.SpaceValidator{}
-
+	// Define custom validator
+	binding.Validator = &validate.Validator{}
 	r := gin.New()
 	r.Use(log.Ginrus(logrus.StandardLogger(), time.RFC3339, true))
 	r.Use(gin.Recovery())
@@ -50,7 +49,6 @@ func main() {
 	api.Route(r)
 
 	//Background tasks
-	go sockets.StartWS()
 	go ansible.Run()
 	go terraform.Run()
 	go queue.RMQCleaner()

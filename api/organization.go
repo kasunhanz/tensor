@@ -1,4 +1,4 @@
-package organizations
+package api
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/log/activity"
@@ -18,19 +17,21 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
 	CTXOrganization = "organization"
 	CTXOrganizationID = "organization_id"
-	CTXUser = "user"
 )
+
+type OrganizationController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes CTXOrganizationID from Gin Context and retrieves organization data from the collection
 // and store organization data under key CTXOrganization in Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl OrganizationController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXOrganizationID, c)
 
 	if err != nil {
@@ -68,7 +69,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetOrganization is a Gin handler function which returns the organization as a JSON object
-func GetOrganization(c *gin.Context) {
+func (ctrl OrganizationController) One(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	metadata.OrganizationMetadata(&organization)
@@ -78,7 +79,7 @@ func GetOrganization(c *gin.Context) {
 
 // GetOrganizations is a Gin handler function which returns list of organization
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetOrganizations(c *gin.Context) {
+func (ctrl OrganizationController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -146,7 +147,7 @@ func GetOrganizations(c *gin.Context) {
 
 // AddOrganization is a Gin handler function which creates a new organization using request payload.
 // This accepts Organization model.
-func AddOrganization(c *gin.Context) {
+func (ctrl OrganizationController) Create(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req common.Organization
@@ -157,13 +158,13 @@ func AddOrganization(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// if the Organization exist in the collection it is not unique
-	if helpers.IsNotUniqueOrganization(req.Name) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Organization with this Name already exists."},
@@ -200,7 +201,7 @@ func AddOrganization(c *gin.Context) {
 }
 
 // RemoveOrganization is a Gin handler function which removes a organization object from the database
-func RemoveOrganization(c *gin.Context) {
+func (ctrl OrganizationController) Delete(c *gin.Context) {
 	// get Organization from the gin.Context
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 	// get user from the gin.Context
@@ -293,7 +294,7 @@ func RemoveOrganization(c *gin.Context) {
 // UpdateOrganization is a Gin handler function which updates a organization using request payload.
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object.
-func UpdateOrganization(c *gin.Context) {
+func (ctrl OrganizationController) Update(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 	tmpOrg := organization
 	// get user from the gin.Context
@@ -303,14 +304,14 @@ func UpdateOrganization(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if req.Name != organization.Name {
 		// if the Organization exist in the collection it is not unique
-		if helpers.IsNotUniqueOrganization(req.Name) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization with this Name already exists."},
@@ -348,7 +349,7 @@ func UpdateOrganization(c *gin.Context) {
 // PatchOrganization is a Gin handler function which partially updates a organization using request payload.
 // This replaces specifed fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
-func PatchOrganization(c *gin.Context) {
+func (ctrl OrganizationController) Patch(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 	tmpOrg := organization
 	// get user from the gin.Context
@@ -362,7 +363,7 @@ func PatchOrganization(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -370,19 +371,16 @@ func PatchOrganization(c *gin.Context) {
 	// since this is a patch request if the name specified check the
 	// Organization name is unique
 	if req.Name != nil && *req.Name != organization.Name {
+		organization.Name = strings.Trim(*req.Name, " ")
+
 		// if the Organization exist in the collection it is not unique
-		if helpers.IsNotUniqueOrganization(*req.Name) {
+		if !organization.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization with this Name already exists."},
 			})
 			return
 		}
-	}
-
-	// trim strings white space
-	if req.Name != nil {
-		organization.Name = strings.Trim(*req.Name, " ")
 	}
 
 	if req.Description != nil {
@@ -413,7 +411,7 @@ func PatchOrganization(c *gin.Context) {
 }
 
 // GetUsers Returns all Organization users
-func GetUsers(c *gin.Context) {
+func (ctrl OrganizationController) GetUsers(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var usrs []common.User
@@ -455,7 +453,7 @@ func GetUsers(c *gin.Context) {
 }
 
 // GetAdmins returns an Organization admins
-func GetAdmins(c *gin.Context) {
+func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var usrs []common.User
@@ -516,7 +514,7 @@ func GetAdmins(c *gin.Context) {
 }
 
 // GetTeams will return an Organization Teams
-func GetTeams(c *gin.Context) {
+func (ctrl OrganizationController) GetTeams(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var tms []common.Team
@@ -552,7 +550,7 @@ func GetTeams(c *gin.Context) {
 }
 
 // GetProjects returns all projects of an Organization
-func GetProjects(c *gin.Context) {
+func (ctrl OrganizationController) GetProjects(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var projts []common.Project
@@ -589,7 +587,7 @@ func GetProjects(c *gin.Context) {
 }
 
 // GetInventories returns all inventories an Organization
-func GetInventories(c *gin.Context) {
+func (ctrl OrganizationController) GetInventories(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var invs []ansible.Inventory
@@ -626,7 +624,7 @@ func GetInventories(c *gin.Context) {
 }
 
 // GetCredentials returns credentials associated with an Organization
-func GetCredentials(c *gin.Context) {
+func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var creds []common.Credential
@@ -663,8 +661,8 @@ func GetCredentials(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on Organizations
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on Organizations
+func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 	organization := c.MustGet(CTXOrganization).(common.Organization)
 
 	var activities []common.ActivityOrganization
@@ -706,16 +704,4 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
-}
-
-// hideEncrypted is replaces encrypted fields by $encrypted$ string
-func hideEncrypted(c *common.Credential) {
-	encrypted := "$encrypted$"
-	c.Password = encrypted
-	c.SSHKeyData = encrypted
-	c.SSHKeyUnlock = encrypted
-	c.BecomePassword = encrypted
-	c.VaultPassword = encrypted
-	c.AuthorizePassword = encrypted
-	c.Secret = encrypted
 }

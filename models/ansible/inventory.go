@@ -6,6 +6,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // Inventory is the model for
@@ -46,6 +47,30 @@ type Inventory struct {
 
 func (*Inventory) GetType() string {
 	return "inventory"
+}
+
+func (inv *Inventory) IsUnique() bool {
+	count, err := db.Inventories().Find(bson.M{"name": inv.Name, "organization_id": inv.OrganizationID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+	return true
+}
+
+func (inv *Inventory) Exist() bool {
+	count, err := db.Inventories().FindId(inv.ID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
+}
+
+func (inv *Inventory) OrganizationExist() bool {
+	count, err := db.Organizations().FindId(inv.OrganizationID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
 }
 
 // PatchInventory is the model for patch requests

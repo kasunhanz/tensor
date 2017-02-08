@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // User is model for user collection
@@ -34,11 +35,29 @@ func (*User) GetType() string {
 	return "user"
 }
 
+func (user *User) IsUniqueUsername() bool {
+	count, err := db.Users().Find(bson.M{"username": user.Username}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (user *User) IsUniqueEmail() bool {
+	count, err := db.Users().Find(bson.M{"email": user.Email}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
 type PatchUser struct {
-	Username        *string         `json:"username" binding:"required,min=1,max=30"`
-	FirstName       *string         `son:"first_name,min=1,max=30"`
-	LastName        *string         `json:"last_name,min=1,max=30"`
-	Email           *string         `json:"email" binding:"required,email"`
+	Username        *string         `json:"username" binding:"omitempty,min=1,max=30"`
+	FirstName       *string         `json:"first_name" binding:"omitempty,min=1,max=30"`
+	LastName        *string         `json:"last_name" binding:"omitempty,min=1,max=30"`
+	Email           *string         `json:"email" binding:"omitempty,email"`
 	IsSuperUser     *bool           `json:"is_superuser"`
 	IsSystemAuditor *bool           `json:"is_system_auditor"`
 	Password        *string         `json:"password"`

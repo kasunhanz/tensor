@@ -1,4 +1,4 @@
-package jtemplate
+package api
 
 import (
 	"encoding/json"
@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pearsonappeng/tensor/api/helpers"
-	thelpers "github.com/pearsonappeng/tensor/api/helpers/terraform"
 	metadata "github.com/pearsonappeng/tensor/api/metadata/terraform"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/jwt"
@@ -25,20 +23,22 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
-	CTXJobTemplate   = "job_template"
-	CTXUser          = "user"
-	CTXJobTemplateID = "job_template_id"
+	CTXTerraformJobTemplate = "job_template"
+	CTXTerraformJobTemplateID = "job_template_id"
 )
+
+type TJobTmplController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
-// This function takes CTXJobTemplateID from Gin Context and retrieves terraform job template data from the collection
-// and store terraform job template data under key CTXJobTemplate in Gin Context
-func Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXJobTemplateID, c)
+// This function takes CTXTerraformJobTemplateID from Gin Context and retrieves terraform job template data from the collection
+// and store terraform job template data under key CTXTerraformJobTemplate in Gin Context
+func (ctrl TJobTmplController) Middleware(c *gin.Context) {
+	ID, err := util.GetIdParam(CTXTerraformJobTemplateID, c)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -68,15 +68,15 @@ func Middleware(c *gin.Context) {
 	}
 
 	// Set the Job Template to the gin.Context
-	c.Set(CTXJobTemplate, jobTemplate)
+	c.Set(CTXTerraformJobTemplate, jobTemplate)
 	c.Next() //move to next pending handler
 }
 
 // GetJTemplate is a Gin handler function which returns the Terraform Job Template as a JSON object
 // A success will return 200 status code
 // A failure will return 500 status code
-func GetJTemplate(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+func (ctrl TJobTmplController) One(c *gin.Context) {
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 
 	metadata.JTemplateMetadata(&jobTemplate)
 
@@ -99,7 +99,7 @@ func GetJTemplate(c *gin.Context) {
 // A success returns 200 status code
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetJTemplates(c *gin.Context) {
+func (ctrl TJobTmplController) All(c *gin.Context) {
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
@@ -202,7 +202,7 @@ func GetJTemplates(c *gin.Context) {
 // ask_credential_on_launch:  boolean, default=False
 // become_enabled:  boolean, default=False
 // allow_simultaneous:  boolean, default=False
-func AddJTemplate(c *gin.Context) {
+func (ctrl TJobTmplController) Create(c *gin.Context) {
 	var req terraform.JobTemplate
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
@@ -215,13 +215,13 @@ func AddJTemplate(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check the project exist or not
-	if !helpers.ProjectExist(req.ProjectID) {
+	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
@@ -230,7 +230,7 @@ func AddJTemplate(c *gin.Context) {
 	}
 
 	// if the JobTemplate exist in the collection it is not unique
-	if thelpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+	if req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Terraform Job Template with this Name already exists."},
@@ -240,7 +240,7 @@ func AddJTemplate(c *gin.Context) {
 
 	if req.MachineCredentialID != nil {
 		// check the machine credential exist or not
-		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
+		if !req.MachineCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Machine Credential does not exists"},
@@ -251,7 +251,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// check the network credential exist or not
 	if req.NetworkCredentialID != nil {
-		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Network Credential does not exists"},
@@ -262,7 +262,7 @@ func AddJTemplate(c *gin.Context) {
 
 	// check the network credential exist or not
 	if req.CloudCredentialID != nil {
-		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Cloud Credential does not exists"},
@@ -303,9 +303,9 @@ func AddJTemplate(c *gin.Context) {
 // A success returns 200 status code
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
-func UpdateJTemplate(c *gin.Context) {
+func (ctrl TJobTmplController) Update(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 	tmpJobTemplate := jobTemplate
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
@@ -314,13 +314,13 @@ func UpdateJTemplate(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check the project exist or not
-	if !helpers.ProjectExist(req.ProjectID) {
+	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
 			Messages: []string{"Project does not exists"},
@@ -330,7 +330,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	if req.Name != jobTemplate.Name {
 		// if the JobTemplate exist in the collection it is not unique
-		if thelpers.IsNotUniqueJTemplate(req.Name, req.ProjectID) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Terraform Job Template with this Name already exists."},
@@ -341,7 +341,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	if req.MachineCredentialID != nil {
 		// check whether the machine credential exist or not
-		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
+		if !req.MachineCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Machine Credential does not exists"},
@@ -352,7 +352,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
-		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Network Credential does not exists"},
@@ -363,7 +363,7 @@ func UpdateJTemplate(c *gin.Context) {
 
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
-		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:     http.StatusInternalServerError,
 				Messages: []string{"Cloud Credential does not exists"},
@@ -404,7 +404,7 @@ func UpdateJTemplate(c *gin.Context) {
 	// add new activity to activity stream
 	activity.AddTJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
 
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&jobTemplate)
 
 	// send response with JSON rendered data
@@ -416,9 +416,9 @@ func UpdateJTemplate(c *gin.Context) {
 // A success returns 200 status code
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
-func PatchJTemplate(c *gin.Context) {
+func (ctrl TJobTmplController) Patch(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 	tmpJobTemplate := jobTemplate
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
@@ -427,28 +427,28 @@ func PatchJTemplate(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check the project exist or not
-	if req.ProjectID != nil && !helpers.ProjectExist(*req.ProjectID) {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
-		})
-		return
+	if req.ProjectID != nil {
+		jobTemplate.ProjectID = *req.ProjectID
+
+		if !jobTemplate.ProjectExist() {
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:     http.StatusInternalServerError,
+				Messages: []string{"Project does not exists"},
+			})
+			return
+		}
 	}
 
 	if req.Name != nil && *req.Name != jobTemplate.Name {
-		// if the JobTemplate exist in the collection it is not unique
-		projectID := jobTemplate.ProjectID
-		if req.ProjectID != nil {
-			projectID = *req.ProjectID
-		}
+		jobTemplate.Name = strings.Trim(*req.Name, " ")
 
-		if helpers.IsNotUniqueJTemplate(*req.Name, projectID) {
+		if !jobTemplate.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Terraform Job Template with this Name already exists."},
@@ -458,8 +458,10 @@ func PatchJTemplate(c *gin.Context) {
 	}
 
 	if req.MachineCredentialID != nil {
+		jobTemplate.MachineCredentialID = req.MachineCredentialID
+
 		// check whether the machine credential exist or not
-		if !helpers.MachineCredentialExist(*req.MachineCredentialID) {
+		if !jobTemplate.MachineCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Machine Credential does not exists."},
@@ -470,7 +472,9 @@ func PatchJTemplate(c *gin.Context) {
 
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
-		if !helpers.NetworkCredentialExist(*req.NetworkCredentialID) {
+		jobTemplate.NetworkCredentialID = req.NetworkCredentialID
+
+		if !jobTemplate.NetworkCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Network Credential does not exists."},
@@ -481,7 +485,9 @@ func PatchJTemplate(c *gin.Context) {
 
 	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
-		if !helpers.CloudCredentialExist(*req.CloudCredentialID) {
+		jobTemplate.CloudCredentialID = req.CloudCredentialID
+
+		if !jobTemplate.CloudCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Cloud Credential does not exists."},
@@ -490,24 +496,8 @@ func PatchJTemplate(c *gin.Context) {
 		}
 	}
 
-	if req.Name != nil {
-		jobTemplate.Name = strings.Trim(*req.Name, " ")
-	}
-
 	if req.JobType != nil {
 		jobTemplate.JobType = *req.JobType
-	}
-
-	if req.ProjectID != nil {
-		jobTemplate.ProjectID = *req.ProjectID
-	}
-
-	if req.MachineCredentialID != nil { // if empty string then make the credential null
-		if len(*req.MachineCredentialID) == 12 {
-			jobTemplate.MachineCredentialID = req.MachineCredentialID
-		} else {
-			jobTemplate.MachineCredentialID = nil
-		}
 	}
 
 	if req.Description != nil {
@@ -520,24 +510,6 @@ func PatchJTemplate(c *gin.Context) {
 
 	if req.PromptVariables != nil {
 		jobTemplate.PromptVariables = *req.PromptVariables
-	}
-
-	if req.CloudCredentialID != nil {
-		// if empty string then make the credential null
-		if len(*req.CloudCredentialID) == 12 {
-			jobTemplate.CloudCredentialID = req.CloudCredentialID
-		} else {
-			jobTemplate.CloudCredentialID = nil
-		}
-	}
-
-	if req.NetworkCredentialID != nil {
-		// if empty string then make the credential null
-		if len(*req.NetworkCredentialID) == 12 {
-			jobTemplate.NetworkCredentialID = req.NetworkCredentialID
-		} else {
-			jobTemplate.NetworkCredentialID = nil
-		}
 	}
 
 	if req.PromptCredential != nil {
@@ -581,9 +553,9 @@ func PatchJTemplate(c *gin.Context) {
 // RemoveJTemplate is a Gin handler function which removes a Job Template object from the database
 // A success returns 204 status code
 // A failure returns 500 status code
-func RemoveJTemplate(c *gin.Context) {
+func (ctrl TJobTmplController) Delete(c *gin.Context) {
 	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 	// get user from the gin.Context
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -623,8 +595,8 @@ func RemoveJTemplate(c *gin.Context) {
 // success returns 200 status code
 // failure reruns 500 status code
 //
-func ActivityStream(c *gin.Context) {
-	jtemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+func (ctrl TJobTmplController) ActivityStream(c *gin.Context) {
+	jtemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 
 	var activities []terraform.ActivityJobTemplate
 	var activity terraform.ActivityJobTemplate
@@ -680,8 +652,8 @@ func ActivityStream(c *gin.Context) {
 // The `count` field indicates the total number of jobs found for the given query.
 // The `next` and `previous` fields provides links to additional results if there are more than will fit on a single page.
 // The `results` list contains zero or more job records.
-func Jobs(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+func (ctrl TJobTmplController) Jobs(c *gin.Context) {
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 
 	var jbs []terraform.Job
 	// new mongodb iterator
@@ -732,9 +704,9 @@ func Jobs(c *gin.Context) {
 // and if the `inventory_needed_to_start` is `True` then the `inventory` is required as well.
 // success returns JSON serialized Job model with 201 status code
 // if the request body is invalid returns JSON serialized Error model with 400 status code
-func Launch(c *gin.Context) {
+func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	// get job template that was set by the Middleware
-	template := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	template := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 	// get user object set by the jwt Middleware
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -748,7 +720,7 @@ func Launch(c *gin.Context) {
 			// and return formatted validation errors
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
-				Messages: util.GetValidationErrors(err),
+				Messages: validate.GetValidationErrors(err),
 			})
 			return // abort
 		}
@@ -945,7 +917,7 @@ func Launch(c *gin.Context) {
 	}
 	jobQueue.PublishBytes(jobBytes)
 
-	// set additianl information to Job
+	// set additional information to Job
 	metadata.JobMetadata(&job)
 
 	// return serialized job
@@ -968,9 +940,9 @@ func Launch(c *gin.Context) {
 // If not then one should be supplied when launching the job
 // inventory_needed_to_start: Flag indicating the presence of an inventory associated with the job template.
 // If not then one should be supplied when launching the job
-func LaunchInfo(c *gin.Context) {
+func (ctrl TJobTmplController) LaunchInfo(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	jt := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 
 	var isCredentialNeeded bool
 
@@ -1015,8 +987,8 @@ func LaunchInfo(c *gin.Context) {
 
 // ObjectRoles is a Gin handler function
 // This returns available roles can be associated with a Job Template model
-func ObjectRoles(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
+	jobTemplate := c.MustGet(CTXTerraformJobTemplate).(terraform.JobTemplate)
 
 	roles := []gin.H{
 		{

@@ -1,4 +1,4 @@
-package credentials
+package api
 
 import (
 	"net/http"
@@ -7,28 +7,29 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 )
 
-// Keys for credential releated items stored in the Gin Context
+// Keys for credential related items stored in the Gin Context
 const (
 	CTXCredential = "credential"
 	CTXCredentialID = "credential_id"
-	CTXUser = "user"
 )
+
+type CredentialController struct{}
 
 // Middleware generates a middleware handler function that works inside of a Gin request.
 // This function takes CTXCredentialID from Gin Context and retrieves credential data from the collection
 // and store credential data under key CTXCredential in Gin Context
-func Middleware(c *gin.Context) {
+func (ctrl CredentialController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXCredentialID, c)
 
 	if err != nil {
@@ -65,7 +66,7 @@ func Middleware(c *gin.Context) {
 }
 
 // GetCredential is a Gin handler function which returns the credential as a JSON object
-func GetCredential(c *gin.Context) {
+func (ctrl CredentialController) One(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	hideEncrypted(&credential)
@@ -76,7 +77,7 @@ func GetCredential(c *gin.Context) {
 
 // GetCredentials is a Gin handler function which returns list of credentials
 // This takes lookup parameters and order parameters to filter and sort output data
-func GetCredentials(c *gin.Context) {
+func (ctrl CredentialController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 
@@ -149,7 +150,7 @@ func GetCredentials(c *gin.Context) {
 
 // AddCredential is a Gin handler function which creates a new credential using request payload.
 // This accepts Credential model.
-func AddCredential(c *gin.Context) {
+func (ctrl CredentialController) Create(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req common.Credential
@@ -160,14 +161,14 @@ func AddCredential(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		if !req.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -177,7 +178,7 @@ func AddCredential(c *gin.Context) {
 	}
 
 	// if the Credential exist in the collection it is not unique
-	if helpers.IsNotUniqueCredential(req.Name) {
+	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Credential with this Name already exists."},
@@ -245,7 +246,7 @@ func AddCredential(c *gin.Context) {
 // UpdateCredential is a Gin handler function which updates a credential using request payload.
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object.
-func UpdateCredential(c *gin.Context) {
+func (ctrl CredentialController) Update(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 	credential := c.MustGet(CTXCredential).(common.Credential)
 	tmpCredential := credential
@@ -255,14 +256,14 @@ func UpdateCredential(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		if !req.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -273,7 +274,7 @@ func UpdateCredential(c *gin.Context) {
 
 	if req.Name != credential.Name {
 		// if the Credential exist in the collection it is not unique
-		if helpers.IsNotUniqueCredential(req.Name) {
+		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential with this Name already exists."},
@@ -352,7 +353,7 @@ func UpdateCredential(c *gin.Context) {
 // PatchCredential is a Gin handler function which partially updates a credential using request payload.
 // This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
-func PatchCredential(c *gin.Context) {
+func (ctrl CredentialController) Patch(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 	credential := c.MustGet(CTXCredential).(common.Credential)
 	tmpCredential := credential
@@ -362,14 +363,15 @@ func PatchCredential(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
-		if !helpers.OrganizationExist(*req.OrganizationID) {
+		credential.OrganizationID = req.OrganizationID
+		if !credential.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Organization does not exists."},
@@ -380,7 +382,7 @@ func PatchCredential(c *gin.Context) {
 
 	if req.Name != nil && *req.Name != credential.Name {
 		// if the Credential exist in the collection it is not unique
-		if helpers.IsNotUniqueCredential(*req.Name) {
+		if !credential.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Credential with this Name already exists."},
@@ -439,10 +441,6 @@ func PatchCredential(c *gin.Context) {
 		}
 	}
 
-	if req.Name != nil {
-		credential.Name = strings.Trim(*req.Name, " ")
-	}
-
 	if req.Kind != nil {
 		credential.Kind = *req.Kind
 	}
@@ -499,15 +497,6 @@ func PatchCredential(c *gin.Context) {
 		credential.Authorize = *req.Authorize
 	}
 
-	if req.OrganizationID != nil {
-		// if empty string then make the credential null
-		if len(*req.OrganizationID) == 12 {
-			credential.OrganizationID = req.OrganizationID
-		} else {
-			credential.OrganizationID = nil
-		}
-	}
-
 	// system generated
 	credential.ModifiedByID = user.ID
 	credential.Modified = time.Now()
@@ -534,7 +523,7 @@ func PatchCredential(c *gin.Context) {
 }
 
 // RemoveCredential is a Gin handler function which removes a credential object from the database
-func RemoveCredential(c *gin.Context) {
+func (ctrl CredentialController) Delete(c *gin.Context) {
 	crd := c.MustGet(CTXCredential).(common.Credential)
 	u := c.MustGet(CTXUser).(common.User)
 
@@ -559,7 +548,7 @@ func RemoveCredential(c *gin.Context) {
 
 // OwnerTeams is a Gin handler function which returns the access control list of Teams that has permissions to access
 // specified credential object.
-func OwnerTeams(c *gin.Context) {
+func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	var tms []common.Team
@@ -610,7 +599,7 @@ func OwnerTeams(c *gin.Context) {
 
 // OwnerUsers is a Gin handler function which returns the access control list of Users that has access to
 // specifed credential object.
-func OwnerUsers(c *gin.Context) {
+func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	var usrs []common.User
@@ -658,8 +647,8 @@ func OwnerUsers(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on Credentials
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on Credentials
+func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	var activities []common.ActivityCredential

@@ -49,7 +49,7 @@ const (
 	RoleTypeUser = "user"
 )
 
-// resource object
+// Resource object
 // role OrganizationAdmin, CredentialAdmin
 // grantee user id or team id
 // roletype RoleTypeTeam, RoleTypeUser

@@ -156,7 +156,7 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 	j.Job.JobARGS = []string{"ansible-playbook", strings.Join(arguments, " ")}
 
 	cmd := exec.Command("ansible-playbook", arguments...)
-	cmd.Dir = "/var/lib/tensor/projects/"
+	cmd.Dir = "/var/lib/tensor/playbooks/"
 
 	cmd.Env = []string{
 		"TERM=xterm",

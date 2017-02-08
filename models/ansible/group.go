@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/db"
 )
 
 // Group is the model for Group collection
@@ -39,6 +40,39 @@ type Group struct {
 
 func (*Group) GetType() string {
 	return "group"
+}
+
+func (group *Group) IsUnique() bool {
+	count, err := db.Groups().Find(bson.M{"name": group.Name, "inventory_id": group.InventoryID}).Count()
+	if err == nil && count > 0 {
+		return false
+	}
+
+	return true
+}
+
+func (group *Group) GroupExist() bool {
+	count, err := db.Groups().FindId(group.ID).Count()
+	if err == nil && count == 1 {
+		return true
+	}
+	return false
+}
+
+func (group *Group) ParentExist() bool {
+	count, err := db.Groups().FindId(group.ParentGroupID).Count()
+	if err == nil && count == 1 {
+		return true
+	}
+	return false
+}
+
+func (group *Group) InventoryExist() bool {
+	count, err := db.Inventories().FindId(group.InventoryID).Count()
+	if err == nil && count > 0 {
+		return true
+	}
+	return false
 }
 
 // PatchGroup to support patch requests

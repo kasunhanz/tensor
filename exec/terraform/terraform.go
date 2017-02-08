@@ -70,7 +70,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 func Run() {
 	q := queue.OpenTerraformQueue()
 
-	q.StartConsuming(1, 500*time.Millisecond)
+	q.StartConsuming(1, 500 * time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
@@ -120,7 +120,7 @@ func terraformRun(j types.TerraformJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
+	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
 	log.WithFields(log.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
@@ -135,7 +135,7 @@ func terraformRun(j types.TerraformJob) {
 			"Name":              j.Job.Name,
 			"Status":            j.Job.Status,
 		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
+		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
 		cleanup()
 	}()
 
@@ -256,7 +256,7 @@ func terraformRun(j types.TerraformJob) {
 	}
 
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.TerraformJobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.TerraformJobTimeOut) * time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
@@ -333,11 +333,10 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 	}).Infoln("Job Directory and Environment")
 
 	return cmd, func() {
-		if err := os.Remove(f.Name()); err != nil {
-			log.Errorln("Unable to remove rackfile")
-		}
-		if err := os.Remove(f.Name()); err != nil {
-			log.Errorln("Unable to remove gcefile")
+		if f != nil {
+			if err := os.Remove(f.Name()); err != nil {
+				log.Errorln("Unable to remove cloud credential")
+			}
 		}
 	}, nil
 }

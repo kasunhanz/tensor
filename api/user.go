@@ -1,4 +1,4 @@
-package users
+package api
 
 import (
 	"net/http"
@@ -12,22 +12,24 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/api/helpers"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 )
 
 const (
-	CTXUserA  = "_user"
+	CTXUserA = "_user"
 	CTXUserID = "user_id"
-	CTXUser   = "user"
+	CTXUser = "user"
 )
 
-func Middleware(c *gin.Context) {
+type UserController struct{}
+
+func (ctrl UserController) Middleware(c *gin.Context) {
 
 	userID, err := util.GetIdParam(CTXUserID, c)
 
@@ -57,7 +59,7 @@ func Middleware(c *gin.Context) {
 	c.Next()
 }
 
-func GetUser(c *gin.Context) {
+func (ctrl UserController) One(c *gin.Context) {
 	var user common.User
 
 	if u, exists := c.Get(CTXUserA); exists {
@@ -72,7 +74,7 @@ func GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func GetUsers(c *gin.Context) {
+func (ctrl UserController) All(c *gin.Context) {
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -120,7 +122,7 @@ func GetUsers(c *gin.Context) {
 	})
 }
 
-func AddUser(c *gin.Context) {
+func (ctrl UserController) Create(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
 	var req common.User
@@ -131,12 +133,12 @@ func AddUser(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
-	if helpers.IsNotUniqueEmail(req.Email) {
+	if !req.IsUniqueEmail() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Email alredy in use"},
@@ -144,7 +146,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if helpers.IsNotUniqueUsername(req.Username) {
+	if !req.IsUniqueUsername() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Email alredy in use"},
@@ -178,7 +180,7 @@ func AddUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
-func UpdateUser(c *gin.Context) {
+func (ctrl UserController) Update(c *gin.Context) {
 	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
 	tmpUser := user
@@ -188,12 +190,12 @@ func UpdateUser(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
-	if user.Email != req.Email && helpers.IsNotUniqueEmail(req.Email) {
+	if user.Email != req.Email && !req.IsUniqueEmail() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Email alredy in use"},
@@ -201,7 +203,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if user.Username != req.Username && helpers.IsNotUniqueUsername(req.Username) {
+	if user.Username != req.Username && !req.IsUniqueUsername() {
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
 			Messages: []string{"Username alredy in use"},
@@ -242,7 +244,7 @@ func UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func PatchUser(c *gin.Context) {
+func (ctrl UserController) Patch(c *gin.Context) {
 	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
 	tmpUser := user
@@ -252,13 +254,15 @@ func PatchUser(c *gin.Context) {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
 			Code:     http.StatusBadRequest,
-			Messages: util.GetValidationErrors(err),
+			Messages: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if req.Email != nil {
-		if user.Email != *req.Email && helpers.IsNotUniqueEmail(*req.Email) {
+		user.Email = *req.Email
+
+		if user.Email != *req.Email && !user.IsUniqueEmail() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Email alredy in use"},
@@ -268,7 +272,9 @@ func PatchUser(c *gin.Context) {
 	}
 
 	if req.Username != nil {
-		if user.Username != *req.Username && helpers.IsNotUniqueUsername(*req.Username) {
+		user.Username = strings.Trim(*req.Username, " ")
+
+		if user.Username != *req.Username && !user.IsUniqueUsername() {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Username alredy in use"},
@@ -277,20 +283,12 @@ func PatchUser(c *gin.Context) {
 		}
 	}
 
-	if req.Username != nil {
-		user.Username = strings.Trim(*req.Username, " ")
-	}
-
 	if req.FirstName != nil {
 		user.FirstName = *req.FirstName
 	}
 
 	if req.LastName != nil {
 		user.LastName = *req.LastName
-	}
-
-	if req.Email != nil {
-		user.Email = *req.Email
 	}
 
 	if req.Password != nil && *req.Password != "$encrypted$" {
@@ -322,7 +320,7 @@ func PatchUser(c *gin.Context) {
 }
 
 // TODO: Complete this with authentication
-func DeleteUser(c *gin.Context) {
+func (ctrl UserController) Delete(c *gin.Context) {
 	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
 
@@ -420,7 +418,7 @@ func DeleteUser(c *gin.Context) {
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
-func Projects(c *gin.Context) {
+func (ctrl UserController) Projects(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var projts []common.Project
@@ -460,7 +458,7 @@ func Projects(c *gin.Context) {
 	})
 }
 
-func Credentials(c *gin.Context) {
+func (ctrl UserController) Credentials(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var creds []common.Credential
@@ -502,7 +500,7 @@ func Credentials(c *gin.Context) {
 	})
 }
 
-func Teams(c *gin.Context) {
+func (ctrl UserController) Teams(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var tms []common.Team
@@ -542,7 +540,7 @@ func Teams(c *gin.Context) {
 	})
 }
 
-func Organizations(c *gin.Context) {
+func (ctrl UserController) Organizations(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var orgs []common.Organization
@@ -582,7 +580,7 @@ func Organizations(c *gin.Context) {
 	})
 }
 
-func AdminsOfOrganizations(c *gin.Context) {
+func (ctrl UserController) AdminsOfOrganizations(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var orgs []common.Organization
@@ -622,8 +620,8 @@ func AdminsOfOrganizations(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on other Users
-func ActivityStream(c *gin.Context) {
+// ActivityStream returns the activities of the user on other Users
+func (ctrl UserController) ActivityStream(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var activities []common.ActivityUser
@@ -665,16 +663,4 @@ func ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
-}
-
-// hideEncrypted is replaces encrypted fields by $encrypted$ string
-func hideEncrypted(c *common.Credential) {
-	encrypted := "$encrypted$"
-	c.Password = encrypted
-	c.SSHKeyData = encrypted
-	c.SSHKeyUnlock = encrypted
-	c.BecomePassword = encrypted
-	c.VaultPassword = encrypted
-	c.AuthorizePassword = encrypted
-	c.Secret = encrypted
 }

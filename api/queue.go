@@ -7,7 +7,7 @@ import (
 )
 
 // QueueStats returns statistics about redis rmq
-func QueueStats(c *gin.Context)  {
+func QueueStats(c *gin.Context) {
 	queues := queue.Queue.GetOpenQueues()
 	stats := queue.Queue.CollectStats(queues)
 
