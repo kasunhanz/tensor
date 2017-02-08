@@ -77,3 +77,12 @@ func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
 	ah.Related = gin.H{}
 	ah.Summary = gin.H{}
 }
+
+// ActivityJobTemplateMetadata attach metadata to ActivityJobTemplate
+func ActivityJobTemplateMetadata(ah *ansible.ActivityJobTemplate) {
+	ID := ah.ID.Hex()
+	ah.Type = "activity_stream"
+	ah.URL = "/v1/job_templates/" + ID + "/activity_stream/"
+	ah.Related = gin.H{}
+	ah.Summary = gin.H{}
+}
