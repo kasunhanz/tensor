@@ -9,20 +9,22 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/api/helpers"
+	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/pearsonappeng/tensor/api/helpers"
-	"strings"
 )
 
 const (
-	CTXUserA = "_user"
+	CTXUserA  = "_user"
 	CTXUserID = "user_id"
-	CTXUser = "user"
+	CTXUser   = "user"
 )
 
 func Middleware(c *gin.Context) {
@@ -119,6 +121,8 @@ func GetUsers(c *gin.Context) {
 }
 
 func AddUser(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
+
 	var req common.User
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		log.WithFields(log.Fields{
@@ -165,8 +169,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 	// add new activity to activity stream
-	addActivity(req.ID, req.ID, "User " + req.FirstName + " " + req.LastName + " created")
-
+	activity.AddUserActivity(common.Create, user, req)
 	req.Password = "$encrypted$"
 
 	metadata.UserMetadata(&req)
@@ -176,7 +179,9 @@ func AddUser(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
+	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
+	tmpUser := user
 
 	var req common.User
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -219,7 +224,7 @@ func UpdateUser(c *gin.Context) {
 	if err := db.Users().UpdateId(user.ID, user); err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while updating User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -227,6 +232,8 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
+	// add new activity to activity stream
+	activity.AddUserActivity(common.Update, actor, tmpUser, user)
 
 	//hide password
 	user.Password = "$encrypted$"
@@ -236,7 +243,9 @@ func UpdateUser(c *gin.Context) {
 }
 
 func PatchUser(c *gin.Context) {
+	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
+	tmpUser := user
 
 	var req common.PatchUser
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -294,7 +303,7 @@ func PatchUser(c *gin.Context) {
 	if err := db.Users().UpdateId(user.ID, user); err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while updating User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -302,6 +311,8 @@ func PatchUser(c *gin.Context) {
 		})
 		return
 	}
+	// add new activity to activity stream
+	activity.AddUserActivity(common.Update, actor, tmpUser, user)
 
 	//hide password
 	user.Password = "$encrypted$"
@@ -312,6 +323,7 @@ func PatchUser(c *gin.Context) {
 
 // TODO: Complete this with authentication
 func DeleteUser(c *gin.Context) {
+	actor := c.MustGet(CTXUser).(common.User)
 	user := c.MustGet("_user").(common.User)
 
 	// Remove user from projects
@@ -319,7 +331,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -332,7 +344,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -345,7 +357,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -358,7 +370,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -371,7 +383,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -384,7 +396,7 @@ func DeleteUser(c *gin.Context) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -392,11 +404,10 @@ func DeleteUser(c *gin.Context) {
 		})
 	}
 
-
 	if err := db.Users().RemoveId(user.ID); err != nil {
 		log.WithFields(log.Fields{
 			"User ID": user.ID.Hex(),
-			"Error":         err.Error(),
+			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
@@ -405,6 +416,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
+	activity.AddUserActivity(common.Delete, actor, user)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -610,14 +622,27 @@ func AdminsOfOrganizations(c *gin.Context) {
 	})
 }
 
-// TODO: not complete
+// ActivityStream returns the activites of the user on other Users
 func ActivityStream(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
-	var activities []common.Activity
-	err := db.ActivityStream().Find(bson.M{"actor_id": user.ID}).All(&activities)
+	var activities []common.ActivityUser
+	var activity common.ActivityUser
+	// new mongodb iterator
+	iter := db.ActivityStream().Find(bson.M{"object1._id": user.ID}).Iter()
+	// iterate over all and only get valid objects
+	for iter.Next(&activity) {
+		metadata.ActivityUserMetadata(&activity)
+		metadata.UserMetadata(&activity.Object1)
+		//apply metadata only when Object2 is available
+		if activity.Object2 != nil {
+			metadata.UserMetadata(activity.Object2)
+		}
+		//add to activities list
+		activities = append(activities, activity)
+	}
 
-	if err != nil {
+	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:     http.StatusInternalServerError,
