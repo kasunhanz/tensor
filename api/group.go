@@ -199,12 +199,17 @@ func (ctrl GroupController) Create(c *gin.Context) {
 			return
 		}
 		// check for level 2 parent
-		parent2, err := parent1.GetParent()
-		if err == nil {
-			// check for level 3 parent
-			_, err = parent2.GetParent()
-			// returns an error if the 3rd parent has a parent
-			if err == nil {
+		if parent1.ParentGroupID != nil {
+			parent2, err := parent1.GetParent()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:     http.StatusBadRequest,
+					Messages: []string{"Parent Group hierarchy does not exists."},
+				})
+				return
+			}
+			// returns an error if a 3rd parent is present
+			if parent2.ParentGroupID != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:     http.StatusBadRequest,
 					Messages: []string{"Maximum level of nesting is 3."},
