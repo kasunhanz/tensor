@@ -15,15 +15,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for group related items stored in the Gin Context
 const (
-	CTXGroup = "group"
+	CTXGroup   = "group"
 	CTXGroupID = "group_id"
 )
 
@@ -178,7 +178,6 @@ func (ctrl GroupController) Create(c *gin.Context) {
 		return
 	}
 
-
 	// check whether the inventory exist or not
 	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
@@ -190,12 +189,28 @@ func (ctrl GroupController) Create(c *gin.Context) {
 
 	// check whether the group exist or not
 	if req.ParentGroupID != nil {
-		if !req.ParentExist() {
+		// check for level 1 parent
+		parent1, err := req.GetParent()
+		if err != nil {
 			c.JSON(http.StatusBadRequest, common.Error{
 				Code:     http.StatusBadRequest,
 				Messages: []string{"Parent Group does not exists."},
 			})
 			return
+		}
+		// check for level 2 parent
+		parent2, err := parent1.GetParent()
+		if err == nil {
+			// check for level 3 parent
+			_, err = parent2.GetParent()
+			// returns an error if the 3rd parent has a parent
+			if err == nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:     http.StatusBadRequest,
+					Messages: []string{"Maximum level of nesting is 3."},
+				})
+				return
+			}
 		}
 	}
 
