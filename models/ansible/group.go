@@ -3,9 +3,9 @@ package ansible
 import (
 	"time"
 
+	"github.com/pearsonappeng/tensor/db"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/db"
 )
 
 // Group is the model for Group collection
@@ -23,23 +23,30 @@ type Group struct {
 	InventoryID              bson.ObjectId  `bson:"inventory_id" json:"inventory"`
 	ParentGroupID            *bson.ObjectId `bson:"parent_group_id,omitempty" json:"parent_group,omitempty"`
 
-	CreatedByID              bson.ObjectId `bson:"created_by_id" json:"-"`
-	ModifiedByID             bson.ObjectId `bson:"modified_by_id" json:"-"`
+	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
+	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Created                  time.Time `bson:"created" json:"created"`
-	Modified                 time.Time `bson:"modified" json:"modified"`
+	Created  time.Time `bson:"created" json:"created"`
+	Modified time.Time `bson:"modified" json:"modified"`
 
-	Type                     string  `bson:"-" json:"type"`
-	URL                      string  `bson:"-" json:"url"`
-	Children                 []Group `bson:"-" json:"children,omitempty"`
-	Related                  gin.H   `bson:"-" json:"related"`
-	Summary                  gin.H   `bson:"-" json:"summary_fields"`
-	LastJob                  gin.H   `bson:"-" json:"last_job"`
-	LastJobHostSummary       gin.H   `bson:"-" json:"last_job_host_summary"`
+	Type               string  `bson:"-" json:"type"`
+	URL                string  `bson:"-" json:"url"`
+	Children           []Group `bson:"-" json:"children,omitempty"`
+	Related            gin.H   `bson:"-" json:"related"`
+	Summary            gin.H   `bson:"-" json:"summary_fields"`
+	LastJob            gin.H   `bson:"-" json:"last_job"`
+	LastJobHostSummary gin.H   `bson:"-" json:"last_job_host_summary"`
 }
 
 func (*Group) GetType() string {
 	return "group"
+}
+
+// GetParent returns the parent of the given Group
+func (group *Group) GetParent() (Group, error) {
+	var grp Group
+	err := db.Groups().Find(bson.M{"_id": group.ParentGroupID}).One(&grp)
+	return grp, err
 }
 
 func (group *Group) IsUnique() bool {
