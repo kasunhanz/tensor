@@ -3,9 +3,9 @@ package common
 import (
 	"time"
 
+	"github.com/pearsonappeng/tensor/db"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/db"
 )
 
 const (
@@ -68,11 +68,25 @@ type Credential struct {
 	Roles             []AccessControl `bson:"roles" json:"-"`
 }
 
-func (*Credential) GetType() string {
+func (Credential) GetType() string {
 	return "credential"
 }
 
-func (crd *Credential) IsUnique() bool {
+func (c Credential) GetRoles() []AccessControl {
+	return c.Roles
+}
+
+func (c Credential) GetID() bson.ObjectId {
+	return c.ID
+}
+
+func (c Credential) GetOrganizationID() (bson.ObjectId, error) {
+	var org Organization
+	err := db.Organizations().FindId(c.OrganizationID).One(&org)
+	return org.ID, err
+}
+
+func (crd Credential) IsUnique() bool {
 	count, err := db.Credentials().Find(bson.M{"name": crd.Name}).Count()
 	if err == nil && count > 0 {
 		return false
@@ -81,7 +95,7 @@ func (crd *Credential) IsUnique() bool {
 	return true
 }
 
-func (crd *Credential) MachineCredentialExist() bool {
+func (crd Credential) MachineCredentialExist() bool {
 	query := bson.M{
 		"_id": crd.ID,
 		"kind": bson.M{
@@ -98,7 +112,7 @@ func (crd *Credential) MachineCredentialExist() bool {
 	return false
 }
 
-func (crd *Credential) NetworkCredentialExist() bool {
+func (crd Credential) NetworkCredentialExist() bool {
 	count, err := db.Credentials().Find(bson.M{"_id": crd.ID, "kind": CredentialKindNET}).Count()
 	if err == nil && count > 0 {
 		return true
@@ -106,7 +120,7 @@ func (crd *Credential) NetworkCredentialExist() bool {
 	return false
 }
 
-func (crd *Credential) CloudCredentialExist() bool {
+func (crd Credential) CloudCredentialExist() bool {
 	query := bson.M{
 		"_id": crd.ID,
 		"kind": bson.M{
@@ -128,7 +142,7 @@ func (crd *Credential) CloudCredentialExist() bool {
 	return false
 }
 
-func (crd *Credential) SCMCredentialExist() bool {
+func (crd Credential) SCMCredentialExist() bool {
 	count, err := db.Credentials().Find(bson.M{"_id": crd.ID, "kind": CredentialKindSCM}).Count()
 	if err == nil && count > 0 {
 		return true
@@ -136,7 +150,7 @@ func (crd *Credential) SCMCredentialExist() bool {
 	return false
 }
 
-func (crd *Credential) OrganizationExist() bool {
+func (crd Credential) OrganizationExist() bool {
 	count, err := db.Organizations().FindId(crd.OrganizationID).Count()
 	if err == nil && count > 0 {
 		return true

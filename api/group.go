@@ -14,16 +14,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for group related items stored in the Gin Context
 const (
-	CTXGroup = "group"
+	CTXGroup   = "group"
 	CTXGroupID = "group_id"
 )
 
@@ -35,6 +36,7 @@ type GroupController struct{}
 func (ctrl GroupController) Middleware(c *gin.Context) {
 
 	ID, err := util.GetIdParam(CTXGroupID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -42,8 +44,8 @@ func (ctrl GroupController) Middleware(c *gin.Context) {
 			"Error":    err.Error(),
 		}).Errorln("Error while getting Group ID url parameter")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -58,11 +60,53 @@ func (ctrl GroupController) Middleware(c *gin.Context) {
 			"Error":    err.Error(),
 		}).Errorln("Error while retriving Group form the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.Inventory)
+	switch c.Request.Method {
+	case "GET":
+		{
+			// Reject the request if the user doesn't have inventory read permissions
+			inv, err := group.GetInventory()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Inventory ID": inv.ID,
+					"Error":        err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			if !roles.Read(user, inv) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			inv, err := group.GetInventory()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Inventory ID": inv.ID,
+					"Error":        err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			// Reject the request if the user doesn't have inventory write permissions
+			if !roles.Write(user, inv) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXGroup, group)
@@ -79,7 +123,7 @@ func (ctrl GroupController) One(c *gin.Context) {
 }
 
 // GetGroups is a Gin handler function which returns list of Groups
-// This takes lookup parameters and order parameters to filder and sort output data.
+// This takes lookup parameters and order parameters to filer and sort output data.
 func (ctrl GroupController) All(c *gin.Context) {
 	user := c.MustGet(CTXUser).(common.User)
 
@@ -99,6 +143,7 @@ func (ctrl GroupController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.Inventory)
 	var groups []ansible.Group
 	// new mongodb iterator
 	iter := query.Iter()
@@ -106,6 +151,18 @@ func (ctrl GroupController) All(c *gin.Context) {
 	var tmpGroup ansible.Group
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpGroup) {
+		inv, err := tmpGroup.GetInventory()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"Inventory ID": inv.ID,
+				"Error":        err.Error(),
+			}).Errorln("Error while getting Inventroy")
+		}
+		// Reject the request if the user doesn't have inventory read permissions
+		if !roles.Read(user, inv) {
+			continue
+		}
+
 		metadata.GroupMetadata(&tmpGroup)
 		// good to go add to list
 		groups = append(groups, tmpGroup)
@@ -116,8 +173,8 @@ func (ctrl GroupController) All(c *gin.Context) {
 			"Group ID": tmpGroup.ID.Hex(),
 		}).Debugln("User does not have read permissions")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Group"},
 		})
 		return
 	}
@@ -163,8 +220,35 @@ func (ctrl GroupController) Create(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Invlid JSON request")
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// check whether the inventory exist or not
+	if !req.InventoryExist() {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Inventory does not exists."},
+		})
+		return
+	}
+
+	// abort if use doesn't have permission
+	roles := new(rbac.Inventory)
+	inv, err := req.GetInventory()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Inventory ID": inv.ID,
+			"Error":        err.Error(),
+		}).Errorln("Error while getting Inventroy")
+	}
+	// Reject the request if the user doesn't have inventory write permissions
+	if !roles.Write(user, inv) {
+		c.JSON(http.StatusUnauthorized, common.Error{
+			Code:   http.StatusUnauthorized,
+			Errors: []string{"You don't have sufficient permissions to perform this action."},
 		})
 		return
 	}
@@ -172,18 +256,8 @@ func (ctrl GroupController) Create(c *gin.Context) {
 	// if the group exist in the collection it is not unique
 	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Group with this Name and Inventory already exists."},
-		})
-		return
-	}
-
-
-	// check whether the inventory exist or not
-	if !req.InventoryExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Group with this Name and Inventory already exists."},
 		})
 		return
 	}
@@ -192,8 +266,8 @@ func (ctrl GroupController) Create(c *gin.Context) {
 	if req.ParentGroupID != nil {
 		if !req.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Parent Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Parent Group does not exists."},
 			})
 			return
 		}
@@ -212,8 +286,8 @@ func (ctrl GroupController) Create(c *gin.Context) {
 			"Error":    err.Error(),
 		}).Errorln("Error while creating Group")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Group"},
 		})
 		return
 	}
@@ -241,8 +315,8 @@ func (ctrl GroupController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -250,8 +324,8 @@ func (ctrl GroupController) Update(c *gin.Context) {
 	// check whether the inventory exist or not
 	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Inventory does not exists."},
 		})
 		return
 	}
@@ -260,8 +334,8 @@ func (ctrl GroupController) Update(c *gin.Context) {
 		// if the group exist in the collection it is not unique
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group with this Name and Inventory already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Group with this Name and Inventory already exists."},
 			})
 			return
 		}
@@ -271,8 +345,8 @@ func (ctrl GroupController) Update(c *gin.Context) {
 	if req.ParentGroupID != nil && *req.ParentGroupID != group.ID {
 		if !req.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Parent Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Parent Group does not exists."},
 			})
 			return
 		}
@@ -290,8 +364,8 @@ func (ctrl GroupController) Update(c *gin.Context) {
 	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		log.Errorln("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Group"},
 		})
 		return
 	}
@@ -320,8 +394,8 @@ func (ctrl GroupController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -332,8 +406,8 @@ func (ctrl GroupController) Patch(c *gin.Context) {
 
 		if !group.InventoryExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Inventory does not exists."},
 			})
 			return
 		}
@@ -347,8 +421,8 @@ func (ctrl GroupController) Patch(c *gin.Context) {
 		// if the group exist in the collection it is not unique
 		if !group.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group with this Name and Inventory already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Group with this Name and Inventory already exists."},
 			})
 			return
 		}
@@ -359,8 +433,8 @@ func (ctrl GroupController) Patch(c *gin.Context) {
 		group.ParentGroupID = req.ParentGroupID
 		if !group.ParentExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Parent Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Parent Group does not exists."},
 			})
 			return
 		}
@@ -381,8 +455,8 @@ func (ctrl GroupController) Patch(c *gin.Context) {
 	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		log.Errorln("Error while updating Group:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Group"},
 		})
 		return
 	}
@@ -417,8 +491,8 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while getting child Groups:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Group"},
 		})
 		return
 	}
@@ -435,8 +509,8 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Group Hosts:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Group Hosts"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Group Hosts"},
 		})
 		return
 	}
@@ -447,8 +521,8 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Group:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Group"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Group"},
 		})
 		return
 	}
@@ -505,8 +579,8 @@ func (ctrl GroupController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}

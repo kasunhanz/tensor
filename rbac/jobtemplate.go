@@ -5,32 +5,31 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/models/ansible"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/models"
 )
 
-func jobTemplateRead(user common.User, jtemplate models.RootModel) bool {
-	// allow access if the user is super user or
+const (
+	JobTemplateAdmin   = "admin"
+	JobTemplateExecute = "execute"
+)
+
+type JobTemplate struct{}
+
+func (JobTemplate) Read(user common.User, jtemplate ansible.JobTemplate) bool {
+	// Allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser || user.IsSystemAuditor {
+	if HasGlobalRead(user) {
 		return true
 	}
 
-	// Check whether the user is an member of the objects' organization
-	// since this is read it doesn't matter what permission assined to the user
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": jtemplate.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational memeber:", err)
+	if orgID, err := jtemplate.GetOrganizationID(); err != nil {
+		// check whether the user is an member of the objects' organization
+		// since this is write permission it is must user need to be an admin
+		if IsOrganizationAdmin(orgID, user.ID) {
+			return true
+		}
 	}
-	if count > 0 {
-		return true
-	}
-
-	// TODO: Users granted access to view the inventory, project, and credential
 
 	var teams []bson.ObjectId
 	// check whether the user has access to object
@@ -46,11 +45,13 @@ func jobTemplateRead(user common.User, jtemplate models.RootModel) bool {
 		}
 	}
 
-	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{
-		"_id:": bson.M{"$in": teams},
-		"roles.user_id": user.ID,
-	}).Count()
+	// check team permissions of the user,
+	// and team has admin and update privileges
+	query := bson.M{
+		"_id:":             bson.M{"$in": teams},
+		"roles.grantee_id": user.ID,
+	}
+	count, err := db.Teams().Find(query).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
@@ -61,84 +62,22 @@ func jobTemplateRead(user common.User, jtemplate models.RootModel) bool {
 	return false
 }
 
-func jobTemplateWrite(user common.User, jtemplate models.RootModel) bool {
+func (JobTemplate) Write(user common.User, jtemplate ansible.JobTemplate) bool {
 	// Allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser {
+	if HasGlobalWrite(user) {
 		return true
 	}
 
-
-	// check whether the user is an member of the objects' organization
-	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": jtemplate.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational admin:", err)
-	}
-	if count > 0 {
-		return true
-	}
-
-	var teams []bson.ObjectId
-	// check whether the user has access to object
-	// using roles list
-	// if object has granted team get those teams to list
-	for _, v := range jtemplate.GetRoles() {
-		if v.Type == RoleTypeTeam && (v.Role == JobTemplateAdmin) {
-			teams = append(teams, v.GranteeID)
-		}
-
-		if v.Type == RoleTypeUser && v.GranteeID == user.ID && (v.Role == JobTemplateAdmin) {
+	if orgID, err := jtemplate.GetOrganizationID(); err != nil {
+		// check whether the user is an member of the objects' organization
+		// since this is write permission it is must user need to be an admin
+		if IsOrganizationAdmin(orgID, user.ID) {
 			return true
 		}
 	}
 
-	// check team permissions of the user,
-	// and team has admin and update privileges
-	query := bson.M{
-		"_id:":          bson.M{"$in": teams},
-		"roles.user_id": user.ID,
-	}
-	count, err = db.Teams().Find(query).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
-	}
-	if count > 0 {
-		return true
-	}
-
-	return false
-}
-
-func jobTemplateExecute(user common.User, jtemplate models.RootModel) bool {
-	// Allow access if the user is super user or
-	// a system auditor
-	if user.IsSuperUser {
-		return true
-	}
-
-	// Check whether the user is an member of the objects' organization
-	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": jtemplate.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational admin:", err)
-	}
-
-	if count > 0 {
-		return true
-	}
-
-	//teams which has relevant permissions
 	var teams []bson.ObjectId
-
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
@@ -152,21 +91,47 @@ func jobTemplateExecute(user common.User, jtemplate models.RootModel) bool {
 		}
 	}
 
-	// Check team permissions of the user,
+	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:":          bson.M{"$in": teams},
-		"roles.user_id": user.ID,
+		"_id:":             bson.M{"$in": teams},
+		"roles.grantee_id": user.ID,
 	}
-	count, err = db.Teams().Find(query).Count()
-
+	count, err := db.Teams().Find(query).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
-
 	if count > 0 {
 		return true
 	}
 
 	return false
+}
+
+func (JobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to assign the role, an error occured")
+	}
+
+	return
+}
+
+func (JobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to disassociate role")
+	}
+
+	return
 }

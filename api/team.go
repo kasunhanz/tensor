@@ -11,17 +11,18 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXTeam = "team"
+	CTXTeam   = "team"
 	CTXTeamID = "team_id"
 )
 
@@ -32,6 +33,7 @@ type TeamController struct{}
 // and store team data under key CTXTeam in Gin Context
 func (ctrl TeamController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTeamID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -39,8 +41,8 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while getting Team ID url parameter")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -54,11 +56,38 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while retriving Team form the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.Team)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, team) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, team) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXTeam, team)
@@ -77,6 +106,7 @@ func (ctrl TeamController) One(c *gin.Context) {
 // GetTeams is a Gin handler function which returns list of teams
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TeamController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -92,6 +122,7 @@ func (ctrl TeamController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.Team)
 	var teams []common.Team
 	// new mongodb iterator
 	iter := query.Iter()
@@ -99,7 +130,9 @@ func (ctrl TeamController) All(c *gin.Context) {
 	var tmpTeam common.Team
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpTeam) {
-		// TODO: if the user doesn't have access to credential
+		if !roles.Read(user, tmpTeam) {
+			continue
+		}
 		// skip to next
 		metadata.TeamMetadata(&tmpTeam)
 		// good to go add to list
@@ -110,8 +143,8 @@ func (ctrl TeamController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Team data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Team"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Team"},
 		})
 		return
 	}
@@ -147,8 +180,8 @@ func (ctrl TeamController) Create(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -156,8 +189,8 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	// check whether the organization exist or not
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -165,8 +198,8 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	// if the team exist in the collection it is not unique
 	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Team with this Name and Organization already exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Team with this Name and Organization already exists."},
 		})
 		return
 	}
@@ -184,11 +217,23 @@ func (ctrl TeamController) Create(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while creating Team")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Team"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Team"},
 		})
 		return
 	}
+
+	roles := new(rbac.Team)
+	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
+		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin); err != nil {
+			log.WithFields(log.Fields{
+				"User ID":   user.ID,
+				"Object ID": req.ID,
+				"Error":     err.Error(),
+			}).Errorln("Admin role association failed")
+		}
+	}
+
 	// add new activity to activity stream
 	activity.AddTeamActivity(common.Create, user, req)
 
@@ -209,8 +254,8 @@ func (ctrl TeamController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -218,8 +263,8 @@ func (ctrl TeamController) Update(c *gin.Context) {
 	// check whether the organization exist or not
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -228,8 +273,8 @@ func (ctrl TeamController) Update(c *gin.Context) {
 		// if the team exist in the collection it is not unique
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Team with this Name and Organization already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Team with this Name and Organization already exists."},
 			})
 			return
 		}
@@ -248,8 +293,8 @@ func (ctrl TeamController) Update(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while updating Team")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Team"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Team"},
 		})
 		return
 	}
@@ -278,8 +323,8 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -289,8 +334,8 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 		// check whether the organization exist or not
 		if !team.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Organization does not exists."},
 			})
 			return
 		}
@@ -298,7 +343,6 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 
 	if req.Name != nil && *req.Name != team.Name {
 		team.Name = strings.Trim(*req.Name, " ")
-		team.OrganizationID = team.OrganizationID
 
 		if req.OrganizationID != nil {
 			team.OrganizationID = *req.OrganizationID
@@ -306,8 +350,8 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 		// if the team exist in the collection it is not unique
 		if !team.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Team with this Name and Organization already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Team with this Name and Organization already exists."},
 			})
 			return
 		}
@@ -330,8 +374,8 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while updating Team")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Team"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Team"},
 		})
 		return
 	}
@@ -358,8 +402,8 @@ func (ctrl TeamController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Team:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Team"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Team"},
 		})
 		return
 	}
@@ -424,16 +468,21 @@ func (ctrl TeamController) Users(c *gin.Context) {
 // Credentials is Gin handler function which returns credentials associated with a team
 func (ctrl TeamController) Credentials(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
+	user := c.MustGet(CTXUser).(common.User)
 
 	var credentials []common.Credential
 	// new mongodb iterator
 	iter := db.Credentials().Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+
+	roles := new(rbac.Credential)
 	// loop through each result and modify for our needs
 	var tmpCred common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCred) {
-		// TODO: if the user doesn't have access to credential
-		// skip to next
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpCred) {
+			continue
+		}
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
 		metadata.CredentialMetadata(&tmpCred)
@@ -445,8 +494,8 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -481,15 +530,21 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 // Projects is a Gin handler function which returns projects associated with a team
 func (ctrl TeamController) Projects(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
+	user := c.MustGet(CTXUser).(common.User)
 
 	var projects []common.Project
 	// new mongodb iterator
 	iter := db.Projects().Find(bson.M{"roles.type": "team", "roles.team_id": team.ID}).Iter()
+
+	roles := new(rbac.Project)
 	// loop through each result and modify for our needs
 	var tmpProject common.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProject) {
-		// TODO: if the user doesn't have access to credential
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpProject) {
+			continue
+		}
 		// skip to next
 		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
@@ -500,8 +555,8 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Projects data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Projects"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Projects"},
 		})
 		return
 	}
@@ -530,26 +585,26 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 
 	var activities []common.ActivityTeam
-	var activity common.ActivityTeam
+	var act common.ActivityTeam
 	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": team.ID}).Iter()
 	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityTeamMetadata(&activity)
-		metadata.TeamMetadata(&activity.Object1)
+	for iter.Next(&act) {
+		metadata.ActivityTeamMetadata(&act)
+		metadata.TeamMetadata(&act.Object1)
 		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.TeamMetadata(activity.Object2)
+		if act.Object2 != nil {
+			metadata.TeamMetadata(act.Object2)
 		}
 		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -567,5 +622,113 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
+	})
+}
+
+func (ctrl TeamController) AssignRole(c *gin.Context) {
+	team := c.MustGet(CTXTeam).(common.Team)
+
+	var req common.RoleObj
+	err := binding.JSON.Bind(c.Request, &req)
+	if err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
+		})
+		return
+	}
+
+	switch req.ResourceType {
+	case "credential":
+		{
+			roles := new(rbac.Credential)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+
+	case "organization":
+		{
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"You cannot assign an Organization role as a child role for a Team."},
+			})
+			return
+		}
+
+	case "team":
+		{
+			roles := new(rbac.Team)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+
+	case "project":
+		{
+			roles := new(rbac.Project)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+
+	case "job_template":
+		{
+			roles := new(rbac.JobTemplate)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+
+	case "terraform_job_template":
+		{
+			roles := new(rbac.TerraformJobTemplate)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+
+	case "inventory":
+		{
+			roles := new(rbac.Inventory)
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+			}
+		}
+	}
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": team.ID.Hex(),
+			"User ID":     team.ID.Hex(),
+			"Error":       err.Error(),
+		}).Errorln("Error occured while modifying the role")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error occured while adding role"},
+		})
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
+func (ctrl TeamController) GetRoles(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, common.Error{
+		Code:   http.StatusNotImplemented,
+		Errors: []string{"Not implemented"},
 	})
 }

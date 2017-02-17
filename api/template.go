@@ -15,15 +15,16 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
@@ -39,6 +40,7 @@ type JobTemplateController struct{}
 // and store job template data under key CTXJobTemplate in Gin Context
 func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXJobTemplateID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -46,8 +48,8 @@ func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while getting Job Template ID url parameter")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -60,11 +62,38 @@ func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while retriving Job Template form the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.JobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, jobTemplate) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "POST", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, jobTemplate) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	// Set the Job Template to the gin.Context
@@ -100,6 +129,8 @@ func (ctrl JobTemplateController) One(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl JobTemplateController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
+
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
@@ -114,6 +145,7 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.JobTemplate)
 	var jobTemplates []ansible.JobTemplate
 	// new mongodb iterator
 	iter := query.Iter()
@@ -121,7 +153,11 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 	var tmpJobTemplate ansible.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
-		// TODO: if the user doesn't have access to credential
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpJobTemplate) {
+			continue
+		}
+
 		// skip to next
 		metadata.JTemplateMetadata(&tmpJobTemplate)
 		// good to go add to list
@@ -132,8 +168,8 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Job Template data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Job Template"},
 		})
 		return
 	}
@@ -216,8 +252,8 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -225,8 +261,8 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	// check the project exist or not
 	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -234,8 +270,8 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	// if the JobTemplate exist in the collection it is not unique
 	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Job Template with this Name already exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Job Template with this Name already exists."},
 		})
 		return
 	}
@@ -243,18 +279,54 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	// check the inventory exist or not
 	if !req.InventoryExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Inventory does not exists"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Inventory does not exists"},
 		})
 		return
 	}
 
-	// check the machine credential exist or not
-	if !req.MachineCredentialExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
+	rolesi := new(rbac.Inventory)
+	inv, err := req.GetInventory()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Inventory ID": inv.ID,
+			"Error":        err.Error(),
+		}).Errorln("Error while getting Inventroy")
+	}
+	// Reject the request if the user doesn't have inventory read permissions
+	if !rolesi.Read(user, inv) {
+		c.JSON(http.StatusUnauthorized, common.Error{
+			Code:   http.StatusUnauthorized,
+			Errors: []string{"You don't have permissions to use the inventory in job template"},
 		})
+		c.Abort()
+		return
+	}
+
+	// check the machine credential exist or not
+	if req.MachineCredentialID != nil && !req.MachineCredentialExist() {
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Machine Credential does not exists"},
+		})
+		return
+	}
+
+	rolesc := new(rbac.Credential)
+	cred, err := req.GetCredential()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Inventory ID": inv.ID,
+			"Error":        err.Error(),
+		}).Errorln("Error while getting Inventroy")
+	}
+	// Reject the request if the user doesn't have inventory read permissions
+	if !rolesc.Read(user, cred) {
+		c.JSON(http.StatusUnauthorized, common.Error{
+			Code:   http.StatusUnauthorized,
+			Errors: []string{"You don't have permissions to use the credential in a job template"},
+		})
+		c.Abort()
 		return
 	}
 
@@ -262,9 +334,26 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	if req.NetworkCredentialID != nil {
 		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Network Credential does not exists"},
 			})
+			return
+		}
+
+		cred, err := req.GetNetworkCredential()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"Inventory ID": inv.ID,
+				"Error":        err.Error(),
+			}).Errorln("Error while getting Inventroy")
+		}
+		// Reject the request if the user doesn't have inventory read permissions
+		if !rolesc.Read(user, cred) {
+			c.JSON(http.StatusUnauthorized, common.Error{
+				Code:   http.StatusUnauthorized,
+				Errors: []string{"You don't have permissions to use the network credential in job template"},
+			})
+			c.Abort()
 			return
 		}
 	}
@@ -273,9 +362,25 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Cloud Credential does not exists"},
 			})
+			return
+		}
+		cred, err := req.GetCloudCredential()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"Inventory ID": inv.ID,
+				"Error":        err.Error(),
+			}).Errorln("Error while getting Inventroy")
+		}
+		// Reject the request if the user doesn't have inventory read permissions
+		if !rolesc.Read(user, cred) {
+			c.JSON(http.StatusUnauthorized, common.Error{
+				Code:   http.StatusUnauthorized,
+				Errors: []string{"You don't have permissions to use the cloud credential in job template"},
+			})
+			c.Abort()
 			return
 		}
 	}
@@ -293,15 +398,36 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while creating Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating  Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating  Job Template"},
 		})
 		return
 	}
 
+	roles := new(rbac.JobTemplate)
+	if !rbac.HasGlobalWrite(user) {
+		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin); err != nil {
+			log.WithFields(log.Fields{
+				"User ID":   user.ID,
+				"Object ID": req.ID,
+				"Error":     err.Error(),
+			}).Errorln("Admin role association failed")
+		}
+	} else if orgId, err := req.GetOrganizationID(); err != nil {
+		if !rbac.IsOrganizationAdmin(orgId, user.ID) {
+			if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin); err != nil {
+				log.WithFields(log.Fields{
+					"User ID":   user.ID,
+					"Object ID": req.ID,
+					"Error":     err.Error(),
+				}).Errorln("Admin role association failed")
+			}
+		}
+	}
+
 	// add new activity to activity stream
 	activity.AddJobTemplateActivity(common.Create, user, req)
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&req)
 
 	// send response with JSON rendered data
@@ -322,8 +448,8 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	var req ansible.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -331,8 +457,8 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	// check the project exist or not
 	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -341,28 +467,30 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 		// if the JobTemplate exist in the collection it is not unique
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Template with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Job Template with this Name already exists."},
 			})
 			return
 		}
 	}
 
 	// check whether the machine credential exist or not
-	if !req.MachineCredentialExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
-		})
-		return
+	if req.MachineCredentialID != nil {
+		if !req.MachineCredentialExist() {
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
 	}
 
 	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Network Credential does not exists"},
 			})
 			return
 		}
@@ -372,8 +500,8 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Cloud Credential does not exists"},
 			})
 			return
 		}
@@ -417,8 +545,8 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while updating Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Job Template"},
 		})
 		return
 	}
@@ -448,8 +576,8 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 	var req ansible.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -459,8 +587,8 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 		jobTemplate.ProjectID = *req.ProjectID
 		if !jobTemplate.ProjectExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Project does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Project does not exists"},
 			})
 			return
 		}
@@ -471,20 +599,20 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 
 		if !jobTemplate.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Template with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Job Template with this Name already exists."},
 			})
 			return
 		}
 	}
 
 	if req.MachineCredentialID != nil {
-		jobTemplate.MachineCredentialID = *req.MachineCredentialID
+		jobTemplate.MachineCredentialID = req.MachineCredentialID
 		// check whether the machine credential exist or not
 		if !jobTemplate.MachineCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Machine Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Machine Credential does not exists."},
 			})
 			return
 		}
@@ -496,8 +624,8 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 
 		if !jobTemplate.NetworkCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Network Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Network Credential does not exists."},
 			})
 			return
 		}
@@ -509,8 +637,8 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 
 		if !jobTemplate.CloudCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Cloud Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Cloud Credential does not exists."},
 			})
 			return
 		}
@@ -614,8 +742,8 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while updating Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Job Template"},
 		})
 		return
 	}
@@ -646,8 +774,8 @@ func (ctrl JobTemplateController) Delete(c *gin.Context) {
 			"Error":           err.Error(),
 		}).Errorln("Error while removing Job Temlate")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Job Template"},
 		})
 		return
 	}
@@ -682,8 +810,8 @@ func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -737,8 +865,8 @@ func (ctrl JobTemplateController) Jobs(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving jobs data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Jobs"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Jobs"},
 		})
 		return
 	}
@@ -784,8 +912,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			// Return 400 if request has bad JSON
 			// and return formatted validation errors
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: validate.GetValidationErrors(err),
+				Code:   http.StatusBadRequest,
+				Errors: validate.GetValidationErrors(err),
 			})
 			return // abort
 		}
@@ -835,8 +963,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptVariables {
 		if !(len(req.ExtraVars) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Additional variables required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Additional variables required"},
 			})
 			return
 		}
@@ -847,8 +975,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptLimit {
 		if !(len(req.Limit) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Limit required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Limit required"},
 			})
 			return
 		}
@@ -859,8 +987,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptTags {
 		if !(len(req.JobTags) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Tags required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Job Tags required"},
 			})
 			return
 		}
@@ -871,8 +999,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptSkipTags {
 		if !(len(req.SkipTags) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Skip Tags required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Skip Tags required"},
 			})
 			return
 		}
@@ -883,8 +1011,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptJobType {
 		if !(len(req.JobType) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Type required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Job Type required"},
 			})
 			return
 		}
@@ -902,8 +1030,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptInventory {
 		if len(req.InventoryID) != 24 {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Inventory required"},
 			})
 			return
 		}
@@ -913,12 +1041,12 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if template.PromptCredential {
 		if len(req.MachineCredentialID) != 24 {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Credential required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Credential required"},
 			})
 			return
 		}
-		job.MachineCredentialID = req.MachineCredentialID
+		job.MachineCredentialID = &req.MachineCredentialID
 	}
 
 	if job.NetworkCredentialID != nil {
@@ -929,8 +1057,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while getting Network Credential")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Network Credential"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Network Credential"},
 			})
 			return
 		}
@@ -945,8 +1073,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while getting Cloud Credential")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Cloud Credential"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Cloud Credential"},
 			})
 			return
 		}
@@ -960,25 +1088,27 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Inventory")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Inventory"},
 		})
 		return
 	}
 	runnerJob.Inventory = inventory
 
-	var credential common.Credential
-	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Machine Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Machine Credential"},
-		})
-		return
+	if job.CloudCredentialID != nil {
+		var credential common.Credential
+		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&credential); err != nil {
+			log.WithFields(log.Fields{
+				"Error": err.Error(),
+			}).Errorln("Error while getting Machine Credential")
+			c.JSON(http.StatusInternalServerError, common.Error{
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Machine Credential"},
+			})
+			return
+		}
+		runnerJob.Machine = credential
 	}
-	runnerJob.Machine = credential
 
 	// get project information
 	var project common.Project
@@ -987,8 +1117,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Project")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -1001,8 +1131,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Token")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Token"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Token"},
 		})
 		return
 	}
@@ -1015,8 +1145,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			"Error":  err.Error(),
 		}).Errorln("Error while creating Job")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Job"},
 		})
 		return
 	}
@@ -1030,8 +1160,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while adding the job to job queue")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while creating Job"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while creating Job"},
 			})
 			return
 		}
@@ -1046,8 +1176,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 			"Job Info": jobBytes,
 		}).Errorln("Error while adding the job to job queue")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Job"},
 		})
 		return
 	}

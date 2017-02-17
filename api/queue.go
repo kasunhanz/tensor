@@ -1,9 +1,9 @@
 package api
 
 import (
+	"github.com/pearsonappeng/tensor/queue"
 	"gopkg.in/gin-gonic/gin.v1"
 	"net/http"
-	"github.com/pearsonappeng/tensor/queue"
 )
 
 // QueueStats returns statistics about redis rmq

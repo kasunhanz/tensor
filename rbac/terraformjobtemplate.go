@@ -1,44 +1,41 @@
 package rbac
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/models/terraform"
 	"gopkg.in/mgo.v2/bson"
 )
 
-const (
-	CredentialAdmin = "admin"
-	CredentialUse   = "use"
-)
+type TerraformJobTemplate struct{}
 
-type Credential struct{}
-
-func (Credential) Read(user common.User, credential common.Credential) bool {
-	// allow access if the user is super user or
+func (TerraformJobTemplate) Read(user common.User, jtemplate terraform.JobTemplate) bool {
+	// Allow access if the user is super user or
 	// a system auditor
 	if HasGlobalRead(user) {
 		return true
 	}
 
-	if credential.OrganizationID != nil {
-		// Organization can be empty in credential objects
-		if IsOrganizationAdmin(*credential.OrganizationID, user.ID) {
+	if orgID, err := jtemplate.GetOrganizationID(); err != nil {
+		// check whether the user is an member of the objects' organization
+		// since this is write permission it is must user need to be an admin
+		if IsOrganizationAdmin(orgID, user.ID) {
 			return true
 		}
-
 	}
 
 	var teams []bson.ObjectId
-	// Check whether the user has access to object
+	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range credential.Roles {
-		if v.Type == "team" {
+	for _, v := range jtemplate.GetRoles() {
+		if v.Type == RoleTypeTeam {
 			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.GranteeID == user.ID {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID {
 			return true
 		}
 	}
@@ -50,7 +47,6 @@ func (Credential) Read(user common.User, credential common.Credential) bool {
 		"roles.grantee_id": user.ID,
 	}
 	count, err := db.Teams().Find(query).Count()
-
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
@@ -61,30 +57,31 @@ func (Credential) Read(user common.User, credential common.Credential) bool {
 	return false
 }
 
-func (Credential) Write(user common.User, credential common.Credential) bool {
-	// allow access if the user is super user or
+func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTemplate) bool {
+	// Allow access if the user is super user or
 	// a system auditor
 	if HasGlobalWrite(user) {
 		return true
 	}
 
-	if credential.OrganizationID != nil {
-		// Organization can be empty in credential objects
-		if IsOrganizationAdmin(*credential.OrganizationID, user.ID) {
+	if orgID, err := jtemplate.GetOrganizationID(); err != nil {
+		// check whether the user is an member of the objects' organization
+		// since this is write permission it is must user need to be an admin
+		if IsOrganizationAdmin(orgID, user.ID) {
 			return true
 		}
 	}
 
 	var teams []bson.ObjectId
-	// Check whether the user has access to object
+	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range credential.Roles {
-		if v.Type == "team" && v.Role == CredentialAdmin {
+	for _, v := range jtemplate.GetRoles() {
+		if v.Type == RoleTypeTeam && (v.Role == JobTemplateAdmin || v.Role == JobTemplateExecute) {
 			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == "user" && v.GranteeID == user.ID && v.Role == CredentialAdmin {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID && (v.Role == JobTemplateAdmin || v.Role == JobTemplateExecute) {
 			return true
 		}
 	}
@@ -96,7 +93,6 @@ func (Credential) Write(user common.User, credential common.Credential) bool {
 		"roles.grantee_id": user.ID,
 	}
 	count, err := db.Teams().Find(query).Count()
-
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
@@ -107,24 +103,24 @@ func (Credential) Write(user common.User, credential common.Credential) bool {
 	return false
 }
 
-func (Credential) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
-	if err = db.Credentials().UpdateId(resourceID, access); err != nil {
+	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
 		log.WithFields(log.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
-		}).Errorln("Unable to associate role")
+		}).Errorln("Unable to assign the role, an error occured")
 	}
 
 	return
 }
 
-func (Credential) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+func (TerraformJobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
-	if err = db.Credentials().UpdateId(resourceID, access); err != nil {
+	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
 		log.WithFields(log.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,

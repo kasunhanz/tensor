@@ -3,9 +3,9 @@ package common
 import (
 	"time"
 
+	"github.com/pearsonappeng/tensor/db"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/db"
 )
 
 // Project is the model for project
@@ -54,11 +54,21 @@ type Project struct {
 	Roles                 []AccessControl `bson:"roles" json:"-"`
 }
 
-func (*Project) GetType() string {
+func (Project) GetType() string {
 	return "project"
 }
 
-func (project *Project) IsUnique() bool {
+func (p Project) GetRoles() []AccessControl {
+	return p.Roles
+}
+
+func (p Project) GetOrganizationID() (bson.ObjectId, error) {
+	var org Organization
+	err := db.Organizations().FindId(p.OrganizationID).One(&org)
+	return org.ID, err
+}
+
+func (project Project) IsUnique() bool {
 	count, err := db.Projects().Find(bson.M{"name": project.Name, "organization_id": project.OrganizationID}).Count()
 	if err == nil && count > 0 {
 		return false
@@ -67,7 +77,7 @@ func (project *Project) IsUnique() bool {
 	return true
 }
 
-func (project *Project) Exist() bool {
+func (project Project) Exist() bool {
 	count, err := db.Projects().FindId(project.ID).Count()
 	if err == nil && count > 0 {
 		return true
@@ -75,7 +85,7 @@ func (project *Project) Exist() bool {
 	return false
 }
 
-func (project *Project) OrganizationExist() bool {
+func (project Project) OrganizationExist() bool {
 	count, err := db.Organizations().FindId(project.OrganizationID).Count()
 	if err == nil && count > 0 {
 		return true
@@ -90,7 +100,6 @@ func (project *Project) SCMCredentialExist() bool {
 	}
 	return false
 }
-
 
 // PatchProject is the model for PATCH requests
 type PatchProject struct {

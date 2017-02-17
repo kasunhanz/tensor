@@ -14,16 +14,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXInventory = "inventory"
+	CTXInventory   = "inventory"
 	CTXInventoryID = "inventory_id"
 )
 
@@ -34,12 +35,13 @@ type InventoryController struct{}
 // this set project data under key project in Gin Context.
 func (ctrl InventoryController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXInventoryID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -51,11 +53,39 @@ func (ctrl InventoryController) Middleware(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while getting the Inventory:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.Inventory)
+	switch c.Request.Method {
+	case "GET":
+		{
+			// Reject the request if the user doesn't have inventory read permissions
+			if !roles.Read(user, inventory) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have inventory write permissions
+			if !roles.Write(user, inventory) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXInventory, inventory)
@@ -75,6 +105,7 @@ func (ctrl InventoryController) One(c *gin.Context) {
 // GetInventories is a Gin handler function which returns list of inventories
 // This takes lookup parameters and order parameters to filter and sort output data.
 func (ctrl InventoryController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -86,6 +117,7 @@ func (ctrl InventoryController) All(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	roles := new(rbac.Inventory)
 	var inventories []ansible.Inventory
 	// new mongodb iterator
 	iter := query.Iter()
@@ -93,6 +125,11 @@ func (ctrl InventoryController) All(c *gin.Context) {
 	var tmpInventory ansible.Inventory
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpInventory) {
+		// Reject the request if the user doesn't have inventory read permissions
+		if !roles.Read(user, tmpInventory) {
+			continue
+		}
+
 		metadata.InventoryMetadata(&tmpInventory)
 		// good to go add to list
 		inventories = append(inventories, tmpInventory)
@@ -100,8 +137,8 @@ func (ctrl InventoryController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Inventory"},
 		})
 		return
 	}
@@ -131,8 +168,8 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -141,8 +178,8 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	// if not fail
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -150,8 +187,8 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	// if inventory exists in the collection
 	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory with this Name already exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Inventory with this Name already exists."},
 		})
 		return
 	}
@@ -165,10 +202,21 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	if err := db.Inventories().Insert(req); err != nil {
 		log.Errorln("Error while creating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Inventory"},
 		})
 		return
+	}
+
+	roles := new(rbac.Inventory)
+	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
+		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin); err != nil {
+			log.WithFields(log.Fields{
+				"User ID":   user.ID,
+				"Object ID": req.ID,
+				"Error":     err.Error(),
+			}).Errorln("Admin roles association failed")
+		}
 	}
 
 	// add new activity to activity stream
@@ -181,7 +229,7 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 }
 
 // UpdateInventory is a Gin handler function which updates a credential using request payload.
-// This replaces all the fields in the database, empty "" fiels and unspecified fields will be
+// This replaces all the fields in the database, empty "" field and unspecified fields will be
 // removed from the database.
 func (ctrl InventoryController) Update(c *gin.Context) {
 	// get Inventory from the gin.Context
@@ -194,8 +242,8 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -204,8 +252,8 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	// if not fail
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -214,8 +262,8 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 		// if inventory exists in the collection
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Inventory with this Name already exists."},
 			})
 			return
 		}
@@ -232,8 +280,8 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Errorln("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Inventory"},
 		})
 	}
 
@@ -260,8 +308,8 @@ func (ctrl InventoryController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -271,8 +319,8 @@ func (ctrl InventoryController) Patch(c *gin.Context) {
 		// check whether the organization exist or not
 		if !inventory.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exist."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Organization does not exist."},
 			})
 			return
 		}
@@ -284,8 +332,8 @@ func (ctrl InventoryController) Patch(c *gin.Context) {
 		// if inventory exists in the collection
 		if !inventory.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Inventory with this Name already exists."},
 			})
 			return
 		}
@@ -305,8 +353,8 @@ func (ctrl InventoryController) Patch(c *gin.Context) {
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		log.Errorln("Error while updating Inventory:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Inventory"},
 		})
 		return
 	}
@@ -331,8 +379,8 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Hosts:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Inventory Hosts"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Inventory Hosts"},
 		})
 	}
 	log.Infoln("Hosts remove info:", changes.Removed)
@@ -341,8 +389,8 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Groups:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Inventory Groups"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Inventory Groups"},
 		})
 	}
 	log.Infoln("Groups remove info:", changes.Removed)
@@ -351,8 +399,8 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Inventory:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Inventory"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Inventory"},
 		})
 	}
 
@@ -585,8 +633,8 @@ func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Job Templates"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Job Templates"},
 		})
 		return
 	}
@@ -636,8 +684,8 @@ func (ctrl InventoryController) RootGroups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Groups"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Groups"},
 		})
 		return
 	}
@@ -683,8 +731,8 @@ func (ctrl InventoryController) Groups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Groups"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Groups"},
 		})
 		return
 	}
@@ -730,8 +778,8 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Host data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Hosts"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Hosts"},
 		})
 		return
 	}
@@ -752,31 +800,31 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 	})
 }
 
-// ActivityStream returns the activites of the user on Inventories
+// ActivityStream returns the activities of the user on Inventories
 func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
 
 	var activities []ansible.ActivityInventory
-	var activity ansible.ActivityInventory
+	var act ansible.ActivityInventory
 	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": inventory.ID}).Iter()
 	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityInventoryMetadata(&activity)
-		metadata.InventoryMetadata(&activity.Object1)
+	for iter.Next(&act) {
+		metadata.ActivityInventoryMetadata(&act)
+		metadata.InventoryMetadata(&act.Object1)
 		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.InventoryMetadata(activity.Object2)
+		if act.Object2 != nil {
+			metadata.InventoryMetadata(act.Object2)
 		}
 		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -835,8 +883,8 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 			if err := iTree.Close(); err != nil {
 				log.Errorln("Error while retriving Inventory data from the db:", err)
 				c.JSON(http.StatusInternalServerError, common.Error{
-					Code:     http.StatusInternalServerError,
-					Messages: []string{"Error while getting Groups"},
+					Code:   http.StatusInternalServerError,
+					Errors: []string{"Error while getting Groups"},
 				})
 				return
 			}
@@ -851,8 +899,8 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 		if err := iTwo.Close(); err != nil {
 			log.Errorln("Error while retriving Inventory data from the db:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Groups"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Groups"},
 			})
 			return
 		}
@@ -867,8 +915,8 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 	if err := iOne.Close(); err != nil {
 		log.Errorln("Error while retriving Inventory data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Groups"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Groups"},
 		})
 		return
 	}

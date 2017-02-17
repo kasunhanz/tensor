@@ -15,11 +15,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models/ansible"
-	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/exec/misc"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/common"
 
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
@@ -72,7 +72,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 			Job:           jb.Job,
 			JobTemplateID: jb.Template.ID,
 			ProjectID:     jb.Project.ID,
-			SCM:       jb.SCM,
+			SCM:           jb.SCM,
 			Token:         jb.Token,
 			User:          jb.User,
 		})
@@ -85,7 +85,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 func Run() {
 	q := queue.OpenAnsibleQueue()
 
-	q.StartConsuming(1, 500 * time.Millisecond)
+	q.StartConsuming(1, 500*time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
@@ -135,7 +135,7 @@ func ansibleRun(j types.AnsibleJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
+	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
 	log.WithFields(log.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -150,7 +150,7 @@ func ansibleRun(j types.AnsibleJob) {
 			"Name":   j.Job.Name,
 			"Status": j.Job.Status,
 		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
+		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
 		cleanup()
 	}()
 
@@ -271,7 +271,7 @@ func ansibleRun(j types.AnsibleJob) {
 	}
 
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut) * time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.AnsibleJobTimeOut)*time.Second, func() {
 		log.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
@@ -317,7 +317,7 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 		pPlaybook = append(pPlaybook, "-u", uname)
 
 		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindSSH {
-			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + util.CipherDecrypt(j.Machine.Password) + "")
+			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.Machine.Password)+"")
 		}
 
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
@@ -331,17 +331,17 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 
 		// default become method is sudo
 		if len(j.Machine.BecomeMethod) > 0 {
-			pPlaybook = append(pPlaybook, "--become-method=" + j.Machine.BecomeMethod)
+			pPlaybook = append(pPlaybook, "--become-method="+j.Machine.BecomeMethod)
 		}
 
 		// default become user is root
 		if len(j.Machine.BecomeUsername) > 0 {
-			pPlaybook = append(pPlaybook, "--become-user=" + j.Machine.BecomeUsername)
+			pPlaybook = append(pPlaybook, "--become-user="+j.Machine.BecomeUsername)
 		}
 
 		// for now this is more convenient than --ask-become-pass with sshpass
 		if len(j.Machine.BecomePassword) > 0 {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.Machine.BecomePassword) + "'")
+			pSecure = append(pSecure, "-e", "'ansible_become_pass="+util.CipherDecrypt(j.Machine.BecomePassword)+"'")
 		}
 	}
 
@@ -463,7 +463,7 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 
 	// --skip-tags=SKIP_TAGS
 	if len(j.Job.SkipTags) > 0 {
-		params = append(params, "--skip-tags=" + j.Job.SkipTags)
+		params = append(params, "--skip-tags="+j.Job.SkipTags)
 	}
 
 	// --force-handlers
@@ -472,7 +472,7 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 	}
 
 	if len(j.Job.StartAtTask) > 0 {
-		params = append(params, "--start-at-task=" + j.Job.StartAtTask)
+		params = append(params, "--start-at-task="+j.Job.StartAtTask)
 	}
 
 	extras := map[string]interface{}{

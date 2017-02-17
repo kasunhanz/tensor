@@ -3,10 +3,10 @@ package ansible
 import (
 	"time"
 
-	"gopkg.in/gin-gonic/gin.v1"
-	"github.com/pearsonappeng/tensor/models/common"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type JobTemplate struct {
@@ -18,7 +18,6 @@ type JobTemplate struct {
 	InventoryID         bson.ObjectId `bson:"inventory_id" json:"inventory" binding:"required"`
 	ProjectID           bson.ObjectId `bson:"project_id" json:"project" binding:"required"`
 	Playbook            string        `bson:"playbook" json:"playbook" binding:"required"`
-	MachineCredentialID bson.ObjectId `bson:"credential_id" json:"credential" binding:"required"`
 
 	Verbosity           uint8 `bson:"verbosity,omitempty" json:"verbosity" binding:"omitempty,max=5"`
 
@@ -34,6 +33,7 @@ type JobTemplate struct {
 	BecomeEnabled       bool           `bson:"become_enabled,omitempty" json:"become_enabled"`
 	CloudCredentialID   *bson.ObjectId `bson:"cloud_credential_id,omitempty" json:"cloud_credential"`
 	NetworkCredentialID *bson.ObjectId `bson:"network_credential_id,omitempty" json:"network_credential"`
+	MachineCredentialID *bson.ObjectId  `bson:"credential_id,omitempty" json:"credential"`
 	PromptLimit         bool           `bson:"prompt_limit_on_launch,omitempty" json:"ask_limit_on_launch"`
 	PromptInventory     bool           `bson:"prompt_inventory,omitempty" json:"ask_inventory_on_launch"`
 	PromptCredential    bool           `bson:"prompt_credential,omitempty" json:"ask_credential_on_launch"`
@@ -71,11 +71,11 @@ type JobTemplate struct {
 	Roles               []common.AccessControl `bson:"roles" json:"-"`
 }
 
-func (*JobTemplate) GetType() string {
+func (JobTemplate) GetType() string {
 	return "job_template"
 }
 
-func (jt *JobTemplate) IsUnique() bool {
+func (jt JobTemplate) IsUnique() bool {
 	count, err := db.JobTemplates().Find(bson.M{"name": jt.Name, "project_id": jt.ProjectID}).Count()
 	if err == nil && count > 0 {
 		return false
@@ -84,7 +84,47 @@ func (jt *JobTemplate) IsUnique() bool {
 	return true
 }
 
-func (jt *JobTemplate) ProjectExist() bool {
+func (h JobTemplate) GetCredential() (common.Credential, error) {
+	var cred common.Credential
+	err := db.Credentials().FindId(h.InventoryID).One(&cred)
+	return cred, err
+}
+
+func (h JobTemplate) GetInventory() (Inventory, error) {
+	var inv Inventory
+	err := db.Inventories().FindId(h.InventoryID).One(&inv)
+	return inv, err
+}
+
+func (h JobTemplate) GetNetworkCredential() (common.Credential, error) {
+	var cred common.Credential
+	err := db.Credentials().FindId(h.InventoryID).One(&cred)
+	return cred, err
+}
+
+func (h JobTemplate) GetCloudCredential() (common.Credential, error) {
+	var cred common.Credential
+	err := db.Credentials().FindId(h.InventoryID).One(&cred)
+	return cred, err
+}
+
+func (jt JobTemplate) GetOrganizationID() (bson.ObjectId, error) {
+	var org common.Organization
+	pID, err := jt.GetProjectID()
+	if err != nil {
+		return org.ID, err
+	}
+	err = db.Organizations().FindId(pID).One(&org)
+	return org.ID, err
+}
+
+func (jt JobTemplate) GetProjectID() (bson.ObjectId, error) {
+	var prj common.Project
+	err := db.Projects().FindId(jt.ProjectID).One(&prj)
+	return prj.ID, err
+}
+
+func (jt JobTemplate) ProjectExist() bool {
 	count, err := db.Projects().FindId(jt.ProjectID).Count()
 	if err == nil && count > 0 {
 		return true
@@ -92,7 +132,7 @@ func (jt *JobTemplate) ProjectExist() bool {
 	return false
 }
 
-func (jt *JobTemplate) InventoryExist() bool {
+func (jt JobTemplate) InventoryExist() bool {
 	count, err := db.Inventories().FindId(jt.InventoryID).Count()
 	if err == nil && count > 0 {
 		return true
@@ -145,6 +185,10 @@ func (jt *JobTemplate) CloudCredentialExist() bool {
 		return true
 	}
 	return false
+}
+
+func (jt JobTemplate) GetRoles() []common.AccessControl {
+	return jt.Roles
 }
 
 type PatchJobTemplate struct {

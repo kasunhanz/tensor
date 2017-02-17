@@ -10,25 +10,26 @@ import (
 
 	metadata "github.com/pearsonappeng/tensor/api/metadata/terraform"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/exec/sync"
+	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/jwt"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
-	"github.com/pearsonappeng/tensor/exec/sync"
-	"github.com/pearsonappeng/tensor/exec/types"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXTerraformJobTemplate = "job_template"
+	CTXTerraformJobTemplate   = "job_template"
 	CTXTerraformJobTemplateID = "job_template_id"
 )
 
@@ -39,6 +40,7 @@ type TJobTmplController struct{}
 // and store terraform job template data under key CTXTerraformJobTemplate in Gin Context
 func (ctrl TJobTmplController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTerraformJobTemplateID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -46,8 +48,8 @@ func (ctrl TJobTmplController) Middleware(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while getting Terraform Job Template ID url parameter")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -60,11 +62,38 @@ func (ctrl TJobTmplController) Middleware(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while retriving Terraform Job Template form the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.TerraformJobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, jobTemplate) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "POST", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, jobTemplate) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	// Set the Job Template to the gin.Context
@@ -100,6 +129,7 @@ func (ctrl TJobTmplController) One(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TJobTmplController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
@@ -114,6 +144,7 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.TerraformJobTemplate)
 	var jobTemplates []terraform.JobTemplate
 	// new mongodb iterator
 	iter := query.Iter()
@@ -121,6 +152,11 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 	var tmpJobTemplate terraform.JobTemplate
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpJobTemplate) {
+			continue
+		}
+
 		metadata.JTemplateMetadata(&tmpJobTemplate)
 		// good to go add to list
 		jobTemplates = append(jobTemplates, tmpJobTemplate)
@@ -130,8 +166,8 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Terraform Job Template data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Terraform Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Terraform Job Template"},
 		})
 		return
 	}
@@ -214,8 +250,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -223,8 +259,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	// check the project exist or not
 	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -232,8 +268,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	// if the JobTemplate exist in the collection it is not unique
 	if req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Terraform Job Template with this Name already exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Terraform Job Template with this Name already exists."},
 		})
 		return
 	}
@@ -242,8 +278,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 		// check the machine credential exist or not
 		if !req.MachineCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Machine Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Machine Credential does not exists"},
 			})
 			return
 		}
@@ -253,8 +289,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	if req.NetworkCredentialID != nil {
 		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Network Credential does not exists"},
 			})
 			return
 		}
@@ -264,8 +300,8 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Cloud Credential does not exists"},
 			})
 			return
 		}
@@ -284,15 +320,36 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while creating Terraform Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Terraform Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Terraform Job Template"},
 		})
 		return
 	}
 
+	roles := new(rbac.TerraformJobTemplate)
+	if !rbac.HasGlobalWrite(user) {
+		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin); err != nil {
+			log.WithFields(log.Fields{
+				"User ID":   user.ID,
+				"Object ID": req.ID,
+				"Error":     err.Error(),
+			}).Errorln("Admin role association failed")
+		}
+	} else if orgId, err := req.GetOrganizationID(); err != nil {
+		if !rbac.IsOrganizationAdmin(orgId, user.ID) {
+			if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin); err != nil {
+				log.WithFields(log.Fields{
+					"User ID":   user.ID,
+					"Object ID": req.ID,
+					"Error":     err.Error(),
+				}).Errorln("Admin role association failed")
+			}
+		}
+	}
+
 	// add new activity to activity stream
 	activity.AddTJobTemplateActivity(common.Create, user, req)
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&req)
 
 	// send response with JSON rendered data
@@ -313,8 +370,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 	var req terraform.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -322,8 +379,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 	// check the project exist or not
 	if !req.ProjectExist() {
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Project does not exists"},
 		})
 		return
 	}
@@ -332,8 +389,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 		// if the JobTemplate exist in the collection it is not unique
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Terraform Job Template with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Terraform Job Template with this Name already exists."},
 			})
 			return
 		}
@@ -343,8 +400,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 		// check whether the machine credential exist or not
 		if !req.MachineCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Machine Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Machine Credential does not exists"},
 			})
 			return
 		}
@@ -354,8 +411,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 	if req.NetworkCredentialID != nil {
 		if !req.NetworkCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Network Credential does not exists"},
 			})
 			return
 		}
@@ -365,8 +422,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Cloud Credential does not exists"},
 			})
 			return
 		}
@@ -395,8 +452,8 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while updating Terraform Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Terraform Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Terraform Job Template"},
 		})
 		return
 	}
@@ -426,8 +483,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 	var req terraform.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -438,8 +495,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 
 		if !jobTemplate.ProjectExist() {
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Project does not exists"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Project does not exists"},
 			})
 			return
 		}
@@ -450,8 +507,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 
 		if !jobTemplate.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Terraform Job Template with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Terraform Job Template with this Name already exists."},
 			})
 			return
 		}
@@ -463,8 +520,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 		// check whether the machine credential exist or not
 		if !jobTemplate.MachineCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Machine Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Machine Credential does not exists."},
 			})
 			return
 		}
@@ -476,8 +533,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 
 		if !jobTemplate.NetworkCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Network Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Network Credential does not exists."},
 			})
 			return
 		}
@@ -489,8 +546,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 
 		if !jobTemplate.CloudCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Cloud Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Cloud Credential does not exists."},
 			})
 			return
 		}
@@ -534,8 +591,8 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while updating Terraform Job Template")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Terraform Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Terraform Job Template"},
 		})
 		return
 	}
@@ -566,8 +623,8 @@ func (ctrl TJobTmplController) Delete(c *gin.Context) {
 			"Error":                     err.Error(),
 		}).Errorln("Error while removing Terraform Job Temlate")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Terraform Job Template"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Terraform Job Template"},
 		})
 		return
 	}
@@ -617,8 +674,8 @@ func (ctrl TJobTmplController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -672,8 +729,8 @@ func (ctrl TJobTmplController) Jobs(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Terraform jobs data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Terraform Jobs"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Terraform Jobs"},
 		})
 		return
 	}
@@ -719,8 +776,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 			// Return 400 if request has bad JSON
 			// and return formatted validation errors
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: validate.GetValidationErrors(err),
+				Code:   http.StatusBadRequest,
+				Errors: validate.GetValidationErrors(err),
 			})
 			return // abort
 		}
@@ -758,8 +815,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	if template.PromptVariables {
 		if !(len(req.Vars) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Additional variables required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Additional variables required"},
 			})
 			return
 		}
@@ -770,8 +827,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	if template.PromptJobType {
 		if !(len(req.JobType) > 0) {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Type required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Job Type required"},
 			})
 			return
 		}
@@ -789,8 +846,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	if template.PromptCredential {
 		if req.MachineCredentialID == nil {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Credential required"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Credential required"},
 			})
 			return
 		}
@@ -805,8 +862,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while getting Network Credential")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Network Credential"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Network Credential"},
 			})
 			return
 		}
@@ -821,8 +878,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while getting Cloud Credential")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Cloud Credential"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Cloud Credential"},
 			})
 			return
 		}
@@ -836,8 +893,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while getting Machine Credential")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Machine Credential"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Machine Credential"},
 			})
 			return
 		}
@@ -851,8 +908,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Project")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -865,8 +922,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Token")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Token"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Token"},
 		})
 		return
 	}
@@ -879,8 +936,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 			"Error":  err.Error(),
 		}).Errorln("Error while creating Terraform Job")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Terraform Job"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Terraform Job"},
 		})
 		return
 	}
@@ -894,8 +951,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Error while adding the job to job queue")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while creating Terraform Job"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while creating Terraform Job"},
 			})
 			return
 		}
@@ -910,8 +967,8 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 			"Job Info": jobBytes,
 		}).Errorln("Error while adding the job to job queue")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Terraform Job"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Terraform Job"},
 		})
 		return
 	}

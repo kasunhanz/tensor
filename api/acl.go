@@ -5,15 +5,15 @@ import (
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	"github.com/pearsonappeng/tensor/models/terraform"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/models/ansible"
-	"github.com/pearsonappeng/tensor/models/terraform"
 )
 
 // AccessList is a Gin handler function, returns access list
@@ -26,8 +26,8 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Access List"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -164,8 +164,8 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}
@@ -192,7 +192,6 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 
 }
 
-
 // AccessList returns the list of teams and users that is able to access
 // current project object in the gin context
 func (ctrl ProjectController) AccessList(c *gin.Context) {
@@ -203,8 +202,8 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Access List"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -341,8 +340,8 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}
@@ -377,8 +376,8 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Access List"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -467,7 +466,6 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 						"descendant_roles": []string{
 							rbac.TeamAdmin,
 							rbac.TeamMember,
-							rbac.TeamRead,
 						},
 						"role": gin.H{
 							"resource_name": team.Name,
@@ -515,8 +513,8 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}
@@ -551,8 +549,8 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Access List"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Access List"},
 		})
 		return
 	}
@@ -712,8 +710,8 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}
@@ -739,7 +737,6 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 	})
 
 }
-
 
 // AccessList is Gin Handler function
 func (ctrl JobTemplateController) AccessList(c *gin.Context) {
@@ -750,8 +747,8 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Project:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting AccessList"},
 		})
 		return
 	}
@@ -761,8 +758,8 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting AccessList"},
 		})
 		return
 	}
@@ -899,8 +896,8 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}
@@ -927,7 +924,6 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 
 }
 
-
 // AccessList is Gin Handler function
 func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
@@ -937,8 +933,8 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Project:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting AccessList"},
 		})
 		return
 	}
@@ -948,8 +944,8 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting AccessList"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting AccessList"},
 		})
 		return
 	}
@@ -1086,8 +1082,8 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 		if err != nil {
 			log.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Access List"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting Access List"},
 			})
 			return
 		}

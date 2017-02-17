@@ -12,22 +12,23 @@ import (
 
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
+	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-	"github.com/pearsonappeng/tensor/exec/sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
+	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"github.com/pearsonappeng/tensor/log/activity"
-	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for project related items stored in the Gin Context
 const (
-	CTXProject = "project"
+	CTXProject   = "project"
 	CTXProjectID = "project_id"
 )
 
@@ -38,6 +39,7 @@ type ProjectController struct{}
 // and store credential data under key CTXProject in Gin Context
 func (ctrl ProjectController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXProjectID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -45,8 +47,8 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while getting Project ID url parameter")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -60,11 +62,38 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while retriving Project form the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.Project)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, project) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, project) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXProject, project)
@@ -82,6 +111,7 @@ func (ctrl ProjectController) One(c *gin.Context) {
 
 // GetProjects returns a JSON array of projects
 func (ctrl ProjectController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -97,6 +127,7 @@ func (ctrl ProjectController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.Project)
 	var projects []common.Project
 	// new mongodb iterator
 	iter := query.Iter()
@@ -104,7 +135,10 @@ func (ctrl ProjectController) All(c *gin.Context) {
 	var tmpProject common.Project
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpProject) {
-		// TODO: if the user doesn't have access to credential
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpProject) {
+			continue
+		}
 		// skip to next
 		metadata.ProjectMetadata(&tmpProject)
 		// good to go add to list
@@ -115,8 +149,8 @@ func (ctrl ProjectController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Project data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Project"},
 		})
 		return
 	}
@@ -160,8 +194,8 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -169,8 +203,8 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	// check whether the organization exist or not
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -178,8 +212,8 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	// if a project exists within the Organization, reject the request
 	if !req.IsUnique() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Project with this Name and Organization already exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Project with this Name and Organization already exists."},
 		})
 		return
 	}
@@ -188,8 +222,8 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	if req.ScmCredentialID != nil {
 		if !req.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"SCM Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"SCM Credential does not exists."},
 			})
 			return
 		}
@@ -212,8 +246,8 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while creating Project")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Project"},
 		})
 		return
 	}
@@ -224,6 +258,18 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
 	}
+
+	roles := new(rbac.Project)
+	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
+		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.ProjectAdmin); err != nil {
+			log.WithFields(log.Fields{
+				"User ID":   user.ID,
+				"Object ID": req.ID,
+				"Error":     err.Error(),
+			}).Errorln("Admin roles association failed")
+		}
+	}
+
 	// add new activity to activity stream
 	activity.AddProjectActivity(common.Create, user, req)
 
@@ -247,8 +293,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -256,8 +302,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	// Reject the request if project type is going to change
 	if project.Kind != req.Kind && req.Kind != "" {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Project Kind property cannot be modified."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Project Kind property cannot be modified."},
 		})
 		return
 	}
@@ -265,8 +311,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	// check whether the organization exist or not
 	if !req.OrganizationExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Organization does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Organization does not exists."},
 		})
 		return
 	}
@@ -275,8 +321,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 		// if a project exists within the Organization, reject the request
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Project with this Name and Organization already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Project with this Name and Organization already exists."},
 			})
 			return
 		}
@@ -286,8 +332,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	if req.ScmCredentialID != nil {
 		if !req.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"SCM Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"SCM Credential does not exists."},
 			})
 			return
 		}
@@ -300,7 +346,6 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	project.OrganizationID = req.OrganizationID
 	project.Description = req.Description
 	project.ScmURL = req.ScmURL
-	project.Kind = project.Kind // Constant cannot be changed
 	project.ScmBranch = req.ScmBranch
 	project.ScmClean = req.ScmClean
 	project.ScmDeleteOnUpdate = req.ScmDeleteOnUpdate
@@ -317,8 +362,8 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while updating Project")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Project"},
 		})
 		return
 	}
@@ -331,7 +376,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	}
 	// add new activity to activity stream
 	activity.AddProjectActivity(common.Update, user, tmpProject, project)
-	// set `related` and `summary` feilds
+	// set `related` and `summary` fields
 	metadata.ProjectMetadata(&project)
 
 	// send response with JSON rendered data
@@ -351,8 +396,8 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -362,8 +407,8 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 		// check whether the organization exist or not
 		if !project.OrganizationExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Organization does not exists."},
 			})
 			return
 		}
@@ -373,8 +418,8 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 		// if a project exists within the Organization, reject the request
 		if !project.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Project with this Name and Organization already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Project with this Name and Organization already exists."},
 			})
 			return
 		}
@@ -386,8 +431,8 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 		project.ScmCredentialID = req.ScmCredentialID
 		if !project.SCMCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"SCM Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"SCM Credential does not exists."},
 			})
 			return
 		}
@@ -447,8 +492,8 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while updating Project")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Project"},
 		})
 		return
 	}
@@ -481,8 +526,8 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 			"Error":      err.Error(),
 		}).Errorln("Error while removing Project Jobs")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Project Jobs"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Project Jobs"},
 		})
 		return
 	}
@@ -493,8 +538,8 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while removing Project Job Templates:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Project Job Templates"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Project Job Templates"},
 		})
 		return
 	}
@@ -505,8 +550,8 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	if err = db.Projects().RemoveId(project.ID); err != nil {
 		log.Errorln("Error while removing Project:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Project"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Project"},
 		})
 		return
 	}
@@ -533,8 +578,8 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 
 	if project.Kind == "terraform" {
 		c.JSON(http.StatusNoContent, common.Error{
-			Code:     http.StatusNoContent,
-			Messages: []string{"Invalid project kind"},
+			Code:   http.StatusNoContent,
+			Errors: []string{"Invalid project kind"},
 		})
 		return
 	}
@@ -547,8 +592,8 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 				"Error": err.Error(),
 			}).Errorln("Project directory does not exist")
 			c.JSON(http.StatusNoContent, common.Error{
-				Code:     http.StatusNoContent,
-				Messages: []string{"Project directory does not exist"},
+				Code:   http.StatusNoContent,
+				Errors: []string{"Project directory does not exist"},
 			})
 			return
 		}
@@ -557,8 +602,8 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Could not read project directory")
 		c.JSON(http.StatusNoContent, common.Error{
-			Code:     http.StatusNoContent,
-			Messages: []string{"Could not read project directory"},
+			Code:   http.StatusNoContent,
+			Errors: []string{"Could not read project directory"},
 		})
 		return
 	}
@@ -567,7 +612,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
 			}
 		}
 		return nil
@@ -578,8 +623,8 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while getting Playbooks")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Playbooks"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Playbooks"},
 		})
 		return
 	}
@@ -603,8 +648,8 @@ func (ctrl ProjectController) OwnerTeams(c *gin.Context) {
 					"Error": err.Error(),
 				}).Errorln("Error while getting Teams")
 				c.JSON(http.StatusInternalServerError, common.Error{
-					Code:     http.StatusInternalServerError,
-					Messages: []string{"Error while getting Teams"},
+					Code:   http.StatusInternalServerError,
+					Errors: []string{"Error while getting Teams"},
 				})
 				return
 			}
@@ -653,8 +698,8 @@ func (ctrl ProjectController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -718,8 +763,8 @@ func (ctrl ProjectController) ProjectUpdates(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -752,6 +797,17 @@ func (ctrl ProjectController) SCMUpdateInfo(c *gin.Context) {
 func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 	// get Project from the gin.Context
 	project := c.MustGet(CTXProject).(common.Project)
+	user := c.MustGet(CTXUser).(common.User)
+
+	roles := new(rbac.Project)
+	if !roles.Update(user, project) {
+		c.JSON(http.StatusUnauthorized, common.Error{
+			Code:   http.StatusUnauthorized,
+			Errors: []string{"Unauthorized"},
+		})
+		c.Abort()
+		return
+	}
 
 	var req common.SCMUpdate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -759,8 +815,8 @@ func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 		if err != io.EOF {
 			// Return 400 if request has bad JSON format
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: validate.GetValidationErrors(err),
+				Code:   http.StatusBadRequest,
+				Errors: validate.GetValidationErrors(err),
 			})
 			return
 		}
@@ -770,8 +826,8 @@ func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusMethodNotAllowed, common.Error{
-			Code:     http.StatusMethodNotAllowed,
-			Messages: err,
+			Code:    http.StatusMethodNotAllowed,
+			Message: err.Error(),
 		})
 		return
 	}

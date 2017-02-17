@@ -14,16 +14,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXHost = "host"
+	CTXHost   = "host"
 	CTXHostID = "host_id"
 )
 
@@ -33,13 +34,14 @@ type HostController struct{}
 // Middleware takes CTXHostID parameter from the Gin Context and fetches host data from the database
 // it set host data under key CTXHost in the Gin Context
 func (ctrl HostController) Middleware(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 	ID, err := util.GetIdParam(CTXHostID, c)
 
 	if err != nil {
 		log.Errorln("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -49,11 +51,53 @@ func (ctrl HostController) Middleware(c *gin.Context) {
 	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
 		log.Errorln("Error while getting the Host:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.Inventory)
+	switch c.Request.Method {
+	case "GET":
+		{
+			inv, err := h.GetInventory()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Inventory ID": inv.ID,
+					"Error":        err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			// Reject the request if the user doesn't have inventory read permissions
+			if !roles.Read(user, inv) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			inv, err := h.GetInventory()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"Inventory ID": inv.ID,
+					"Error":        err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			// Reject the request if the user doesn't have inventory write permissions
+			if !roles.Write(user, inv) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXHost, h)
@@ -73,6 +117,7 @@ func (ctrl HostController) One(c *gin.Context) {
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl HostController) All(c *gin.Context) {
 
+	user := c.MustGet(CTXUser).(common.User)
 	parser := util.NewQueryParser(c)
 
 	match := bson.M{}
@@ -85,6 +130,7 @@ func (ctrl HostController) All(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	roles := new(rbac.Inventory)
 	var hosts []ansible.Host
 	// new mongodb iterator
 	iter := query.Iter()
@@ -92,6 +138,18 @@ func (ctrl HostController) All(c *gin.Context) {
 	var tmpHost ansible.Host
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
+		inv, err := tmpHost.GetInventory()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"Inventory ID": inv.ID,
+				"Error":        err.Error(),
+			}).Errorln("Error while getting Inventroy")
+		}
+		// Reject the request if the user doesn't have inventory read permissions
+		if !roles.Read(user, inv) {
+			continue
+		}
+
 		metadata.HostMetadata(&tmpHost)
 		// good to go add to list
 		hosts = append(hosts, tmpHost)
@@ -99,8 +157,8 @@ func (ctrl HostController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Host data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Hosts"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Hosts"},
 		})
 		return
 	}
@@ -130,8 +188,35 @@ func (ctrl HostController) Create(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
+		})
+		return
+	}
+
+	// check whether the inventory exist or not
+	if !req.InventoryExist() {
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Inventory does not exists."},
+		})
+		return
+	}
+
+	// abort if use doesn't have permission
+	roles := new(rbac.Inventory)
+	inv, err := req.GetInventory()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Inventory ID": inv.ID,
+			"Error":        err.Error(),
+		}).Errorln("Error while getting Inventroy")
+	}
+	// Reject the request if the user doesn't have inventory write permissions
+	if !roles.Write(user, inv) {
+		c.JSON(http.StatusUnauthorized, common.Error{
+			Code:   http.StatusUnauthorized,
+			Errors: []string{"Unauthorized"},
 		})
 		return
 	}
@@ -140,17 +225,8 @@ func (ctrl HostController) Create(c *gin.Context) {
 	if !req.IsUnique() {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Host with this Name and Inventory already exists."},
-		})
-		return
-	}
-
-	// check whether the inventory exist or not
-	if !req.InventoryExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Host with this Name and Inventory already exists."},
 		})
 		return
 	}
@@ -159,8 +235,8 @@ func (ctrl HostController) Create(c *gin.Context) {
 	if req.GroupID != nil {
 		if !req.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Group does not exists."},
 			})
 			return
 		}
@@ -175,8 +251,8 @@ func (ctrl HostController) Create(c *gin.Context) {
 	if err := db.Hosts().Insert(req); err != nil {
 		log.Errorln("Error while creating Host:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Host"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating Host"},
 		})
 		return
 	}
@@ -202,16 +278,16 @@ func (ctrl HostController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 	}
 
 	// check whether the inventory exist or not
 	if !req.InventoryExist() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Inventory does not exists."},
 		})
 		return
 	}
@@ -220,8 +296,8 @@ func (ctrl HostController) Update(c *gin.Context) {
 		// if the host exist in the collection it is not unique
 		if !req.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Host with this Name and Inventory already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Host with this Name and Inventory already exists."},
 			})
 			return
 		}
@@ -231,8 +307,8 @@ func (ctrl HostController) Update(c *gin.Context) {
 	if req.GroupID != nil {
 		if !req.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Group does not exists."},
 			})
 			return
 		}
@@ -252,8 +328,8 @@ func (ctrl HostController) Update(c *gin.Context) {
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Errorln("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Host"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Host"},
 		})
 	}
 
@@ -278,8 +354,8 @@ func (ctrl HostController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 	}
 
@@ -288,8 +364,8 @@ func (ctrl HostController) Patch(c *gin.Context) {
 		host.InventoryID = *req.InventoryID
 		if !host.InventoryExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Inventory does not exists."},
 			})
 			return
 		}
@@ -300,8 +376,8 @@ func (ctrl HostController) Patch(c *gin.Context) {
 		// if the host exist in the collection it is not unique
 		if !host.IsUnique() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Host with this Name and Inventory already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Host with this Name and Inventory already exists."},
 			})
 			return
 		}
@@ -311,8 +387,8 @@ func (ctrl HostController) Patch(c *gin.Context) {
 	if req.GroupID != nil {
 		if !host.GroupExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Group does not exists."},
 			})
 			return
 		}
@@ -350,8 +426,8 @@ func (ctrl HostController) Patch(c *gin.Context) {
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		log.Errorln("Error while updating Host:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Host"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating Host"},
 		})
 		return
 	}
@@ -376,8 +452,8 @@ func (ctrl HostController) Delete(c *gin.Context) {
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
 		log.Errorln("Error while removing Host:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Host"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while removing Host"},
 		})
 		return
 	}
@@ -463,8 +539,8 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			log.Errorln("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting groups"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting groups"},
 			})
 			return
 		}
@@ -481,8 +557,8 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 				log.Errorln("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, common.Error{
-					Code:     http.StatusInternalServerError,
-					Messages: []string{"Error while getting groups"},
+					Code:   http.StatusInternalServerError,
+					Errors: []string{"Error while getting groups"},
 				})
 				return
 			}
@@ -548,8 +624,8 @@ func (ctrl HostController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}

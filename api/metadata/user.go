@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 // Create a new organization

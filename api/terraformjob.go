@@ -10,14 +10,15 @@ import (
 	"github.com/pearsonappeng/tensor/models/terraform"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXTerraformJob = "terraform_job"
+	CTXTerraformJob   = "terraform_job"
 	CTXTerraformJobID = "terraform_job_id"
 )
 
@@ -28,6 +29,7 @@ type TerraformJobController struct{}
 // and store credential data under key CTXTerraformJob in Gin Context
 func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTerraformJobID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -36,8 +38,8 @@ func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 		}).Errorln("Error while getting Terraform Job ID url parameter")
 
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -50,11 +52,52 @@ func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 			"Error":  err.Error(),
 		}).Errorln("Error while retriving Terraform Job from the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.TerraformJobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			jt, err := job.GetJobTemplate()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"JobTemplate ID": jt.ID,
+					"Error":          err.Error(),
+				}).Errorln("Error while getting Job Template")
+			}
+			if !roles.Read(user, jt) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "POST", "PATCH":
+		{
+			jt, err := job.GetJobTemplate()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"JobTemplate ID": jt.ID,
+					"Error":          err.Error(),
+				}).Errorln("Error while getting Job Template")
+			}
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, jt) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	// set Job to the gin.Context
@@ -74,6 +117,7 @@ func (ctrl TerraformJobController) One(c *gin.Context) {
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TerraformJobController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -91,14 +135,24 @@ func (ctrl TerraformJobController) All(c *gin.Context) {
 		"Query": query,
 	}).Debugln("Parsed query")
 
+	roles := new(rbac.TerraformJobTemplate)
 	var jobs []terraform.Job
-
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
 	var tmpJob terraform.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
+		jt, err := tmpJob.GetJobTemplate()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"JobTemplate ID": jt.ID,
+				"Error":          err.Error(),
+			}).Errorln("Error while getting Job Template")
+		}
+		if !roles.Read(user, jt) {
+			continue
+		}
 		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
 		jobs = append(jobs, tmpJob)
@@ -108,8 +162,8 @@ func (ctrl TerraformJobController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Terraform Job data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Terraform Job"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Terraform Job"},
 		})
 		return
 	}

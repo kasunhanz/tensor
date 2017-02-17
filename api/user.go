@@ -13,18 +13,19 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const (
-	CTXUserA = "_user"
+	CTXUserA  = "_user"
 	CTXUserID = "user_id"
-	CTXUser = "user"
+	CTXUser   = "user"
 )
 
 type UserController struct{}
@@ -32,12 +33,13 @@ type UserController struct{}
 func (ctrl UserController) Middleware(c *gin.Context) {
 
 	userID, err := util.GetIdParam(CTXUserID, c)
+	loginUser := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.Errorln("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -48,11 +50,50 @@ func (ctrl UserController) Middleware(c *gin.Context) {
 	if err != nil {
 		log.Errorln("Error while getting the User:", err) // log error to the system log
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.User)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(loginUser, user) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(loginUser, user) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "POST":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.WriteSpecial(loginUser, user) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"You do not have permission to perform this action."},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	c.Set(CTXUserA, user)
@@ -75,6 +116,7 @@ func (ctrl UserController) One(c *gin.Context) {
 }
 
 func (ctrl UserController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -85,6 +127,7 @@ func (ctrl UserController) All(c *gin.Context) {
 		query.Sort(order)
 	}
 
+	roles := new(rbac.User)
 	var users []common.User
 	// new mongodb iterator
 	iter := query.Iter()
@@ -92,6 +135,10 @@ func (ctrl UserController) All(c *gin.Context) {
 	var tmpUser common.User
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpUser) {
+		if !roles.Read(user, tmpUser) {
+			continue
+		}
+
 		metadata.UserMetadata(&tmpUser)
 		// good to go add to list
 		tmpUser.Password = "$encrypted$"
@@ -100,8 +147,8 @@ func (ctrl UserController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Credential data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credential"},
 		})
 		return
 	}
@@ -132,24 +179,24 @@ func (ctrl UserController) Create(c *gin.Context) {
 		}).Errorln("Invlid JSON request")
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if !req.IsUniqueEmail() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Email alredy in use"},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Email alredy in use"},
 		})
 		return
 	}
 
 	if !req.IsUniqueUsername() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Email alredy in use"},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Email alredy in use"},
 		})
 		return
 	}
@@ -165,8 +212,8 @@ func (ctrl UserController) Create(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while creating User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while creating User"},
 		})
 		return
 	}
@@ -189,24 +236,24 @@ func (ctrl UserController) Update(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
 
 	if user.Email != req.Email && !req.IsUniqueEmail() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Email alredy in use"},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Email alredy in use"},
 		})
 		return
 	}
 
 	if user.Username != req.Username && !req.IsUniqueUsername() {
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Username alredy in use"},
+			Code:   http.StatusBadRequest,
+			Errors: []string{"Username alredy in use"},
 		})
 		return
 	}
@@ -229,8 +276,8 @@ func (ctrl UserController) Update(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while updating User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating User"},
 		})
 		return
 	}
@@ -253,8 +300,8 @@ func (ctrl UserController) Patch(c *gin.Context) {
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
 		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
 		})
 		return
 	}
@@ -264,8 +311,8 @@ func (ctrl UserController) Patch(c *gin.Context) {
 
 		if user.Email != *req.Email && !user.IsUniqueEmail() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Email alredy in use"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Email alredy in use"},
 			})
 			return
 		}
@@ -276,8 +323,8 @@ func (ctrl UserController) Patch(c *gin.Context) {
 
 		if user.Username != *req.Username && !user.IsUniqueUsername() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Username alredy in use"},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Username alredy in use"},
 			})
 			return
 		}
@@ -304,8 +351,8 @@ func (ctrl UserController) Patch(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while updating User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while updating User"},
 		})
 		return
 	}
@@ -332,8 +379,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -345,8 +392,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -358,8 +405,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -371,8 +418,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -384,8 +431,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -397,8 +444,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 	}
 
@@ -408,8 +455,8 @@ func (ctrl UserController) Delete(c *gin.Context) {
 			"Error":   err.Error(),
 		}).Errorln("Error while deleting User")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting User"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while deleting User"},
 		})
 		return
 	}
@@ -436,8 +483,8 @@ func (ctrl UserController) Projects(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Projects"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Projects"},
 		})
 		return
 	}
@@ -478,8 +525,8 @@ func (ctrl UserController) Credentials(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credentials"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credentials"},
 		})
 		return
 	}
@@ -518,8 +565,8 @@ func (ctrl UserController) Teams(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credentials"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credentials"},
 		})
 		return
 	}
@@ -558,8 +605,8 @@ func (ctrl UserController) Organizations(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Organizations"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Organizations"},
 		})
 		return
 	}
@@ -598,8 +645,8 @@ func (ctrl UserController) AdminsOfOrganizations(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Organizations"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Organizations"},
 		})
 		return
 	}
@@ -625,26 +672,26 @@ func (ctrl UserController) ActivityStream(c *gin.Context) {
 	user := c.MustGet(CTXUserA).(common.User)
 
 	var activities []common.ActivityUser
-	var activity common.ActivityUser
+	var act common.ActivityUser
 	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": user.ID}).Iter()
 	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityUserMetadata(&activity)
-		metadata.UserMetadata(&activity.Object1)
+	for iter.Next(&act) {
+		metadata.ActivityUserMetadata(&act)
+		metadata.UserMetadata(&act.Object1)
 		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.UserMetadata(activity.Object2)
+		if act.Object2 != nil {
+			metadata.UserMetadata(act.Object2)
 		}
 		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Activities"},
 		})
 		return
 	}
@@ -662,5 +709,178 @@ func (ctrl UserController) ActivityStream(c *gin.Context) {
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
+	})
+}
+
+func (ctrl UserController) AssignRole(c *gin.Context) {
+	user := c.MustGet(CTXUserA).(common.User)
+
+	var req common.RoleObj
+	err := binding.JSON.Bind(c.Request, &req)
+	if err != nil {
+		// Return 400 if request has bad JSON format
+		c.JSON(http.StatusBadRequest, common.Error{
+			Code:   http.StatusBadRequest,
+			Errors: validate.GetValidationErrors(err),
+		})
+		return
+	}
+
+	switch req.ResourceType {
+	case "credential":
+		{
+			roles := new(rbac.Credential)
+
+			if count, _ := db.Credentials().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+
+	case "organization":
+		{
+			roles := new(rbac.Organization)
+
+			if count, _ := db.Organizations().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+
+		}
+
+	case "team":
+		{
+			roles := new(rbac.Team)
+
+			if count, _ := db.Teams().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+
+	case "project":
+		{
+			roles := new(rbac.Project)
+
+			if count, _ := db.Projects().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+
+	case "job_template":
+		{
+			roles := new(rbac.JobTemplate)
+
+			if count, _ := db.JobTemplates().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+
+	case "terraform_job_template":
+		{
+			roles := new(rbac.TerraformJobTemplate)
+
+			if count, _ := db.TerrafromJobTemplates().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+
+	case "inventory":
+		{
+			roles := new(rbac.Inventory)
+
+			if count, _ := db.Inventories().FindId(req.ResourceID).Count(); count <= 0 {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Coud not find resource"},
+				})
+				return
+			}
+
+			if req.Disassociate {
+				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			} else {
+				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+			}
+		}
+	}
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": user.ID.Hex(),
+			"User ID":     user.ID.Hex(),
+			"Error":       err.Error(),
+		}).Errorln("Error occured while modifying the role")
+		c.JSON(http.StatusInternalServerError, common.Error{
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error occured while modifying the role"},
+		})
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
+func (ctrl UserController) GetRoles(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, common.Error{
+		Code:   http.StatusNotImplemented,
+		Errors: []string{"Not implemented"},
 	})
 }

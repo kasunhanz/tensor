@@ -11,11 +11,12 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/models/common"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/mgo.v2/bson"
 	"github.com/pearsonappeng/tensor/validate"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential related items stored in the Gin Context
@@ -31,16 +32,14 @@ type CredentialController struct{}
 // and store credential data under key CTXCredential in Gin Context
 func (ctrl CredentialController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXCredentialID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
 			"Credential ID": ID,
 			"Error":         err.Error(),
 		}).Errorln("Error while getting Credential ID url parameter")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
-		})
+		AbortWithError(c, http.StatusNotFound, "Credential does not exist")
 		c.Abort()
 		return
 	}
@@ -51,15 +50,28 @@ func (ctrl CredentialController) Middleware(c *gin.Context) {
 			"Credential ID": ID,
 			"Error":         err.Error(),
 		}).Errorln("Error while retriving Credential form the database")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
-		})
-		c.Abort()
+		AbortWithError(c, http.StatusNotFound, "Credential does not exist")
 		return
 	}
 
-	// TODO: reject the request if the user doesn't have permissions
+	roles := new(rbac.Credential)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, credential) {
+				AbortWithError(c, http.StatusUnauthorized, "You don't have sufficient permissions to perform this action.")
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, credential) {
+				AbortWithError(c, http.StatusUnauthorized, "You don't have sufficient permissions to perform this action.")
+				return
+			}
+		}
+	}
 
 	c.Set(CTXCredential, credential)
 	c.Next()
@@ -78,6 +90,7 @@ func (ctrl CredentialController) One(c *gin.Context) {
 // GetCredentials is a Gin handler function which returns list of credentials
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl CredentialController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 
@@ -91,10 +104,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 		query.Sort(order)
 	}
 
-	log.WithFields(log.Fields{
-		"Query": query,
-	}).Debugln("Parsed query")
-
+	roles := new(rbac.Credential)
 	var credentials []common.Credential
 	// new mongodb iterator
 	iter := query.Iter()
@@ -102,7 +112,11 @@ func (ctrl CredentialController) All(c *gin.Context) {
 	var tmpCred common.Credential
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpCred) {
-		// TODO: if the user doesn't have access to credential
+		// Skip if the user doesn't have read permission
+		if !roles.Read(user, tmpCred) {
+			continue
+		}
+
 		// skip to next
 		// hide passwords, keys even they are already encrypted
 		hideEncrypted(&tmpCred)
@@ -114,10 +128,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Credential data from the database")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
-		})
+		AbortWithError(c, http.StatusGatewayTimeout, "Error while getting Credential")
 		return
 	}
 
@@ -125,20 +136,10 @@ func (ctrl CredentialController) All(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Credential page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(c, http.StatusNotFound, "#" + strconv.Itoa(pgi.Page()) + " page contains no results.")
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
@@ -156,82 +157,56 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	var req common.Credential
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Invlid JSON request")
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
+		return
+	}
+
+	if !rbac.HasGlobalWrite(user) {
+		AbortWithError(c, http.StatusUnauthorized, "You don't have sufficient permissions to perform this action.")
 		return
 	}
 
 	// check whether the organization exist or not
 	if req.OrganizationID != nil {
 		if !req.OrganizationExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
-			})
+			AbortWithError(c, http.StatusBadRequest, "Organization does not exists.")
+			return
+		}
+
+		// Check whether the user has permissions to associate the credential with organization
+		if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(*req.OrganizationID, user.ID) {
+			AbortWithError(c, http.StatusUnauthorized, "You don't have sufficient permissions to perform this action.")
 			return
 		}
 	}
 
 	// if the Credential exist in the collection it is not unique
 	if !req.IsUnique() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Credential with this Name already exists."},
-		})
+		AbortWithError(c, http.StatusBadRequest, "Credential with this Name already exists.")
 		return
 	}
 
-	// trim strings white space
+	req.ID = bson.NewObjectId()
 	req.Name = strings.Trim(req.Name, " ")
 	req.Description = strings.Trim(req.Description, " ")
-
-	req.ID = bson.NewObjectId()
+	req.Password = util.CipherEncrypt(req.Password)
+	req.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
+	req.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
+	req.BecomePassword = util.CipherEncrypt(req.BecomePassword)
+	req.VaultPassword = util.CipherEncrypt(req.VaultPassword)
+	req.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()
 	req.Modified = time.Now()
 
-	if len(req.Password) > 0 {
-		req.Password = util.CipherEncrypt(req.Password)
-	}
-
-	if len(req.SSHKeyData) > 0 {
-		req.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
-
-		if len(req.SSHKeyUnlock) > 0 {
-			req.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
-		}
-	}
-
-	if len(req.BecomePassword) > 0 {
-		req.BecomePassword = util.CipherEncrypt(req.BecomePassword)
-	}
-	if len(req.VaultPassword) > 0 {
-		req.VaultPassword = util.CipherEncrypt(req.VaultPassword)
-	}
-
-	if len(req.AuthorizePassword) > 0 {
-		req.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
-	}
-
 	if err := db.Credentials().Insert(req); err != nil {
-		log.WithFields(log.Fields{
-			"Credential ID": req.ID.Hex(),
-			"Error":         err.Error(),
-		}).Errorln("Error while creating Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Credential"},
-		})
+		log.WithFields(log.Fields{"Credential ID": req.ID.Hex(), "Error": err.Error()}).Errorln("Error while creating Credential")
+		AbortWithError(c, http.StatusGatewayTimeout, "Coud not create Credential")
 		return
 	}
-
-	// TODO: add user to role
 
 	// add new activity to activity stream
 	activity.AddCredentialActivity(common.Create, user, req)
@@ -254,33 +229,22 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	var req common.Credential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
 	// check whether the organization exist or not
-	if req.OrganizationID != nil {
-		if !req.OrganizationExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
-			})
-			return
-		}
+	if req.OrganizationID != nil && !req.OrganizationExist() {
+		AbortWithError(c, http.StatusBadRequest, "Organization does not exists.")
+		return
 	}
 
-	if req.Name != credential.Name {
-		// if the Credential exist in the collection it is not unique
-		if !req.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Credential with this Name already exists."},
-			})
-			return
-		}
+	// if the Credential exist in the collection it is not unique
+	if req.Name != credential.Name && !req.IsUnique() {
+		AbortWithError(c, http.StatusBadRequest, "Credential with this Name already exists.")
+		return
 	}
 
 	// system generated
@@ -305,27 +269,27 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	credential.ModifiedByID = user.ID
 	credential.Modified = time.Now()
 
-	if req.Password != "$encrypted$" && len(req.Password) > 0 {
+	if req.Password != "$encrypted$" {
 		credential.Password = util.CipherEncrypt(req.Password)
 	}
 
-	if req.SSHKeyData != "$encrypted$" && len(req.SSHKeyData) > 0 {
+	if req.SSHKeyData != "$encrypted$" {
 		credential.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
 
-		if req.SSHKeyUnlock != "$encrypted$" && len(req.SSHKeyUnlock) > 0 {
+		if req.SSHKeyUnlock != "$encrypted$" {
 			credential.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
 		}
 	}
 
-	if req.BecomePassword != "$encrypted$" && len(req.BecomePassword) > 0 {
+	if req.BecomePassword != "$encrypted$" {
 		credential.BecomePassword = util.CipherEncrypt(req.BecomePassword)
 	}
 
-	if req.VaultPassword != "$encrypted$" && len(req.VaultPassword) > 0 {
+	if req.VaultPassword != "$encrypted$" {
 		credential.VaultPassword = util.CipherEncrypt(req.VaultPassword)
 	}
 
-	if req.AuthorizePassword != "$encrypted$" && len(req.AuthorizePassword) > 0 {
+	if req.AuthorizePassword != "$encrypted$" {
 		credential.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
 	}
 
@@ -334,10 +298,7 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 			"Credential ID": req.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while updating Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
+		AbortWithError(c, http.StatusGatewayTimeout, "Error while updating Credential")
 		return
 	}
 
@@ -361,10 +322,9 @@ func (ctrl CredentialController) Patch(c *gin.Context) {
 	var req common.PatchCredential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
@@ -372,73 +332,44 @@ func (ctrl CredentialController) Patch(c *gin.Context) {
 	if req.OrganizationID != nil {
 		credential.OrganizationID = req.OrganizationID
 		if !credential.OrganizationExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Organization does not exists."},
-			})
+			AbortWithError(c, http.StatusBadRequest, "Organization does not exists.")
 			return
 		}
 	}
 
-	if req.Name != nil && *req.Name != credential.Name {
-		// if the Credential exist in the collection it is not unique
-		if !credential.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Credential with this Name already exists."},
-			})
-			return
-		}
+	// if the Credential exist in the collection it is not unique
+	if req.Name != nil && *req.Name != credential.Name && !credential.IsUnique() {
+		AbortWithError(c, http.StatusBadRequest, "Credential with this Name already exists.")
+		return
 	}
 
 	if req.Password != nil && *req.Password != "$encrypted$" {
-		credential.Password = ""
-		if len(*req.Password) > 0 {
-			credential.Password = util.CipherEncrypt(*req.Password)
-		}
+		credential.Password = util.CipherEncrypt(*req.Password)
 	}
 
 	if req.SSHKeyData != nil && *req.SSHKeyData != "$encrypted$" {
-		credential.SSHKeyData = ""
-		if len(*req.SSHKeyData) > 0 {
-			credential.SSHKeyData = util.CipherEncrypt(*req.SSHKeyData)
-		}
+		credential.SSHKeyData = util.CipherEncrypt(*req.SSHKeyData)
 
 		if req.SSHKeyUnlock != nil && *req.SSHKeyUnlock != "$encrypted$" {
-			credential.SSHKeyUnlock = ""
-			if len(*req.SSHKeyUnlock) > 0 {
-				credential.SSHKeyUnlock = util.CipherEncrypt(*req.SSHKeyUnlock)
-			}
+			credential.SSHKeyUnlock = util.CipherEncrypt(*req.SSHKeyUnlock)
 		}
 	}
 
 	if req.BecomePassword != nil && *req.BecomePassword != "$encrypted$" {
-		credential.BecomePassword = ""
-		if len(*req.BecomePassword) > 0 {
-			credential.BecomePassword = util.CipherEncrypt(*req.BecomePassword)
-		}
+		credential.BecomePassword = util.CipherEncrypt(*req.BecomePassword)
 	}
 
 	if req.VaultPassword != nil && *req.VaultPassword != "$encrypted$" {
-		credential.VaultPassword = ""
-		if len(*req.VaultPassword) > 0 {
-			credential.VaultPassword = util.CipherEncrypt(*req.VaultPassword)
-		}
+		credential.VaultPassword = util.CipherEncrypt(*req.VaultPassword)
 	}
 
 	if req.AuthorizePassword != nil && *req.AuthorizePassword != "$encrypted$" {
-		credential.AuthorizePassword = ""
-		if len(*req.AuthorizePassword) > 0 {
-			credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
-		}
+		credential.AuthorizePassword = util.CipherEncrypt(*req.AuthorizePassword)
 	}
 
 	// replace following fields if percent
 	if req.Secret != nil && *req.Secret != "$encrypted$" {
-		credential.Secret = ""
-		if len(*req.Secret) > 0 {
-			credential.Secret = util.CipherEncrypt(*req.Secret)
-		}
+		credential.Secret = util.CipherEncrypt(*req.Secret)
 	}
 
 	if req.Kind != nil {
@@ -506,10 +437,7 @@ func (ctrl CredentialController) Patch(c *gin.Context) {
 			"Credential ID": credential.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while updating Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Credential"},
-		})
+		AbortWithError(c, http.StatusGatewayTimeout, "Error while updating Credential")
 		return
 	}
 
@@ -524,24 +452,20 @@ func (ctrl CredentialController) Patch(c *gin.Context) {
 
 // RemoveCredential is a Gin handler function which removes a credential object from the database
 func (ctrl CredentialController) Delete(c *gin.Context) {
-	crd := c.MustGet(CTXCredential).(common.Credential)
-	u := c.MustGet(CTXUser).(common.User)
+	credential := c.MustGet(CTXCredential).(common.Credential)
+	user := c.MustGet(CTXUser).(common.User)
 
-	if err := db.Credentials().RemoveId(crd.ID); err != nil {
+	if err := db.Credentials().RemoveId(credential.ID); err != nil {
 		log.WithFields(log.Fields{
-			"Credential ID": crd.ID.Hex(),
+			"Credential ID": credential.ID.Hex(),
 			"Error":         err.Error(),
 		}).Errorln("Error while deleting Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while deleting Credential"},
-		})
-
+		AbortWithError(c, http.StatusGatewayTimeout, "Error while deleting Credential")
 		return
 	}
 
 	// add new activity to activity stream
-	activity.AddCredentialActivity(common.Delete, u, crd)
+	activity.AddCredentialActivity(common.Delete, user, credential)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }
@@ -572,23 +496,12 @@ func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 
 	count := len(tms)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
+
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Credential page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(c, http.StatusNotFound, "#" + strconv.Itoa(pgi.Page()) + " page contains no results.")
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -598,7 +511,7 @@ func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 }
 
 // OwnerUsers is a Gin handler function which returns the access control list of Users that has access to
-// specifed credential object.
+// specified credential object.
 func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
@@ -624,21 +537,10 @@ func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("OwnerUser page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(c, http.StatusNotFound, "#" + strconv.Itoa(pgi.Page()) + ": That page contains no results.")
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -652,37 +554,34 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 	credential := c.MustGet(CTXCredential).(common.Credential)
 
 	var activities []common.ActivityCredential
-	var activity common.ActivityCredential
+	var act common.ActivityCredential
 	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": credential.ID}).Iter()
 	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityCredentialMetadata(&activity)
-		metadata.CredentialMetadata(&activity.Object1)
-		hideEncrypted(&activity.Object1)
+	for iter.Next(&act) {
+		metadata.ActivityCredentialMetadata(&act)
+		metadata.CredentialMetadata(&act.Object1)
+		hideEncrypted(&act.Object1)
 		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.CredentialMetadata(activity.Object2)
-			hideEncrypted(activity.Object2)
+		if act.Object2 != nil {
+			metadata.CredentialMetadata(act.Object2)
+			hideEncrypted(act.Object2)
 		}
 		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
 		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
-		})
+		AbortWithError(c, http.StatusGatewayTimeout, "Error while getting Activities")
 		return
 	}
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
+
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(c, http.StatusNotFound, "#" + strconv.Itoa(pgi.Page()) + " page contains no results.")
 		return
 	}
 	// send response with JSON rendered data
@@ -692,16 +591,4 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 		Previous: pgi.PreviousPage(),
 		Results:  activities[pgi.Skip():pgi.End()],
 	})
-}
-
-// hideEncrypted is replaces encrypted fields by $encrypted$ string
-func hideEncrypted(c *common.Credential) {
-	encrypted := "$encrypted$"
-	c.Password = encrypted
-	c.SSHKeyData = encrypted
-	c.SSHKeyUnlock = encrypted
-	c.BecomePassword = encrypted
-	c.VaultPassword = encrypted
-	c.AuthorizePassword = encrypted
-	c.Secret = encrypted
 }

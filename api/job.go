@@ -10,14 +10,15 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXJob = "job"
+	CTXJob   = "job"
 	CTXJobID = "job_id"
 )
 
@@ -28,6 +29,7 @@ type JobController struct{}
 // and store credential data under key CTXJob in Gin Context
 func (ctrl JobController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXJobID, c)
+	user := c.MustGet(CTXUser).(common.User)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -36,8 +38,8 @@ func (ctrl JobController) Middleware(c *gin.Context) {
 		}).Errorln("Error while getting Job ID url parameter")
 
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
@@ -50,11 +52,52 @@ func (ctrl JobController) Middleware(c *gin.Context) {
 			"Error":  err.Error(),
 		}).Errorln("Error while retriving Job from the database")
 		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+			Code:   http.StatusNotFound,
+			Errors: []string{"Not Found"},
 		})
 		c.Abort()
 		return
+	}
+
+	roles := new(rbac.JobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			jt, err := job.GetJobTemplate()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"JobTemplate ID": jt.ID,
+					"Error":          err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			if !roles.Read(user, jt) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			jt, err := job.GetJobTemplate()
+			if err != nil {
+				log.WithFields(log.Fields{
+					"JobTemplate ID": jt.ID,
+					"Error":          err.Error(),
+				}).Errorln("Error while getting Inventroy")
+			}
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, jt) {
+				c.JSON(http.StatusUnauthorized, common.Error{
+					Code:   http.StatusUnauthorized,
+					Errors: []string{"Unauthorized"},
+				})
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	// set Job to the gin.Context
@@ -74,6 +117,8 @@ func (ctrl JobController) One(c *gin.Context) {
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl JobController) All(c *gin.Context) {
+	user := c.MustGet(CTXUser).(common.User)
+
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Match([]string{"status", "type", "failed"}, match)
@@ -92,13 +137,23 @@ func (ctrl JobController) All(c *gin.Context) {
 
 	var jobs []ansible.Job
 
+	roles := new(rbac.JobTemplate)
 	// new mongodb iterator
 	iter := query.Iter()
 	// loop through each result and modify for our needs
 	var tmpJob ansible.Job
 	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
-		// TODO: if the user doesn't have access to credential
+		jt, err := tmpJob.GetJobTemplate()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"JobTemplate ID": jt.ID,
+				"Error":          err.Error(),
+			}).Errorln("Error while getting Inventroy")
+		}
+		if !roles.Read(user, jt) {
+			continue
+		}
 		// skip to next
 		metadata.JobMetadata(&tmpJob)
 		// good to go add to list
@@ -109,8 +164,8 @@ func (ctrl JobController) All(c *gin.Context) {
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Job data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+			Code:   http.StatusInternalServerError,
+			Errors: []string{"Error while getting Credential"},
 		})
 		return
 	}

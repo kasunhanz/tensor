@@ -20,7 +20,6 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
 		"labels":                         "/v1/job_templates/" + ID + "/labels/",
 		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex() + "/",
-		"credential":                     "/v1/credentials/" + jt.MachineCredentialID.Hex() + "/",
 		"project":                        "/v1/projects/" + jt.ProjectID.Hex() + "/",
 		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error/",
 		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success/",
@@ -34,7 +33,11 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "/v1/jobs/" + jt.CurrentJobID.Hex() + "/"
+		related["current_job"] = "/v1/jobs/" + (*jt.CurrentJobID).Hex() + "/"
+	}
+
+	if jt.MachineCredentialID != nil {
+		related["credential"] = "/v1/credentials/" + (*jt.MachineCredentialID).Hex() + "/"
 	}
 
 	jt.Related = related
@@ -133,19 +136,21 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 		}
 	}
 
-	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.WithFields(log.Fields{
-			"Credential ID":   jt.MachineCredentialID.Hex(),
-			"Job Template":    jt.Name,
-			"Job Template ID": jt.ID.Hex(),
-		}).Errorln("Error while getting Credential")
-	} else {
-		summary["credential"] = gin.H{
-			"id":          cred.ID,
-			"name":        cred.Name,
-			"description": cred.Description,
-			"kind":        cred.Kind,
-			"cloud":       cred.Cloud,
+	if jt.MachineCredentialID != nil {
+		if err := db.Credentials().FindId(*jt.MachineCredentialID).One(&cred); err != nil {
+			log.WithFields(log.Fields{
+				"Credential ID":   (*jt.MachineCredentialID).Hex(),
+				"Job Template":    jt.Name,
+				"Job Template ID": jt.ID.Hex(),
+			}).Errorln("Error while getting Credential")
+		} else {
+			summary["credential"] = gin.H{
+				"id":          cred.ID,
+				"name":        cred.Name,
+				"description": cred.Description,
+				"kind":        cred.Kind,
+				"cloud":       cred.Cloud,
+			}
 		}
 	}
 

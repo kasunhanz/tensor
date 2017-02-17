@@ -4,19 +4,23 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/api"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/log"
-	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/exec/ansible"
 	"github.com/pearsonappeng/tensor/exec/terraform"
+	"github.com/pearsonappeng/tensor/log"
+	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"github.com/pearsonappeng/tensor/api"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 func main() {
+
+	if util.Config.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	logrus.Infoln("Tensor:", util.Version)
 	logrus.Infoln("Port:", util.Config.Port)
 	logrus.Infoln("MongoDB:", util.Config.MongoDB.Username, util.Config.MongoDB.Hosts, util.Config.MongoDB.DbName)
@@ -45,6 +49,12 @@ func main() {
 	r := gin.New()
 	r.Use(log.Ginrus(logrus.StandardLogger(), time.RFC3339, true))
 	r.Use(gin.Recovery())
+
+	if util.Config.Debug {
+		// automatically add routers for net/http/pprof
+		// e.g. /debug/pprof, /debug/pprof/heap, etc.
+		util.Wrapper(r)
+	}
 
 	api.Route(r)
 

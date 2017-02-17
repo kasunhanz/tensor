@@ -2,10 +2,10 @@ package metadata
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func JobMetadata(job *ansible.Job) {
@@ -35,8 +35,8 @@ func JobMetadata(job *ansible.Job) {
 		related["modified_by"] = "/v1/users/" + job.ModifiedByID.Hex() + "/"
 	}
 
-	if len(job.MachineCredentialID) == 12 {
-		related["credential"] = "/v1/credentials/" + job.MachineCredentialID.Hex() + "/"
+	if job.MachineCredentialID != nil {
+		related["credential"] = "/v1/credentials/" + (*job.MachineCredentialID).Hex() + "/"
 	}
 
 	if len(job.InventoryID) == 12 {
@@ -145,7 +145,7 @@ func JobSummary(job *ansible.Job) {
 		}
 	}
 
-	if len(job.MachineCredentialID) == 12 {
+	if job.MachineCredentialID != nil {
 		var cred common.Credential
 		if err := db.Credentials().FindId(job.MachineCredentialID).One(&cred); err != nil {
 			log.WithFields(log.Fields{
