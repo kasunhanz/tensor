@@ -141,6 +141,17 @@ func (Project) Update(user common.User, project common.Project) bool {
 	return false
 }
 
+func (p Project) ReadByID(user common.User, projectID bson.ObjectId) bool {
+	var project common.Project
+	if err := db.Projects().FindId(projectID).One(&project); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return p.Read(user, project)
+}
+
 func (Project) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 

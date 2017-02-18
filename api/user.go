@@ -31,7 +31,6 @@ const (
 type UserController struct{}
 
 func (ctrl UserController) Middleware(c *gin.Context) {
-
 	userID, err := util.GetIdParam(CTXUserID, c)
 	loginUser := c.MustGet(CTXUser).(common.User)
 

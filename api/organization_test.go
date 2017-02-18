@@ -43,7 +43,7 @@ func (suite *OrganizationApiTestSuite) SetupSuite() {
 
 func (suite *OrganizationApiTestSuite) TestCreate() {
 	body, err := json.Marshal(common.Organization{
-		Name: "organization",
+		Name:        "organization",
 		Description: "description",
 	})
 
@@ -51,10 +51,10 @@ func (suite *OrganizationApiTestSuite) TestCreate() {
 		suite.Fail(err.Error(), "Unable to create auth header")
 		return
 	}
-	req, _ := http.NewRequest(http.MethodPost, suite.server.URL + "/v1/organizations", bytes.NewBuffer(body))
+	req, _ := http.NewRequest(http.MethodPost, suite.server.URL+"/v1/organizations", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer " + suite.authHeader.Token)
+	req.Header.Set("Authorization", "Bearer "+suite.authHeader.Token)
 
 	// Test credential creation
 	r, err := http.DefaultClient.Do(req)
@@ -77,10 +77,10 @@ func (suite *OrganizationApiTestSuite) TestCreate() {
 
 	suite.organizationID = c.ID
 
-	req2, _ := http.NewRequest(http.MethodPost, suite.server.URL + "/v1/organizations", bytes.NewBuffer(body))
+	req2, _ := http.NewRequest(http.MethodPost, suite.server.URL+"/v1/organizations", bytes.NewBuffer(body))
 	req2.Header.Set("Content-Type", "application/json")
 	req2.Header.Set("Accept", "application/json")
-	req2.Header.Set("Authorization", "Bearer " + suite.authHeader.Token)
+	req2.Header.Set("Authorization", "Bearer "+suite.authHeader.Token)
 
 	// Create same credential must fail with 400
 	r2, err := http.DefaultClient.Do(req2)
@@ -96,10 +96,10 @@ func (suite *OrganizationApiTestSuite) TestCreate() {
 
 func (suite *OrganizationApiTestSuite) TestDelete() {
 
-	req, _ := http.NewRequest(http.MethodDelete, suite.server.URL + "/v1/organizations/" + suite.organizationID.Hex(), nil)
+	req, _ := http.NewRequest(http.MethodDelete, suite.server.URL+"/v1/organizations/"+suite.organizationID.Hex(), nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer " + suite.authHeader.Token)
+	req.Header.Set("Authorization", "Bearer "+suite.authHeader.Token)
 
 	// Test credential creation
 	w, err := http.DefaultClient.Do(req)

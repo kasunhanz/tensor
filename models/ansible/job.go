@@ -53,7 +53,7 @@ type Job struct {
 	SCMCredentialID     *bson.ObjectId `bson:"scm_credential_id,omitempty" json:"scm_credential"`
 	NetworkCredentialID *bson.ObjectId `bson:"network_credential_id,omitempty" json:"network_credential"`
 	CloudCredentialID   *bson.ObjectId `bson:"cloud_credential_id,omitempty" json:"cloud_credential"`
-	MachineCredentialID *bson.ObjectId  `bson:"credential_id,omitempty" json:"credential"`
+	MachineCredentialID *bson.ObjectId `bson:"credential_id,omitempty" json:"credential"`
 
 	PromptLimit      bool `bson:"prompt_limit_on_launch" json:"ask_limit_on_launch"`
 	PromptInventory  bool `bson:"prompt_inventory" json:"ask_inventory_on_launch"`

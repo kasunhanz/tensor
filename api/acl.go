@@ -19,7 +19,7 @@ import (
 // AccessList is a Gin handler function, returns access list
 // for specified credential object
 func (ctrl CredentialController) AccessList(c *gin.Context) {
-	credential := c.MustGet(CTXCredential).(common.Credential)
+	credential := c.MustGet(cCredential).(common.Credential)
 
 	var organization common.Organization
 	err := db.Organizations().FindId(credential.OrganizationID).One(&organization)
@@ -195,7 +195,7 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 // AccessList returns the list of teams and users that is able to access
 // current project object in the gin context
 func (ctrl ProjectController) AccessList(c *gin.Context) {
-	project := c.MustGet(CTXProject).(common.Project)
+	project := c.MustGet(cProject).(common.Project)
 
 	var organization common.Organization
 	err := db.Organizations().FindId(project.OrganizationID).One(&organization)
@@ -542,7 +542,7 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 }
 
 func (ctrl InventoryController) AccessList(c *gin.Context) {
-	inventory := c.MustGet(CTXInventory).(ansible.Inventory)
+	inventory := c.MustGet(cInventory).(ansible.Inventory)
 
 	var organization common.Organization
 	err := db.Organizations().FindId(inventory.OrganizationID).One(&organization)
@@ -740,7 +740,7 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 
 // AccessList is Gin Handler function
 func (ctrl JobTemplateController) AccessList(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
 	var project common.Project
 	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
@@ -926,7 +926,7 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 
 // AccessList is Gin Handler function
 func (ctrl TJobTmplController) AccessList(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(terraform.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(terraform.JobTemplate)
 
 	var project common.Project
 	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)

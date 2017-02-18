@@ -107,6 +107,17 @@ func (Credential) Write(user common.User, credential common.Credential) bool {
 	return false
 }
 
+func (c Credential) ReadByID(user common.User, credentialID bson.ObjectId) bool {
+	var credential common.Credential
+	if err := db.Credentials().FindId(credentialID).One(&credential); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return c.Read(user, credential)
+}
+
 func (Credential) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 

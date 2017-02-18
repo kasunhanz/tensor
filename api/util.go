@@ -2,20 +2,33 @@ package api
 
 import (
 	"errors"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 
-func AbortWithError(c *gin.Context, status int, message string) {
-	c.Error(&gin.Error{
+type LogFields struct {
+	Context *gin.Context
+	Status  int
+	Message string
+	Log     logrus.Fields
+}
+
+func AbortWithError(lg LogFields) {
+	lg.Context.Error(&gin.Error{
 		Type: gin.ErrorTypePrivate,
-		Err:  errors.New(message),
+		Err:  errors.New(lg.Message),
 	})
-	c.JSON(status, common.Error{
-		Code:    status,
-		Message: message,
+
+	if lg.Log != nil {
+		logrus.WithFields(lg.Log).Errorln(lg.Message)
+	}
+
+	lg.Context.JSON(lg.Status, common.Error{
+		Code:    lg.Status,
+		Message: lg.Message,
 	})
-	c.Abort()
+	lg.Context.Abort()
 }
 
 func AbortWithCode(c *gin.Context, status int, code int, message string) {
