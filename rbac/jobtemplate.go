@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	JobTemplateAdmin   = "admin"
+	JobTemplateAdmin = "admin"
 	JobTemplateExecute = "execute"
 )
 
@@ -106,6 +106,28 @@ func (JobTemplate) Write(user common.User, jtemplate ansible.JobTemplate) bool {
 	}
 
 	return false
+}
+
+func (j JobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
+	var template ansible.JobTemplate
+	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return j.Read(user, template)
+}
+
+func (j JobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
+	var template ansible.JobTemplate
+	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return j.Write(user, template)
 }
 
 func (JobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {

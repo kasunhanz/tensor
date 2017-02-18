@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cJobTemplate = "job_template"
+	cJobTemplate   = "job_template"
 	cJobTemplateID = "job_template_id"
 )
 

@@ -103,6 +103,28 @@ func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTempl
 	return false
 }
 
+func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
+	var template terraform.JobTemplate
+	if err := db.TerrafromJobs().FindId(templateID).One(&template); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return j.Read(user, template)
+}
+
+func (j TerraformJobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
+	var template terraform.JobTemplate
+	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return j.Write(user, template)
+}
+
 func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 

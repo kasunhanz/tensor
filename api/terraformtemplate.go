@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTerraformJobTemplate = "job_template"
+	cTerraformJobTemplate   = "job_template"
 	cTerraformJobTemplateID = "job_template_id"
 )
 
@@ -712,7 +712,7 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	template := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
 	user := c.MustGet(CTXUser).(common.User)
 	var req terraform.Launch
-	if err := binding.JSON.Bind(c.Request, &req); err != nil  &&  err != io.EOF {
+	if err := binding.JSON.Bind(c.Request, &req); err != nil && err != io.EOF {
 		AbortWithErrors(c, http.StatusBadRequest,
 			"Invalid JSON body",
 			validate.GetValidationErrors(err)...)
