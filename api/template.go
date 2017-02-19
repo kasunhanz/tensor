@@ -40,7 +40,7 @@ type JobTemplateController struct{}
 // and store job template data under key CTXJobTemplate in Gin Context
 func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cJobTemplateID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
@@ -111,7 +111,7 @@ func (ctrl JobTemplateController) One(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl JobTemplateController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -199,7 +199,7 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 // become_enabled:  boolean, default=False
 // allow_simultaneous:  boolean, default=False
 func (ctrl JobTemplateController) Create(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -331,7 +331,7 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 func (ctrl JobTemplateController) Update(c *gin.Context) {
 	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -472,7 +472,7 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 func (ctrl JobTemplateController) Patch(c *gin.Context) {
 	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	var req ansible.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		AbortWithErrors(c, http.StatusBadRequest,
@@ -654,7 +654,7 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 // A failure returns 500 status code
 func (ctrl JobTemplateController) Delete(c *gin.Context) {
 	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if _, err := db.Jobs().RemoveAll(bson.M{"job_template_id": jobTemplate.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
@@ -774,7 +774,7 @@ func (ctrl JobTemplateController) Jobs(c *gin.Context) {
 // if the request body is invalid returns JSON serialized Error model with 400 status code
 func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	template := c.MustGet(cJobTemplate).(ansible.JobTemplate)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.Launch
 	if err := binding.JSON.Bind(c.Request, &req); err != nil && err != io.EOF {

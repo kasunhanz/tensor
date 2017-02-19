@@ -40,7 +40,7 @@ type TJobTmplController struct{}
 // and store terraform job template data under key CTXTerraformJobTemplate in Gin Context
 func (ctrl TJobTmplController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cTerraformJobTemplateID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
@@ -111,7 +111,7 @@ func (ctrl TJobTmplController) One(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TJobTmplController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
@@ -199,7 +199,7 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 func (ctrl TJobTmplController) Create(c *gin.Context) {
 	var req terraform.JobTemplate
 	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		AbortWithErrors(c, http.StatusBadRequest,
@@ -315,7 +315,7 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 func (ctrl TJobTmplController) Update(c *gin.Context) {
 	jobTemplate := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req terraform.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -428,7 +428,7 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 func (ctrl TJobTmplController) Patch(c *gin.Context) {
 	jobTemplate := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req terraform.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -575,7 +575,7 @@ func (ctrl TJobTmplController) Patch(c *gin.Context) {
 // A failure returns 500 status code
 func (ctrl TJobTmplController) Delete(c *gin.Context) {
 	jobTemplate := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if _, err := db.TerrafromJobs().RemoveAll(bson.M{"job_template_id": jobTemplate.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
@@ -710,7 +710,7 @@ func (ctrl TJobTmplController) Jobs(c *gin.Context) {
 // if the request body is invalid returns JSON serialized Error model with 400 status code
 func (ctrl TJobTmplController) Launch(c *gin.Context) {
 	template := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	var req terraform.Launch
 	if err := binding.JSON.Bind(c.Request, &req); err != nil && err != io.EOF {
 		AbortWithErrors(c, http.StatusBadRequest,

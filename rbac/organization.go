@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	OrganizationAdmin   = "admin"
+	OrganizationAdmin = "admin"
 	OrganizationAuditor = "auditor"
-	OrganizationMember  = "member"
+	OrganizationMember = "member"
 )
 
 type Organization struct{}
@@ -46,6 +46,17 @@ func (Organization) Write(user common.User, organization common.Organization) bo
 	}
 
 	return false
+}
+
+func (o Organization) WriteByID(user common.User, organizationID bson.ObjectId) bool {
+	var organization common.Organization
+	if err := db.Organizations().FindId(organizationID).One(&organization); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return o.Write(user, organization)
 }
 
 func (Organization) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {

@@ -32,7 +32,7 @@ type CredentialController struct{}
 // and store credential data under key CTXCredential in Gin Context
 func (ctrl CredentialController) Middleware(c *gin.Context) {
 	objectID := c.Params.ByName(cCredentialID)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if !bson.IsObjectIdHex(objectID) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Credential does not exist"})
@@ -90,7 +90,7 @@ func (ctrl CredentialController) One(c *gin.Context) {
 // GetCredentials is a Gin handler function which returns list of credentials
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl CredentialController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -142,7 +142,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 // AddCredential is a Gin handler function which creates a new credential using request payload.
 // This accepts Credential model.
 func (ctrl CredentialController) Create(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	var req common.Credential
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		AbortWithErrors(c, http.StatusBadRequest,
@@ -212,7 +212,7 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object.
 func (ctrl CredentialController) Update(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	credential := c.MustGet(cCredential).(common.Credential)
 	tmpCredential := credential
 
@@ -316,7 +316,7 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 // This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func (ctrl CredentialController) Patch(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	credential := c.MustGet(cCredential).(common.Credential)
 	tmpCredential := credential
 
@@ -471,7 +471,7 @@ func (ctrl CredentialController) Patch(c *gin.Context) {
 // RemoveCredential is a Gin handler function which removes a credential object from the database
 func (ctrl CredentialController) Delete(c *gin.Context) {
 	credential := c.MustGet(cCredential).(common.Credential)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err := db.Credentials().RemoveId(credential.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,

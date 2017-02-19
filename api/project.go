@@ -39,7 +39,7 @@ type ProjectController struct{}
 // and store credential data under key CTXProject in Gin Context
 func (ctrl ProjectController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cProjectID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist",
@@ -99,7 +99,7 @@ func (ctrl ProjectController) One(c *gin.Context) {
 
 // GetProjects returns a JSON array of projects
 func (ctrl ProjectController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -151,7 +151,7 @@ func (ctrl ProjectController) All(c *gin.Context) {
 // AddProject is a Gin handler function which creates a new project using request payload.
 // This accepts Project model.
 func (ctrl ProjectController) Create(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	var req common.Project
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		AbortWithErrors(c, http.StatusBadRequest,
@@ -245,7 +245,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 func (ctrl ProjectController) Update(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
 	tmpProject := project
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req common.Project
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -340,7 +340,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 func (ctrl ProjectController) Patch(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
 	tmpProject := project
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req common.PatchProject
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -451,7 +451,7 @@ func (ctrl ProjectController) Patch(c *gin.Context) {
 // RemoveProject is a Gin handler function which removes a project object from the database
 func (ctrl ProjectController) Delete(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if _, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
@@ -656,7 +656,7 @@ func (ctrl ProjectController) ProjectUpdates(c *gin.Context) {
 // SCMUpdateInfo returns whether a project can be updated or not
 func (ctrl ProjectController) SCMUpdateInfo(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	roles := new(rbac.Project)
 	if !roles.Update(user, project) {
@@ -672,7 +672,7 @@ func (ctrl ProjectController) SCMUpdateInfo(c *gin.Context) {
 // SCMUpdate creates a new system job to update a project
 func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	roles := new(rbac.Project)
 	if !roles.Update(user, project) {

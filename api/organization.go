@@ -34,7 +34,7 @@ type OrganizationController struct{}
 // and store organization data under key CTXOrganization in Gin Context
 func (ctrl OrganizationController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cOrganizationID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist",
 			Log: log.Fields{
@@ -92,7 +92,7 @@ func (ctrl OrganizationController) One(c *gin.Context) {
 // GetOrganizations is a Gin handler function which returns list of organization
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl OrganizationController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
@@ -141,7 +141,7 @@ func (ctrl OrganizationController) All(c *gin.Context) {
 // AddOrganization is a Gin handler function which creates a new organization using request payload.
 // This accepts Organization model.
 func (ctrl OrganizationController) Create(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	// SuperUsers only can create organizations
 	if !user.IsSuperUser {
 		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
@@ -190,7 +190,7 @@ func (ctrl OrganizationController) Create(c *gin.Context) {
 // RemoveOrganization is a Gin handler function which removes a organization object from the database
 func (ctrl OrganizationController) Delete(c *gin.Context) {
 	organization := c.MustGet(cOrganization).(common.Organization)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var projectIDs []bson.ObjectId
 	orgIter := db.Projects().Find(bson.M{"organization_id": organization.ID}).Select(bson.M{"_id": 1}).Iter()
@@ -322,7 +322,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 // unspecified fields will be removed from the database object.
 func (ctrl OrganizationController) Update(c *gin.Context) {
 	organization := c.MustGet(cOrganization).(common.Organization)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	tmpOrg := organization
 
 	var req common.Organization
@@ -365,7 +365,7 @@ func (ctrl OrganizationController) Update(c *gin.Context) {
 // removed from the database object. Unspecified fields will be ignored.
 func (ctrl OrganizationController) Patch(c *gin.Context) {
 	organization := c.MustGet(cOrganization).(common.Organization)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	tmpOrg := organization
 
 	var req common.PatchOrganization

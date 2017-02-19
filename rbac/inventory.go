@@ -110,6 +110,17 @@ func (i Inventory) ReadByID(user common.User, inventoryID bson.ObjectId) bool {
 	return i.Read(user, inventory)
 }
 
+func (i Inventory) WriteByID(user common.User, inventoryID bson.ObjectId) bool {
+	var inventory ansible.Inventory
+	if err := db.Inventories().FindId(inventoryID).One(&inventory); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return i.Write(user, inventory)
+}
+
 func (Inventory) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 

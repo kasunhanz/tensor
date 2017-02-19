@@ -22,7 +22,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXTeam   = "team"
+	CTXTeam = "team"
 	CTXTeamID = "team_id"
 )
 
@@ -33,33 +33,21 @@ type TeamController struct{}
 // and store team data under key CTXTeam in Gin Context
 func (ctrl TeamController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(CTXTeamID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Team ID": ID,
-			"Error":   err.Error(),
-		}).Errorln("Error while getting Team ID url parameter")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:   http.StatusNotFound,
-			Errors: []string{"Not Found"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
+			Log: log.Fields{"Error": err.Error()},
 		})
-		c.Abort()
 		return
 	}
 
 	var team common.Team
 	err = db.Teams().FindId(bson.ObjectIdHex(ID)).One(&team)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Team ID": ID,
-			"Error":   err.Error(),
-		}).Errorln("Error while retriving Team form the database")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:   http.StatusNotFound,
-			Errors: []string{"Not Found"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
+			Log: log.Fields{"Error": err.Error()},
 		})
-		c.Abort()
 		return
 	}
 
@@ -68,11 +56,9 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 	case "GET":
 		{
 			if !roles.Read(user, team) {
-				c.JSON(http.StatusUnauthorized, common.Error{
-					Code:   http.StatusUnauthorized,
-					Errors: []string{"You do not have permission to perform this action."},
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
 				})
-				c.Abort()
 				return
 			}
 		}
@@ -80,11 +66,9 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, team) {
-				c.JSON(http.StatusUnauthorized, common.Error{
-					Code:   http.StatusUnauthorized,
-					Errors: []string{"You do not have permission to perform this action."},
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
 				})
-				c.Abort()
 				return
 			}
 		}
@@ -98,69 +82,49 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 func (ctrl TeamController) One(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
 	metadata.TeamMetadata(&team)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, team)
 }
 
 // GetTeams is a Gin handler function which returns list of teams
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TeamController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
-
+	user := c.MustGet(cUser).(common.User)
 	parser := util.NewQueryParser(c)
-
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "organization"}, match)
-
 	query := db.Teams().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
-	log.WithFields(log.Fields{
-		"Query": query,
-	}).Debugln("Parsed query")
-
 	roles := new(rbac.Team)
 	var teams []common.Team
-	// new mongodb iterator
 	iter := query.Iter()
-	// loop through each result and modify for our needs
 	var tmpTeam common.Team
-	// iterate over all and only get valid objects
 	for iter.Next(&tmpTeam) {
 		if !roles.Read(user, tmpTeam) {
 			continue
 		}
-		// skip to next
 		metadata.TeamMetadata(&tmpTeam)
-		// good to go add to list
 		teams = append(teams, tmpTeam)
 	}
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Team data from the database")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:   http.StatusInternalServerError,
-			Errors: []string{"Error while getting Team"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting teams",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
 
 	count := len(teams)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Team page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
 
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -171,35 +135,32 @@ func (ctrl TeamController) All(c *gin.Context) {
 
 // AddTeam creates a new team
 func (ctrl TeamController) Create(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req common.Team
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Invlid JSON request")
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
-	// check whether the organization exist or not
 	if !req.OrganizationExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: []string{"Organization does not exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Organization does not exists.",
 		})
 		return
 	}
 
-	// if the team exist in the collection it is not unique
+	if !new(rbac.Organization).WriteByID(user, req.OrganizationID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
+		})
+	}
+
 	if !req.IsUnique() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: []string{"Team with this Name and Organization already exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Team with this name and organization already exists.",
 		})
 		return
 	}
@@ -209,75 +170,56 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	req.Modified = time.Now()
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
-
-	err := db.Teams().Insert(req)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Team ID": req.ID.Hex(),
-			"Error":   err.Error(),
-		}).Errorln("Error while creating Team")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:   http.StatusInternalServerError,
-			Errors: []string{"Error while creating Team"},
+	if err := db.Teams().Insert(req); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while creating team",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
 
 	roles := new(rbac.Team)
 	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
-		if err := roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin); err != nil {
-			log.WithFields(log.Fields{
-				"User ID":   user.ID,
-				"Object ID": req.ID,
-				"Error":     err.Error(),
-			}).Errorln("Admin role association failed")
-		}
+		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin);
 	}
 
-	// add new activity to activity stream
 	activity.AddTeamActivity(common.Create, user, req)
-
 	metadata.TeamMetadata(&req)
-	// send response with JSON rendered data
 	c.JSON(http.StatusCreated, req)
 }
 
 // UpdateTeam will update the Job Template
 func (ctrl TeamController) Update(c *gin.Context) {
-	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
 	tmpTeam := team
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req common.Team
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
-	// check whether the organization exist or not
 	if !req.OrganizationExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: []string{"Organization does not exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Organization does not exists.",
 		})
 		return
 	}
 
-	if req.Name != team.Name {
-		// if the team exist in the collection it is not unique
-		if !req.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Team with this Name and Organization already exists."},
-			})
-			return
-		}
+	if !new(rbac.Organization).WriteByID(user, req.OrganizationID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
+		})
+	}
+
+	if req.Name != team.Name && !req.IsUnique() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Team with this name and organization already exists.",
+		})
+		return
 	}
 
 	team.Name = strings.Trim(req.Name, " ")
@@ -285,27 +227,16 @@ func (ctrl TeamController) Update(c *gin.Context) {
 	team.OrganizationID = req.OrganizationID
 	team.Modified = time.Now()
 	team.ModifiedByID = user.ID
-
-	// update object
 	if err := db.Teams().UpdateId(team.ID, team); err != nil {
-		log.WithFields(log.Fields{
-			"Team ID": team.ID.Hex(),
-			"Error":   err.Error(),
-		}).Errorln("Error while updating Team")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:   http.StatusInternalServerError,
-			Errors: []string{"Error while updating Team"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating team.",
+			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
 	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
-
-	// set `related` and `summary` fields
 	metadata.TeamMetadata(&team)
-
-	// render JSON with 200 status code
 	c.JSON(http.StatusOK, team)
 }
 
@@ -313,31 +244,30 @@ func (ctrl TeamController) Update(c *gin.Context) {
 // This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func (ctrl TeamController) Patch(c *gin.Context) {
-	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
 	tmpTeam := team
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
-
+	user := c.MustGet(cUser).(common.User)
 	var req common.PatchTeam
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:   http.StatusBadRequest,
-			Errors: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
 	if req.OrganizationID != nil {
 		team.OrganizationID = *req.OrganizationID
-		// check whether the organization exist or not
 		if !team.OrganizationExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Organization does not exists."},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Organization does not exists.",
 			})
 			return
+		}
+
+		if !new(rbac.Organization).WriteByID(user, team.OrganizationID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
+			})
 		}
 	}
 
@@ -349,9 +279,8 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 		}
 		// if the team exist in the collection it is not unique
 		if !team.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Team with this Name and Organization already exists."},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Team with this name and organization already exists.",
 			})
 			return
 		}
@@ -363,54 +292,74 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 	if req.OrganizationID != nil {
 		team.OrganizationID = *req.OrganizationID
 	}
-
 	team.Modified = time.Now()
 	team.ModifiedByID = user.ID
 
-	// update object
 	if err := db.Teams().UpdateId(team.ID, team); err != nil {
-		log.WithFields(log.Fields{
-			"Team ID": team.ID.Hex(),
-			"Error":   err.Error(),
-		}).Errorln("Error while updating Team")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:   http.StatusInternalServerError,
-			Errors: []string{"Error while updating Team"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
 	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
-
-	// set `related` and `summary` fields
 	metadata.TeamMetadata(&team)
-
-	// render JSON with 200 status code
 	c.JSON(http.StatusOK, team)
 }
 
 // RemoveTeam is a Gin handler function which removes a team object from the database
 func (ctrl TeamController) Delete(c *gin.Context) {
-	// get Team from the gin.Context
 	team := c.MustGet(CTXTeam).(common.Team)
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
-	// remove object from the collection
-	err := db.Teams().RemoveId(team.ID)
-	if err != nil {
-		log.Errorln("Error while removing Team:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:   http.StatusInternalServerError,
-			Errors: []string{"Error while removing Team"},
+	// Remove permissions
+	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{GranteeID: team.ID}}}
+	if _, err := db.Projects().UpdateAll(nil, access); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
-	// add new activity to activity stream
-	activity.AddTeamActivity(common.Delete, user, team)
+	if _, err := db.Credentials().UpdateAll(nil, access); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
+	if _, err := db.Inventories().UpdateAll(nil, access); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
+	if _, err := db.JobTemplates().UpdateAll(nil, access); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
+	if _, err := db.TerrafromJobTemplates().UpdateAll(nil, access); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
 
-	// abort with 204 status code
+	if err := db.Teams().RemoveId(team.ID); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing team",
+			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
+
+	activity.AddTeamActivity(common.Delete, user, team)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -468,7 +417,7 @@ func (ctrl TeamController) Users(c *gin.Context) {
 // Credentials is Gin handler function which returns credentials associated with a team
 func (ctrl TeamController) Credentials(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var credentials []common.Credential
 	// new mongodb iterator
@@ -530,7 +479,7 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 // Projects is a Gin handler function which returns projects associated with a team
 func (ctrl TeamController) Projects(c *gin.Context) {
 	team := c.MustGet(CTXTeam).(common.Team)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var projects []common.Project
 	// new mongodb iterator

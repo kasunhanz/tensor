@@ -29,7 +29,7 @@ type TerraformJobController struct{}
 // and store credential data under key CTXTerraformJob in Gin Context
 func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cTerraformJobID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
@@ -84,7 +84,7 @@ func (ctrl TerraformJobController) One(c *gin.Context) {
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl TerraformJobController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	parser := util.NewQueryParser(c)
 	match := bson.M{}

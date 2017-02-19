@@ -35,7 +35,7 @@ type InventoryController struct{}
 // this set project data under key project in Gin Context.
 func (ctrl InventoryController) Middleware(c *gin.Context) {
 	ID, err := util.GetIdParam(cInventoryID, c)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist",
 			Log: log.Fields{"Error": err.Error()},
@@ -87,7 +87,7 @@ func (ctrl InventoryController) One(c *gin.Context) {
 // GetInventories is a Gin handler function which returns list of inventories
 // This takes lookup parameters and order parameters to filter and sort output data.
 func (ctrl InventoryController) All(c *gin.Context) {
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Match([]string{"has_inventory_sources", "has_active_failures"}, match)
@@ -137,7 +137,7 @@ func (ctrl InventoryController) All(c *gin.Context) {
 // This accepts Inventory model.
 func (ctrl InventoryController) Create(c *gin.Context) {
 	var req ansible.Inventory
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
 		AbortWithErrors(c, http.StatusBadRequest,
 			"Invalid JSON body",
@@ -197,7 +197,7 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 func (ctrl InventoryController) Update(c *gin.Context) {
 	inventory := c.MustGet(cInventory).(ansible.Inventory)
 	tmpInventory := inventory
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.Inventory
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -240,7 +240,7 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	inventory.ModifiedByID = user.ID
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Inventory with this Name already exists.",
+			Message: "Error while updating inventory.",
 			Log:     log.Fields{"Inventory ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
@@ -262,7 +262,7 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 func (ctrl InventoryController) Patch(c *gin.Context) {
 	inventory := c.MustGet(cInventory).(ansible.Inventory)
 	tmpInventory := inventory
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.PatchInventory
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
@@ -330,7 +330,7 @@ func (ctrl InventoryController) Patch(c *gin.Context) {
 // RemoveInventory is a Gin handler function which removes a inventory object from the database
 func (ctrl InventoryController) Delete(c *gin.Context) {
 	inventory := c.MustGet(cInventory).(ansible.Inventory)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if _, err := db.Hosts().RemoveAll(bson.M{"inventory_id": inventory.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
@@ -366,9 +366,6 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 // output json must include [] for each array and {} for each object
 func (ctrl InventoryController) Script(c *gin.Context) {
 	inv := c.MustGet(cInventory).(ansible.Inventory)
-
-	// query variables
-	//qall := c.Query("all")
 	qhostvars := c.Query("hostvars")
 	qhost := c.Query("host")
 
@@ -512,7 +509,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 // that includes the inventory.
 func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 	inv := c.MustGet(cInventory).(ansible.Inventory)
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var jobTemplate []ansible.JobTemplate
 	iter := db.JobTemplates().Find(bson.M{"inventory_id": inv.ID}).Iter()
