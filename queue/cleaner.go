@@ -4,9 +4,10 @@ import (
 	"github.com/gamunu/rmq"
 	"time"
 )
+
 // RMQCleaner runs regularly to return unacked deliveries of stopped
 // or crashed consumers back to ready so they can be consumed by a new consumer
-func RMQCleaner()  {
+func RMQCleaner() {
 	cleaner := rmq.NewCleaner(Queue)
 
 	//TODO: add this to configuration

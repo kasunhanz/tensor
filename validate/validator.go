@@ -25,6 +25,7 @@ const (
 	JobType          string = "^(run|check|scan)$"
 	ProjectKind      string = "^(ansible|terraform)$"
 	TerraformJobType string = "^(plan|apply)$"
+	ResourceType     string = "^(credential|organization|team|project|job_template|terraform_job_template|inventory)$"
 
 	DNSName      string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`
 	IP           string = `(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
@@ -50,6 +51,7 @@ var (
 	rxJobType          = regexp.MustCompile(JobType)
 	rxProjectKind      = regexp.MustCompile(ProjectKind)
 	rxTerraformJobType = regexp.MustCompile(TerraformJobType)
+	rxResourceType     = regexp.MustCompile(ResourceType)
 )
 
 type Validator struct {
@@ -89,9 +91,9 @@ func (v *Validator) lazyinit() {
 		v.validate.RegisterValidation("jobtype", isJobType)
 		v.validate.RegisterValidation("project_kind", isProjectKind)
 		v.validate.RegisterValidation("terraform_jobtype", isTerraformJobType)
+		v.validate.RegisterValidation("resource_type", isResourceType)
 
 		//translations
-		// credentialkind
 		v.validate.RegisterTranslation("credential_kind", trans, func(ut ut.Translator) error {
 			return ut.Add("credential_kind", "{0} must have either one of windows,ssh,net,scm,aws,rax,vmware,satellite6,cloudforms,gce,azure,openstack", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -115,6 +117,7 @@ func (v *Validator) lazyinit() {
 
 			return t
 		})
+
 		v.validate.RegisterTranslation("naproperty", trans, func(ut ut.Translator) error {
 			return ut.Add("naproperty", "Invalid property, {0}", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -122,6 +125,7 @@ func (v *Validator) lazyinit() {
 
 			return t
 		})
+
 		v.validate.RegisterTranslation("scmtype", trans, func(ut ut.Translator) error {
 			return ut.Add("scmtype", "{0} must have either one of manual,git,hg,svn", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -129,6 +133,7 @@ func (v *Validator) lazyinit() {
 
 			return t
 		})
+
 		v.validate.RegisterTranslation("jobtype", trans, func(ut ut.Translator) error {
 			return ut.Add("jobtype", "{0} must have either one of run,check,scan", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -136,6 +141,7 @@ func (v *Validator) lazyinit() {
 
 			return t
 		})
+
 		v.validate.RegisterTranslation("terraform_jobtype", trans, func(ut ut.Translator) error {
 			return ut.Add("terraform_jobtype", "{0} must have either one of apply,plan", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -143,6 +149,7 @@ func (v *Validator) lazyinit() {
 
 			return t
 		})
+
 		v.validate.RegisterTranslation("iphost", trans, func(ut ut.Translator) error {
 			return ut.Add("iphost", "{0} must have valid hostname or ip address", true)
 		}, func(ut ut.Translator, fe validator.FieldError) string {
@@ -151,9 +158,18 @@ func (v *Validator) lazyinit() {
 			return t
 		})
 
+		v.validate.RegisterTranslation("resource_type", trans, func(ut ut.Translator) error {
+			return ut.Add("resource_type", "{0} must have either one of credential,organization,team,project,job_template,terraform_job_template,inventory", true)
+		}, func(ut ut.Translator, fe validator.FieldError) string {
+			t, _ := ut.T("resource_type", fe.Field())
+
+			return t
+		})
+
 		//struct level validations
 		v.validate.RegisterStructValidation(credentialStructLevelValidation, common.Credential{})
 		v.validate.RegisterStructValidation(projectStructLevelValidation, common.Project{})
+		v.validate.RegisterStructValidation(roleObjStructLevelValidation, common.RoleObj{})
 	})
 }
 
@@ -209,6 +225,10 @@ func isTerraformJobType(fl validator.FieldLevel) bool {
 	return rxTerraformJobType.MatchString(fl.Field().String())
 }
 
+func isResourceType(fl validator.FieldLevel) bool {
+	return rxResourceType.MatchString(fl.Field().String())
+}
+
 // fail all
 func naProperty(fl validator.FieldLevel) bool {
 	if fl.Field().String() == "" {
@@ -249,70 +269,70 @@ func GetValidationErrors(err error) []string {
 
 func credentialStructLevelValidation(sl validator.StructLevel) {
 
-	credentail := sl.Current().Interface().(common.Credential)
+	credential := sl.Current().Interface().(common.Credential)
 
-	if credentail.Kind == common.CredentialKindNET && len(credentail.Username) == 0 {
-		sl.ReportError(credentail.Username, "Username", "Username", "required", "")
+	if credential.Kind == common.CredentialKindNET && len(credential.Username) == 0 {
+		sl.ReportError(credential.Username, "Username", "Username", "required", "")
 	}
 
-	if credentail.Kind == common.CredentialKindAWS {
-		if len(credentail.Secret) == 0 {
-			sl.ReportError(credentail.Secret, "Secret", "Secret Access Key", "required", "")
+	if credential.Kind == common.CredentialKindAWS {
+		if len(credential.Secret) == 0 {
+			sl.ReportError(credential.Secret, "Secret", "Secret Access Key", "required", "")
 		}
 
-		if len(credentail.Client) == 0 {
-			sl.ReportError(credentail.Client, "Client", "Secret Access ID", "required", "")
-		}
-	}
-
-	if credentail.Kind == common.CredentialKindRAX {
-		if len(credentail.Username) == 0 {
-			sl.ReportError(credentail.Username, "Username", "Username", "required", "")
-		}
-
-		if len(credentail.Secret) == 0 {
-			sl.ReportError(credentail.Secret, "Secret", "API Key", "required", "")
+		if len(credential.Client) == 0 {
+			sl.ReportError(credential.Client, "Client", "Secret Access ID", "required", "")
 		}
 	}
 
-	if credentail.Kind == common.CredentialKindGCE {
-		if len(credentail.Email) == 0 {
-			sl.ReportError(credentail.Email, "Email", "Email", "required", "")
+	if credential.Kind == common.CredentialKindRAX {
+		if len(credential.Username) == 0 {
+			sl.ReportError(credential.Username, "Username", "Username", "required", "")
 		}
 
-		if len(credentail.Project) == 0 {
-			sl.ReportError(credentail.Project, "Project", "Project", "required", "")
-		}
-
-		if len(credentail.SSHKeyData) == 0 {
-			sl.ReportError(credentail.SSHKeyData, "SSH Key Data", "SSH Key Data", "required", "")
+		if len(credential.Secret) == 0 {
+			sl.ReportError(credential.Secret, "Secret", "API Key", "required", "")
 		}
 	}
 
-	if credentail.Kind == common.CredentialKindAZURE {
-		if len(credentail.Username) > 0 {
-			if len(credentail.Username) == 0 {
-				sl.ReportError(credentail.Username, "Username", "Azure AD User", "required", "")
+	if credential.Kind == common.CredentialKindGCE {
+		if len(credential.Email) == 0 {
+			sl.ReportError(credential.Email, "Email", "Email", "required", "")
+		}
+
+		if len(credential.Project) == 0 {
+			sl.ReportError(credential.Project, "Project", "Project", "required", "")
+		}
+
+		if len(credential.SSHKeyData) == 0 {
+			sl.ReportError(credential.SSHKeyData, "SSH Key Data", "SSH Key Data", "required", "")
+		}
+	}
+
+	if credential.Kind == common.CredentialKindAZURE {
+		if len(credential.Username) > 0 {
+			if len(credential.Username) == 0 {
+				sl.ReportError(credential.Username, "Username", "Azure AD User", "required", "")
 			}
 
-			if len(credentail.Password) == 0 {
-				sl.ReportError(credentail.Password, "Password", "Azure AD Password", "required", "")
+			if len(credential.Password) == 0 {
+				sl.ReportError(credential.Password, "Password", "Azure AD Password", "required", "")
 			}
 		} else {
-			if len(credentail.Secret) == 0 {
-				sl.ReportError(credentail.Secret, "Secret", "Azure Secret", "required", "")
+			if len(credential.Secret) == 0 {
+				sl.ReportError(credential.Secret, "Secret", "Azure Secret", "required", "")
 			}
 
-			if len(credentail.Client) == 0 {
-				sl.ReportError(credentail.Client, "Client", "Azure Client ID", "required", "")
+			if len(credential.Client) == 0 {
+				sl.ReportError(credential.Client, "Client", "Azure Client ID", "required", "")
 			}
-			if len(credentail.Tenant) == 0 {
-				sl.ReportError(credentail.Tenant, "Tenant", "Azure Tenant", "required", "")
+			if len(credential.Tenant) == 0 {
+				sl.ReportError(credential.Tenant, "Tenant", "Azure Tenant", "required", "")
 			}
 		}
 
-		if len(credentail.Subscription) == 0 {
-			sl.ReportError(credentail.Subscription, "Subscription", "Azure Subscription", "required", "")
+		if len(credential.Subscription) == 0 {
+			sl.ReportError(credential.Subscription, "Subscription", "Azure Subscription", "required", "")
 		}
 	}
 }
@@ -326,4 +346,41 @@ func projectStructLevelValidation(sl validator.StructLevel) {
 		}
 	}
 
+}
+
+func roleObjStructLevelValidation(sl validator.StructLevel) {
+	roleobj := sl.Current().Interface().(common.RoleObj)
+
+	switch roleobj.ResourceType {
+	case "credential":
+		{
+			if roleobj.Role != "admin" && roleobj.Role != "use" {
+				sl.ReportError(roleobj.Role, "Role", "Role", "Role must be either one of admin,use", "")
+			}
+		}
+	case "organization":
+		{
+			if roleobj.Role != "admin" && roleobj.Role != "auditor" && roleobj.Role != "member" {
+				sl.ReportError(roleobj.Role, "Role", "Role", "Role must be either one of admin,auditor,member", "")
+			}
+		}
+	case "team":
+		{
+			if roleobj.Role != "admin" && roleobj.Role != "member" {
+				sl.ReportError(roleobj.Role, "Role", "Role", "Role must be either one of admin,member", "")
+			}
+		}
+	case "project", "inventory":
+		{
+			if roleobj.Role != "admin" && roleobj.Role != "update" && roleobj.Role != "use" {
+				sl.ReportError(roleobj.Role, "Role", "Role", "Role must be either one of admin,update,use", "")
+			}
+		}
+	case "job_template", "terraform_job_template":
+		{
+			if roleobj.Role != "admin" && roleobj.Role != "execute" {
+				sl.ReportError(roleobj.Role, "Role", "Role", "Role must be either one of admin,execute", "")
+			}
+		}
+	}
 }

@@ -6,21 +6,27 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/models"
 )
 
-func teamRead(user common.User, team models.RootModel) bool {
+const (
+	TeamAdmin  = "admin"
+	TeamMember = "member"
+)
+
+type Team struct{}
+
+func (Team) Read(user common.User, team common.Team) bool {
 	// allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser || user.IsSystemAuditor {
+	if HasGlobalRead(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
-	// since this is read it doesn't matter what permission assined to the user
+	// since this is read it doesn't matter what permission assigned to the user
 	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"_id": team.GetOrganizationID(),
+		"roles.grantee_id": user.ID,
+		"_id":              team.OrganizationID,
 	}).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user and organizational memeber:", err)
@@ -29,7 +35,7 @@ func teamRead(user common.User, team models.RootModel) bool {
 		return true
 	}
 
-	for _, v := range team.GetRoles() {
+	for _, v := range team.Roles {
 		if v.Type == RoleTypeUser && v.GranteeID == user.ID {
 			return true
 		}
@@ -38,32 +44,52 @@ func teamRead(user common.User, team models.RootModel) bool {
 	return false
 }
 
-func teamWrite(user common.User, team  models.RootModel) bool {
+func (Team) Write(user common.User, team common.Team) bool {
 	// allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser {
+	if HasGlobalWrite(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"roles.role": OrganizationAdmin,
-		"_id": team.GetOrganizationID(),
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational admin:", err)
-	}
-	if count > 0 {
+	if IsOrganizationAdmin(team.OrganizationID, user.ID) {
 		return true
 	}
 
-	for _, v := range team.GetRoles() {
+	for _, v := range team.Roles {
 		if v.Type == RoleTypeUser && v.GranteeID == user.ID && v.Role == TeamAdmin {
 			return true
 		}
 	}
 
 	return false
+}
+
+func (Team) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.Teams().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to associate role")
+	}
+
+	return
+}
+
+func (Team) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.Teams().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to disassociate role")
+	}
+
+	return
 }

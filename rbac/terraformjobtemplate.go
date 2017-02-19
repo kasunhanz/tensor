@@ -5,18 +5,13 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/terraform"
 	"gopkg.in/mgo.v2/bson"
 )
 
-const (
-	JobTemplateAdmin = "admin"
-	JobTemplateExecute = "execute"
-)
+type TerraformJobTemplate struct{}
 
-type JobTemplate struct{}
-
-func (JobTemplate) Read(user common.User, jtemplate ansible.JobTemplate) bool {
+func (TerraformJobTemplate) Read(user common.User, jtemplate terraform.JobTemplate) bool {
 	// Allow access if the user is super user or
 	// a system auditor
 	if HasGlobalRead(user) {
@@ -62,7 +57,7 @@ func (JobTemplate) Read(user common.User, jtemplate ansible.JobTemplate) bool {
 	return false
 }
 
-func (JobTemplate) Write(user common.User, jtemplate ansible.JobTemplate) bool {
+func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTemplate) bool {
 	// Allow access if the user is super user or
 	// a system auditor
 	if HasGlobalWrite(user) {
@@ -108,9 +103,9 @@ func (JobTemplate) Write(user common.User, jtemplate ansible.JobTemplate) bool {
 	return false
 }
 
-func (j JobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
-	var template ansible.JobTemplate
-	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
+func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
+	var template terraform.JobTemplate
+	if err := db.TerrafromJobs().FindId(templateID).One(&template); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
 		})
@@ -119,8 +114,8 @@ func (j JobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
 	return j.Read(user, template)
 }
 
-func (j JobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
-	var template ansible.JobTemplate
+func (j TerraformJobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
+	var template terraform.JobTemplate
 	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
 		log.WithFields(log.Fields{
 			"Error": err.Error(),
@@ -130,7 +125,7 @@ func (j JobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool 
 	return j.Write(user, template)
 }
 
-func (JobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
@@ -144,7 +139,7 @@ func (JobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, ro
 	return
 }
 
-func (JobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+func (TerraformJobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {

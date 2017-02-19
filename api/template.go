@@ -15,21 +15,22 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/queue"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXJobTemplate = "job_template"
-	CTXJobTemplateID = "job_template_id"
+	cJobTemplate   = "job_template"
+	cJobTemplateID = "job_template_id"
 )
 
 type JobTemplateController struct{}
@@ -38,48 +39,58 @@ type JobTemplateController struct{}
 // This function takes CTXJobTemplateID from Gin Context and retrieves job template data from the collection
 // and store job template data under key CTXJobTemplate in Gin Context
 func (ctrl JobTemplateController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXJobTemplateID, c)
+	ID, err := util.GetIdParam(cJobTemplateID, c)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": ID,
-			"Error":           err.Error(),
-		}).Errorln("Error while getting Job Template ID url parameter")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
-		})
-		c.Abort()
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
 		return
 	}
 
 	var jobTemplate ansible.JobTemplate
 	if err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate); err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": ID,
-			"Error":           err.Error(),
-		}).Errorln("Error while retriving Job Template form the database")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
+			Log: log.Fields{
+				"Job Template ID": ID,
+				"Error":           err.Error(),
+			},
 		})
-		c.Abort()
 		return
 	}
 
-	// Set the Job Template to the gin.Context
-	c.Set(CTXJobTemplate, jobTemplate)
-	c.Next() //move to next pending handler
+	roles := new(rbac.JobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.Read(user, jobTemplate) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	case "PUT", "POST", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.Write(user, jobTemplate) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	}
+
+	c.Set(cJobTemplate, jobTemplate)
+	c.Next()
 }
 
 // GetJTemplate is a Gin handler function which returns the Job Template as a JSON object
 // A success will return 200 status code
 // A failure will return 500 status code
 func (ctrl JobTemplateController) One(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
-
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 	metadata.JTemplateMetadata(&jobTemplate)
-
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
@@ -100,63 +111,46 @@ func (ctrl JobTemplateController) One(c *gin.Context) {
 // A failure returns 500 status code
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl JobTemplateController) All(c *gin.Context) {
+	user := c.MustGet(cUser).(common.User)
+
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Lookups([]string{"name", "description", "labels"}, match)
 
-	query := db.JobTemplates().Find(match) // prepare the query
-	// set sort value to the query based on request parameters
+	query := db.JobTemplates().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
-	log.WithFields(log.Fields{
-		"Query": query,
-	}).Debugln("Parsed query")
-
+	roles := new(rbac.JobTemplate)
 	var jobTemplates []ansible.JobTemplate
-	// new mongodb iterator
 	iter := query.Iter()
-	// loop through each result and modify for our needs
 	var tmpJobTemplate ansible.JobTemplate
-	// iterate over all and only get valid objects
 	for iter.Next(&tmpJobTemplate) {
-		// TODO: if the user doesn't have access to credential
-		// skip to next
+		if !roles.Read(user, tmpJobTemplate) {
+			continue
+		}
 		metadata.JTemplateMetadata(&tmpJobTemplate)
-		// good to go add to list
 		jobTemplates = append(jobTemplates, tmpJobTemplate)
 	}
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Job Template data from the database")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Job Template"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting job template", Log: log.Fields{
+				"Error": err.Error(),
+			},
 		})
 		return
 	}
 
 	count := len(jobTemplates)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Credential page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -205,76 +199,101 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 // become_enabled:  boolean, default=False
 // allow_simultaneous:  boolean, default=False
 func (ctrl JobTemplateController) Create(c *gin.Context) {
-	var req ansible.JobTemplate
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
-	err := binding.JSON.Bind(c.Request, &req)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Invlid JSON request")
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+	var req ansible.JobTemplate
+	if err := binding.JSON.Bind(c.Request, &req); err != nil {
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
 	// check the project exist or not
 	if !req.ProjectExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Project does not exists.",
 		})
 		return
 	}
 
+	if !new(rbac.Project).ReadByID(user, req.ProjectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
+		})
+	}
+
 	// if the JobTemplate exist in the collection it is not unique
 	if !req.IsUnique() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Job Template with this Name already exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Job Template with this Name already exists.",
 		})
 		return
 	}
 
 	// check the inventory exist or not
 	if !req.InventoryExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Inventory does not exists"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Inventory does not exists",
 		})
 		return
 	}
 
-	// check the machine credential exist or not
-	if !req.MachineCredentialExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
+	// Reject the request if the user doesn't have inventory read permissions
+	if new(rbac.Inventory).ReadByID(user, req.InventoryID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
 		})
 		return
 	}
 
-	// check the network credential exist or not
-	if req.NetworkCredentialID != nil {
-		if !req.NetworkCredentialExist() {
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+	roles := new(rbac.Credential)
+	if req.MachineCredentialID != nil {
+		if !req.MachineCredentialExist() {
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.MachineCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
 	}
 
-	// check the network credential exist or not
+	if req.NetworkCredentialID != nil {
+		if !req.NetworkCredentialExist() {
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Network credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.NetworkCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
+			})
+			return
+		}
+	}
+
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Cloud credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.CloudCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
@@ -285,26 +304,23 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	req.Modified = time.Now()
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
-
-	// insert new object
-	if err = db.JobTemplates().Insert(req); err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": req.ID.Hex(),
-			"Error":           err.Error(),
-		}).Errorln("Error while creating Job Template")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating  Job Template"},
+	if err := db.JobTemplates().Insert(req); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Could not create job template",
+			Log:     log.Fields{"Job Template ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
-	activity.AddJobTemplateActivity(common.Create, user, req)
-	// set `related` and `summary` feilds
-	metadata.JTemplateMetadata(&req)
+	rolesjob := new(rbac.JobTemplate)
+	if !rbac.HasGlobalWrite(user) {
+		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
+		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+	}
 
-	// send response with JSON rendered data
+	activity.AddJobTemplateActivity(common.Create, user, req)
+	metadata.JTemplateMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
 
@@ -313,67 +329,86 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
 func (ctrl JobTemplateController) Update(c *gin.Context) {
-	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.JobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
 	// check the project exist or not
 	if !req.ProjectExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Project does not exists"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Project does not exists.",
 		})
 		return
 	}
 
-	if req.Name != jobTemplate.Name {
-		// if the JobTemplate exist in the collection it is not unique
-		if !req.IsUnique() {
+	if !new(rbac.Project).ReadByID(user, req.ProjectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
+		})
+	}
+
+	if req.Name != jobTemplate.Name && !req.IsUnique() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Job Template with this name already exists.",
+		})
+		return
+	}
+
+	roles := new(rbac.Credential)
+	if req.MachineCredentialID != nil {
+		if !req.MachineCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Template with this Name already exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.MachineCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
 	}
 
-	// check whether the machine credential exist or not
-	if !req.MachineCredentialExist() {
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Machine Credential does not exists"},
-		})
-		return
-	}
-
-	// check whether the network credential exist or not
 	if req.NetworkCredentialID != nil {
 		if !req.NetworkCredentialExist() {
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Network Credential does not exists"},
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Network credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.NetworkCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
 	}
 
-	// check whether the network credential exist or not
 	if req.CloudCredentialID != nil {
 		if !req.CloudCredentialExist() {
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Cloud Credential does not exists"},
+			c.JSON(http.StatusBadRequest, common.Error{
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Cloud credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.CloudCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
@@ -406,30 +441,26 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	jobTemplate.PromptSkipTags = req.PromptSkipTags
 	jobTemplate.AllowSimultaneous = req.AllowSimultaneous
 	jobTemplate.PolymorphicCtypeID = req.PolymorphicCtypeID
-
 	jobTemplate.Modified = time.Now()
 	jobTemplate.ModifiedByID = user.ID
 
-	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": req.ID.Hex(),
-			"Error":           err.Error(),
-		}).Errorln("Error while updating Job Template")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Job Template"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating job template",
+			Log:     log.Fields{"ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
+	rolesjob := new(rbac.JobTemplate)
+	if !rbac.HasGlobalWrite(user) {
+		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
+		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+	}
+
 	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
-
-	// set `related` and `summary` fields
 	metadata.JTemplateMetadata(&jobTemplate)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
@@ -439,30 +470,30 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 // A failure returns 500 status code
 // if the request body is invalid returns serialized Error model with 400 status code
 func (ctrl JobTemplateController) Patch(c *gin.Context) {
-	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 	tmpJobTemplate := jobTemplate
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
-
+	user := c.MustGet(cUser).(common.User)
 	var req ansible.PatchJobTemplate
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
-	// check the project exist or not
 	if req.ProjectID != nil {
 		jobTemplate.ProjectID = *req.ProjectID
 		if !jobTemplate.ProjectExist() {
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Project does not exists"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Project does not exists.",
 			})
 			return
+		}
+
+		if !new(rbac.Project).ReadByID(user, jobTemplate.ProjectID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
+			})
 		}
 	}
 
@@ -470,21 +501,27 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 		jobTemplate.Name = strings.Trim(*req.Name, " ")
 
 		if !jobTemplate.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Template with this Name already exists."},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Job Template with this name already exists.",
 			})
 			return
 		}
 	}
 
+	roles := new(rbac.Credential)
 	if req.MachineCredentialID != nil {
-		jobTemplate.MachineCredentialID = *req.MachineCredentialID
-		// check whether the machine credential exist or not
+		jobTemplate.MachineCredentialID = req.MachineCredentialID
 		if !jobTemplate.MachineCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Machine Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Machine Credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.MachineCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
@@ -496,8 +533,15 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 
 		if !jobTemplate.NetworkCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Network Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Network credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.NetworkCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
@@ -509,8 +553,15 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 
 		if !jobTemplate.CloudCredentialExist() {
 			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Cloud Credential does not exists."},
+				Code:   http.StatusBadRequest,
+				Errors: []string{"Cloud credential does not exists"},
+			})
+			return
+		}
+
+		if !roles.ReadByID(user, *req.CloudCredentialID) {
+			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+				Message: "You don't have sufficient permissions to perform this action.",
 			})
 			return
 		}
@@ -519,114 +570,82 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 	if req.JobType != nil {
 		jobTemplate.JobType = *req.JobType
 	}
-
 	if req.InventoryID != nil {
 		jobTemplate.InventoryID = *req.InventoryID
 	}
-
 	if req.Playbook != nil {
 		jobTemplate.Playbook = *req.Playbook
 	}
-
 	if req.Verbosity != nil {
 		jobTemplate.Verbosity = *req.Verbosity
 	}
-
 	if req.Description != nil {
 		jobTemplate.Description = strings.Trim(*req.Description, " ")
 	}
-
 	if req.Forks != nil {
 		jobTemplate.Forks = *req.Forks
 	}
-
 	if req.Limit != nil {
 		jobTemplate.Limit = *req.Limit
 	}
-
 	if req.ExtraVars != nil {
 		jobTemplate.ExtraVars = *req.ExtraVars
 	}
-
 	if req.JobTags != nil {
 		jobTemplate.JobTags = *req.JobTags
 	}
-
 	if req.SkipTags != nil {
 		jobTemplate.SkipTags = *req.SkipTags
 	}
-
 	if req.StartAtTask != nil {
 		jobTemplate.StartAtTask = *req.StartAtTask
 	}
-
 	if req.ForceHandlers != nil {
 		jobTemplate.ForceHandlers = *req.ForceHandlers
 	}
-
 	if req.PromptVariables != nil {
 		jobTemplate.PromptVariables = *req.PromptVariables
 	}
-
 	if req.BecomeEnabled != nil {
 		jobTemplate.BecomeEnabled = *req.BecomeEnabled
 	}
-
 	if req.PromptLimit != nil {
 		jobTemplate.PromptLimit = *req.PromptLimit
 	}
-
 	if req.PromptInventory != nil {
 		jobTemplate.PromptInventory = *req.PromptInventory
 	}
-
 	if req.PromptCredential != nil {
 		jobTemplate.PromptCredential = *req.PromptCredential
 	}
-
 	if req.PromptJobType != nil {
 		jobTemplate.PromptJobType = *req.PromptJobType
 	}
-
 	if req.PromptTags != nil {
 		jobTemplate.PromptTags = *req.PromptTags
 	}
-
 	if req.PromptSkipTags != nil {
 		jobTemplate.PromptSkipTags = *req.PromptSkipTags
 	}
-
 	if req.AllowSimultaneous != nil {
 		jobTemplate.AllowSimultaneous = *req.AllowSimultaneous
 	}
-
 	if req.PolymorphicCtypeID != nil {
 		jobTemplate.PolymorphicCtypeID = req.PolymorphicCtypeID
 	}
-
 	jobTemplate.Modified = time.Now()
 	jobTemplate.ModifiedByID = user.ID
 
-	// update object
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": jobTemplate.ID.Hex(),
-			"Error":           err.Error(),
-		}).Errorln("Error while updating Job Template")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Job Template"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating job template",
+			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
 	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
-
-	// set `related` and `summary` feilds
 	metadata.JTemplateMetadata(&jobTemplate)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, jobTemplate)
 }
 
@@ -634,68 +653,62 @@ func (ctrl JobTemplateController) Patch(c *gin.Context) {
 // A success returns 204 status code
 // A failure returns 500 status code
 func (ctrl JobTemplateController) Delete(c *gin.Context) {
-	// get template from the gin.Context
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
+	user := c.MustGet(cUser).(common.User)
 
-	// remove object from the collection
-	if err := db.JobTemplates().RemoveId(jobTemplate.ID); err != nil {
-		log.WithFields(log.Fields{
-			"Job Template ID": jobTemplate.ID.Hex(),
-			"Error":           err.Error(),
-		}).Errorln("Error while removing Job Temlate")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Job Template"},
+	if _, err := db.Jobs().RemoveAll(bson.M{"job_template_id": jobTemplate.ID}); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing jobs",
+			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
-	activity.AddJobTemplateActivity(common.Delete, user, jobTemplate)
+	if err := db.JobTemplates().RemoveId(jobTemplate.ID); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing job tempalte",
+			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
+		})
+		return
+	}
 
-	// abort with 204 status code
+	activity.AddJobTemplateActivity(common.Delete, user, jobTemplate)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
 // ActivityStream returns the activities of the user on Job templates
 func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
-	jtemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jtemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
 	var activities []ansible.ActivityJobTemplate
 	var act ansible.ActivityJobTemplate
-	// new mongodb iterator
 	iter := db.ActivityStream().Find(bson.M{"object1._id": jtemplate.ID}).Iter()
-	// iterate over all and only get valid objects
 	for iter.Next(&act) {
 		metadata.ActivityJobTemplateMetadata(&act)
 		metadata.JTemplateMetadata(&act.Object1)
-		//apply metadata only when Object2 is available
 		if act.Object2 != nil {
 			metadata.JTemplateMetadata(act.Object2)
 		}
-		//add to activities list
 		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting activities",
+			Log:     log.Fields{"Job Template ID": jtemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -718,42 +731,32 @@ func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
 // The `next` and `previous` fields provides links to additional results if there are more than will fit on a single page.
 // The `results` list contains zero or more job records.
 func (ctrl JobTemplateController) Jobs(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
 	var jbs []ansible.Job
-	// new mongodb iterator
 	iter := db.Jobs().Find(bson.M{"job_template_id": jobTemplate.ID}).Iter()
-	// loop through each result and modify for our needs
 	var tmpJob ansible.Job
-	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
 		metadata.JobMetadata(&tmpJob)
-		// good to go add to list
 		jbs = append(jbs, tmpJob)
 	}
-
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving jobs data from the database")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Jobs"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting jobs",
+			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
 	count := len(jbs)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Job page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -770,25 +773,15 @@ func (ctrl JobTemplateController) Jobs(c *gin.Context) {
 // success returns JSON serialized Job model with 201 status code
 // if the request body is invalid returns JSON serialized Error model with 400 status code
 func (ctrl JobTemplateController) Launch(c *gin.Context) {
-	// get job template that was set by the Middleware
-	template := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
-	// get user object set by the jwt Middleware
-	user := c.MustGet(CTXUser).(common.User)
+	template := c.MustGet(cJobTemplate).(ansible.JobTemplate)
+	user := c.MustGet(cUser).(common.User)
 
-	// create a new Launch model
 	var req ansible.Launch
-	// if the body present deserialize it
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// accept nil request body for POST request, since all the feilds are optional
-		if err != io.EOF {
-			// Return 400 if request has bad JSON
-			// and return formatted validation errors
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: validate.GetValidationErrors(err),
-			})
-			return // abort
-		}
+	if err := binding.JSON.Bind(c.Request, &req); err != nil && err != io.EOF {
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
+		return
 	}
 
 	// create new Job
@@ -834,9 +827,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	// if not provided return an error message
 	if template.PromptVariables {
 		if !(len(req.ExtraVars) > 0) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Additional variables required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Additional variables required.",
 			})
 			return
 		}
@@ -846,9 +838,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptLimit {
 		if !(len(req.Limit) > 0) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Limit required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Limit required.",
 			})
 			return
 		}
@@ -858,9 +849,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptTags {
 		if !(len(req.JobTags) > 0) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Tags required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Job tags required.",
 			})
 			return
 		}
@@ -870,9 +860,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptSkipTags {
 		if !(len(req.SkipTags) > 0) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Skip Tags required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Skip tags required.",
 			})
 			return
 		}
@@ -882,9 +871,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptJobType {
 		if !(len(req.JobType) > 0) {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Job Type required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Job type required.",
 			})
 			return
 		}
@@ -901,9 +889,8 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptInventory {
 		if len(req.InventoryID) != 24 {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Inventory required.",
 			})
 			return
 		}
@@ -912,25 +899,20 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	if template.PromptCredential {
 		if len(req.MachineCredentialID) != 24 {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Credential required"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Credential required.",
 			})
 			return
 		}
-		job.MachineCredentialID = req.MachineCredentialID
+		job.MachineCredentialID = &req.MachineCredentialID
 	}
 
 	if job.NetworkCredentialID != nil {
 		var credential common.Credential
-		err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Error while getting Network Credential")
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Network Credential"},
+		if err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential); err != nil {
+			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+				Message: "Error while getting network credential",
+				Log:     log.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -941,54 +923,43 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		var credential common.Credential
 		err := db.Credentials().FindId(*job.CloudCredentialID).One(&credential)
 		if err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Error while getting Cloud Credential")
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting Cloud Credential"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+				Message: "Error while getting cloud credential",
+				Log:     log.Fields{"Error": err.Error()},
 			})
 			return
 		}
 		runnerJob.Cloud = credential
 	}
 
-	// get inventory information
 	var inventory ansible.Inventory
 	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Inventory")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Inventory"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting inventory",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
 	runnerJob.Inventory = inventory
 
-	var credential common.Credential
-	if err := db.Credentials().FindId(job.MachineCredentialID).One(&credential); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Machine Credential")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Machine Credential"},
-		})
-		return
+	if job.MachineCredentialID != nil {
+		var credential common.Credential
+		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&credential); err != nil {
+			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+				Message: "Error while getting machine credential",
+				Log:     log.Fields{"Error": err.Error()},
+			})
+			return
+		}
+		runnerJob.Machine = credential
 	}
-	runnerJob.Machine = credential
 
 	// get project information
 	var project common.Project
 	if err := db.Projects().FindId(job.ProjectID).One(&project); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Project")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Project"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting project",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -997,12 +968,9 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	// Get jwt token for authorize Ansible inventory plugin
 	var token jwt.LocalToken
 	if err := jwt.NewAuthToken(&token); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while getting Token")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Token"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting token",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -1010,13 +978,9 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.WithFields(log.Fields{
-			"Job ID": job.ID,
-			"Error":  err.Error(),
-		}).Errorln("Error while creating Job")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while creating job",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -1026,12 +990,9 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		tj, err := sync.UpdateProject(project)
 		runnerJob.PreviousJob = tj
 		if err != nil {
-			log.WithFields(log.Fields{
-				"Error": err.Error(),
-			}).Errorln("Error while adding the job to job queue")
-			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while creating Job"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+				Message: "Error while creating update job",
+				Log:     log.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -1041,22 +1002,15 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	jobQueue := queue.OpenAnsibleQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Error":    err.Error(),
-			"Job Info": jobBytes,
-		}).Errorln("Error while adding the job to job queue")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Job"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while queueing job",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
+
 	jobQueue.PublishBytes(jobBytes)
-
-	// set additianl information to Job
 	metadata.JobMetadata(&job)
-
-	// return serialized job
 	c.JSON(http.StatusCreated, job)
 }
 
@@ -1078,7 +1032,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 // If not then one should be supplied when launching the job
 func (ctrl JobTemplateController) LaunchInfo(c *gin.Context) {
 	// get template from the gin.Context
-	jt := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jt := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
 	var isCredentialNeeded bool
 	var isInventoryNeeded bool
@@ -1144,14 +1098,13 @@ func (ctrl JobTemplateController) LaunchInfo(c *gin.Context) {
 		"defaults": defaults,
 	}
 
-	// render JSON with 200 status code
 	c.JSON(http.StatusOK, resp)
 }
 
 // ObjectRoles is a Gin handler function
 // This returns available roles can be associated with a Job Template model
 func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
-	jobTemplate := c.MustGet(CTXJobTemplate).(ansible.JobTemplate)
+	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
 	roles := []gin.H{
 		{
@@ -1198,12 +1151,11 @@ func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
 
 	count := len(roles)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),

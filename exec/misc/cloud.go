@@ -77,8 +77,8 @@ func GetCloudCredential(env []string, c common.Credential) (menv []string, f *os
 	case common.CredentialKindAWS:
 		{
 			// add environment variables for aws
-			menv = append(env, "AWS_SECRET_ACCESS_KEY=" + util.CipherDecrypt(c.Secret),
-				"AWS_ACCESS_KEY_ID=" + c.Client)
+			menv = append(env, "AWS_SECRET_ACCESS_KEY="+util.CipherDecrypt(c.Secret),
+				"AWS_ACCESS_KEY_ID="+c.Client)
 		}
 	case common.CredentialKindRAX:
 		{
@@ -89,7 +89,7 @@ func GetCloudCredential(env []string, c common.Credential) (menv []string, f *os
 			}
 
 			// add environment variables for Rackspace credential
-			menv = append(env, "RAX_CREDS_FILE=" + f.Name())
+			menv = append(env, "RAX_CREDS_FILE="+f.Name())
 		}
 	case common.CredentialKindGCE:
 		{
@@ -99,22 +99,22 @@ func GetCloudCredential(env []string, c common.Credential) (menv []string, f *os
 			}
 
 			// add environment variables for GCE credential
-			menv = append(env, "GCE_EMAIL=" + c.Email, "GCE_PROJECT=" + c.Project, "GCE_CREDENTIALS_FILE_PATH=" + f.Name())
+			menv = append(env, "GCE_EMAIL="+c.Email, "GCE_PROJECT="+c.Project, "GCE_CREDENTIALS_FILE_PATH="+f.Name())
 		}
 	case common.CredentialKindAZURE:
 		{
 			// Azure Active Directory
 			if len(c.Username) > 0 {
 				// add environment variables for Azure active directory credential
-				menv = append(env, "AZURE_AD_USER=" + c.Username,
-					"AZURE_PASSWORD=" + util.CipherDecrypt(c.Password),
-					"AZURE_SUBSCRIPTION_ID=" + c.Subscription)
+				menv = append(env, "AZURE_AD_USER="+c.Username,
+					"AZURE_PASSWORD="+util.CipherDecrypt(c.Password),
+					"AZURE_SUBSCRIPTION_ID="+c.Subscription)
 			} else {
 				// add environment variables for Azure service principle credential
-				menv = append(env, "AZURE_CLIENT_ID=" + c.Client,
-					"AZURE_SECRET=" + util.CipherDecrypt(c.Secret),
-					"AZURE_SUBSCRIPTION_ID=" + c.Subscription,
-					"AZURE_TENANT=" + c.Tenant)
+				menv = append(env, "AZURE_CLIENT_ID="+c.Client,
+					"AZURE_SECRET="+util.CipherDecrypt(c.Secret),
+					"AZURE_SUBSCRIPTION_ID="+c.Subscription,
+					"AZURE_TENANT="+c.Tenant)
 			}
 		}
 	}

@@ -111,7 +111,7 @@ func GetAPIInfo(c *gin.Context) {
 		"authtoken":              "/v1/authtoken/",
 		"ping":                   "/v1/ping/",
 		"config":                 "/v1/config/",
-		"queue":                 "/v1/queue/",
+		"queue":                  "/v1/queue/",
 		"me":                     "/v1/me/",
 		"dashboard":              "/v1/dashboard/",
 		"organizations":          "/v1/organizations/",

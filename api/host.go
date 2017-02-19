@@ -14,17 +14,18 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"github.com/pearsonappeng/tensor/validate"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/validate"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXHost = "host"
-	CTXHostID = "host_id"
+	cHost = "host"
+	cHostID = "host_id"
 )
 
 type HostController struct{}
@@ -33,39 +34,55 @@ type HostController struct{}
 // Middleware takes CTXHostID parameter from the Gin Context and fetches host data from the database
 // it set host data under key CTXHost in the Gin Context
 func (ctrl HostController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXHostID, c)
+	user := c.MustGet(cUser).(common.User)
+	ID, err := util.GetIdParam(cHostID, c)
 
 	if err != nil {
-		log.Errorln("Error while getting the Host:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
+			Log: log.Fields{"Error": err.Error()},
 		})
-		c.Abort()
 		return
 	}
 
-	var h ansible.Host
-	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&h); err != nil {
-		log.Errorln("Error while getting the Host:", err) // log error to the system log
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+	var host ansible.Host
+	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&host); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
+			Log: log.Fields{"Error": err.Error()},
 		})
-		c.Abort()
 		return
 	}
 
-	c.Set(CTXHost, h)
+	roles := new(rbac.Inventory)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.ReadByID(user, host.InventoryID) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have inventory write permissions
+			if !roles.WriteByID(user, host.InventoryID) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	}
+
+	c.Set(cHost, host)
 	c.Next()
 }
 
 // GetHost is a Gin Handler function, returns the host as a JSON object
 func (ctrl HostController) One(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
+	host := c.MustGet(cHost).(ansible.Host)
 	metadata.HostMetadata(&host)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
 }
 
@@ -73,46 +90,45 @@ func (ctrl HostController) One(c *gin.Context) {
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl HostController) All(c *gin.Context) {
 
+	user := c.MustGet(cUser).(common.User)
 	parser := util.NewQueryParser(c)
-
 	match := bson.M{}
 	match = parser.Match([]string{"enabled", "has_active_failures"}, match)
 	match = parser.Lookups([]string{"name", "description"}, match)
-
-	//prepare the query
 	query := db.Hosts().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
+	roles := new(rbac.Inventory)
 	var hosts []ansible.Host
-	// new mongodb iterator
 	iter := query.Iter()
-	// loop through each result and modify for our needs
 	var tmpHost ansible.Host
-	// iterate over all and only get valid objects
 	for iter.Next(&tmpHost) {
+		if !roles.ReadByID(user, tmpHost.InventoryID) {
+			continue
+		}
+
 		metadata.HostMetadata(&tmpHost)
-		// good to go add to list
 		hosts = append(hosts, tmpHost)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Host data from the db:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Hosts"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting hosts",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
 
 	count := len(hosts)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -125,45 +141,46 @@ func (ctrl HostController) All(c *gin.Context) {
 // This accepts Host model.
 func (ctrl HostController) Create(c *gin.Context) {
 	var req ansible.Host
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
-		return
-	}
-
-	// if the host exist in the collection it is not unique
-	if !req.IsUnique() {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Host with this Name and Inventory already exists."},
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
 		return
 	}
 
 	// check whether the inventory exist or not
 	if !req.InventoryExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Inventory does not exists.",
+		})
+		return
+	}
+
+	// Reject the request if the user doesn't have inventory write permissions
+	if !new(rbac.Inventory).WriteByID(user, req.InventoryID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+			Message: "You don't have sufficient permissions to perform this action.",
+		})
+		return
+	}
+
+
+	// if the host exist in the collection it is not unique
+	if !req.IsUnique() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Host with this name and inventory already exists.",
 		})
 		return
 	}
 
 	// check whether the group exist or not
-	if req.GroupID != nil {
-		if !req.GroupExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
-			})
-			return
-		}
+	if req.GroupID != nil && !req.GroupExist() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Group does not exist.",
+		})
+		return
 	}
 
 	req.ID = bson.NewObjectId()
@@ -171,21 +188,16 @@ func (ctrl HostController) Create(c *gin.Context) {
 	req.Modified = time.Now()
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
-
 	if err := db.Hosts().Insert(req); err != nil {
-		log.Errorln("Error while creating Host:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while creating Host"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while creating host",
+			Log:     log.Fields{"Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
 	activity.AddHostActivity(common.Create, user, req)
-
 	metadata.HostMetadata(&req)
-
 	c.JSON(http.StatusCreated, req)
 }
 
@@ -193,49 +205,38 @@ func (ctrl HostController) Create(c *gin.Context) {
 // This replaces all the fields in the database, empty "" fields and
 // unspecified fields will be removed from the database object
 func (ctrl HostController) Update(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
+	host := c.MustGet(cHost).(ansible.Host)
 	tmpHost := host
-	user := c.MustGet(CTXUser).(common.User)
-
+	user := c.MustGet(cUser).(common.User)
 	var req ansible.Host
-
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
+		return
 	}
 
 	// check whether the inventory exist or not
 	if !req.InventoryExist() {
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: []string{"Inventory does not exists."},
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Inventory does not exists.",
 		})
 		return
 	}
 
-	if req.Name != host.Name {
-		// if the host exist in the collection it is not unique
-		if !req.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Host with this Name and Inventory already exists."},
-			})
-			return
-		}
+	if req.Name != host.Name && !req.IsUnique() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Host with this name and inventory already exists.",
+		})
+		return
 	}
 
 	// check whether the group exist or not
-	if req.GroupID != nil {
-		if !req.GroupExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
-			})
-			return
-		}
+	if req.GroupID != nil &&  !req.GroupExist() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Group does not exists.",
+		})
+		return
 	}
 
 	host.Name = strings.Trim(req.Name, " ")
@@ -248,20 +249,16 @@ func (ctrl HostController) Update(c *gin.Context) {
 	host.Modified = req.Modified
 	host.ModifiedByID = user.ID
 
-	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
-		log.Errorln("Error while updating Host:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Host"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating host.",
+			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
 		})
+		return
 	}
 
 	activity.AddHostActivity(common.Update, user, tmpHost, host)
-
 	metadata.HostMetadata(&host)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
 }
 
@@ -269,27 +266,25 @@ func (ctrl HostController) Update(c *gin.Context) {
 // This replaces specified fields in the database, empty "" fields will be
 // removed from the database object. Unspecified fields will ignored.
 func (ctrl HostController) Patch(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
+	host := c.MustGet(cHost).(ansible.Host)
 	tmpHost := host
-	user := c.MustGet(CTXUser).(common.User)
+	user := c.MustGet(cUser).(common.User)
 
 	var req ansible.PatchHost
 
 	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		// Return 400 if request has bad JSON format
-		c.JSON(http.StatusBadRequest, common.Error{
-			Code:     http.StatusBadRequest,
-			Messages: validate.GetValidationErrors(err),
-		})
+		AbortWithErrors(c, http.StatusBadRequest,
+			"Invalid JSON body",
+			validate.GetValidationErrors(err)...)
+		return
 	}
 
 	// check whether the inventory exist or not
 	if req.InventoryID != nil {
 		host.InventoryID = *req.InventoryID
 		if !host.InventoryExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Inventory does not exists."},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Inventory does not exists.",
 			})
 			return
 		}
@@ -297,120 +292,84 @@ func (ctrl HostController) Patch(c *gin.Context) {
 
 	if req.Name != nil && *req.Name != host.Name {
 		host.Name = strings.Trim(*req.Name, " ")
-		// if the host exist in the collection it is not unique
 		if !host.IsUnique() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Host with this Name and Inventory already exists."},
+			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+				Message: "Host with this Name and Inventory already exists.",
 			})
 			return
 		}
 	}
 
 	// check whether the group exist or not
-	if req.GroupID != nil {
-		if !host.GroupExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:     http.StatusBadRequest,
-				Messages: []string{"Group does not exists."},
-			})
-			return
-		}
+	if req.GroupID != nil  && !host.GroupExist() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
+			Message: "Group does not exists.",
+		})
+		return
 	}
-
 	if req.Description != nil {
 		host.Description = *req.Description
 	}
-
 	if req.GroupID != nil {
-		// if empty string then make the credential null
 		if len(*req.GroupID) == 12 {
 			host.GroupID = req.GroupID
 		} else {
 			host.GroupID = nil
 		}
 	}
-
 	if req.InstanceID != nil {
 		host.InstanceID = *req.InstanceID
 	}
-
 	if req.Variables != nil {
 		host.Variables = *req.Variables
 	}
-
 	if req.Enabled != nil {
 		host.Enabled = *req.Enabled
 	}
-
 	host.Modified = time.Now()
 	host.ModifiedByID = user.ID
 
-	//update object
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
-		log.Errorln("Error while updating Host:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while updating Host"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while updating host",
+			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
 	activity.AddHostActivity(common.Update, user, tmpHost, host)
-
-	// set `related` and `summary` fields
 	metadata.HostMetadata(&host)
-
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, host)
 }
 
 // RemoveHost is a Gin handler function which removes a host object from the database
 func (ctrl HostController) Delete(c *gin.Context) {
-	// get Host from the gin.Context
-	host := c.MustGet(CTXHost).(ansible.Host)
-	// get user from the gin.Context
-	user := c.MustGet(CTXUser).(common.User)
+	host := c.MustGet(cHost).(ansible.Host)
+	user := c.MustGet(cUser).(common.User)
 
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
-		log.Errorln("Error while removing Host:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while removing Host"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while removing hosts",
+			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
-	// add new activity to activity stream
-	if err := db.ActivityStream().Insert(common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     user.ID,
-		Type:        CTXHost,
-		ObjectID:    host.ID,
-		Description: "Host " + host.Name + " deleted",
-		Created:     time.Now(),
-	}); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Failed to add new Activity")
-	}
-
+	activity.AddHostActivity(common.Delete, user, host)
 	c.AbortWithStatus(204)
 }
 
 // VariableData is a Gin Handler function which returns variables for
 // the host as JSON formatted object.
 func (ctrl HostController) VariableData(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
+	host := c.MustGet(cHost).(ansible.Host)
 
 	variables := gin.H{}
 
 	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
-		log.Errorln("Error while getting Host variables")
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
-			"message": []string{"Error while getting Host variables"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
+			Message: "Error while getting host variables",
+			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -422,104 +381,75 @@ func (ctrl HostController) VariableData(c *gin.Context) {
 // Groups is a Gin handler function which returns parent group of the host
 // TODO: not implemented
 func (ctrl HostController) Groups(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
-
+	host := c.MustGet(cHost).(ansible.Host)
 	var group ansible.Group
-
 	if host.GroupID != nil {
-		// find group for the host
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-			log.Errorln("Error while getting groups")
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    http.StatusInternalServerError,
-				"message": []string{"Error while getting groups"},
+			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+				Message: "Error while getting Groups",
+				Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 			})
 			return
 		}
-
-		// set group metadata
 		metadata.GroupMetadata(&group)
-
-		// send response with JSON rendered data
 		c.JSON(http.StatusOK, group)
 		return
 	}
 
-	// no assigned groups
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, nil)
 }
 
 // AllGroups is a Gin handler function which returns parent groups of a host
 // TODO: not implemented
 func (ctrl HostController) AllGroups(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
+	host := c.MustGet(cHost).(ansible.Host)
 
 	var outobjects []ansible.Group
 	var group ansible.Group
 
 	if host.GroupID != nil {
-		// find group for the host
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			log.Errorln("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, common.Error{
-				Code:     http.StatusInternalServerError,
-				Messages: []string{"Error while getting groups"},
+				Code:   http.StatusInternalServerError,
+				Errors: []string{"Error while getting groups"},
 			})
 			return
 		}
 
-		// set group metadata
 		metadata.GroupMetadata(&group)
-		//add group to outobjects
 		outobjects = append(outobjects, group)
-		// clean object
 		group = ansible.Group{}
-
 		for group.ParentGroupID != nil {
-			// find group for the host
 			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 				log.Errorln("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, common.Error{
-					Code:     http.StatusInternalServerError,
-					Messages: []string{"Error while getting groups"},
+					Code:   http.StatusInternalServerError,
+					Errors: []string{"Error while getting groups"},
 				})
 				return
 			}
 
-			// set group metadata
 			metadata.GroupMetadata(&group)
-			//add group to outobjects
 			outobjects = append(outobjects, group)
-
-			// clean object
 			group = ansible.Group{}
 		}
 
 		nobj := len(outobjects)
-
-		// initialize Pagination
 		pgi := util.NewPagination(c, nobj)
-
-		//if page is incorrect return 404
 		if pgi.HasPage() {
 			c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 			return
 		}
 
-		// send response with JSON rendered data
 		c.JSON(http.StatusOK, common.Response{
 			Count:    nobj,
 			Next:     pgi.NextPage(),
 			Previous: pgi.PreviousPage(),
 			Results:  outobjects[pgi.Limit():pgi.Offset()],
 		})
-
 		return
 	}
-
-	// no assigned groups
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count: 0,
 	})
@@ -527,41 +457,36 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 
 // ActivityStream returns the activities of the user on Hosts
 func (ctrl HostController) ActivityStream(c *gin.Context) {
-	host := c.MustGet(CTXHost).(ansible.Host)
-
+	host := c.MustGet(cHost).(ansible.Host)
 	var activities []ansible.ActivityHost
-	var activity ansible.ActivityHost
-	// new mongodb iterator
+	var act ansible.ActivityHost
 	iter := db.ActivityStream().Find(bson.M{"object1._id": host.ID}).Iter()
-	// iterate over all and only get valid objects
-	for iter.Next(&activity) {
-		metadata.ActivityHostMetadata(&activity)
-		metadata.HostMetadata(&activity.Object1)
-		//apply metadata only when Object2 is available
-		if activity.Object2 != nil {
-			metadata.HostMetadata(activity.Object2)
+	for iter.Next(&act) {
+		metadata.ActivityHostMetadata(&act)
+		metadata.HostMetadata(&act.Object1)
+		if act.Object2 != nil {
+			metadata.HostMetadata(act.Object2)
 		}
-		//add to activities list
-		activities = append(activities, activity)
+		activities = append(activities, act)
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Activities"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting activities",
+			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),

@@ -10,15 +10,16 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
+	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXJob = "job"
-	CTXJobID = "job_id"
+	cJob = "job"
+	cJobID = "job_id"
 )
 
 type JobController struct{}
@@ -27,112 +28,103 @@ type JobController struct{}
 // This function takes CTXJobID from Gin Context and retrieves credential data from the collection
 // and store credential data under key CTXJob in Gin Context
 func (ctrl JobController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXJobID, c)
+	ID, err := util.GetIdParam(cJobID, c)
+	user := c.MustGet(cUser).(common.User)
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Job ID": ID,
-			"Error":  err.Error(),
-		}).Errorln("Error while getting Job ID url parameter")
-
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
-		})
-		c.Abort()
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job does not exist"})
 		return
 	}
 
 	var job ansible.Job
 	if err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job); err != nil {
-		log.WithFields(log.Fields{
-			"Job ID": ID,
-			"Error":  err.Error(),
-		}).Errorln("Error while retriving Job from the database")
-		c.JSON(http.StatusNotFound, common.Error{
-			Code:     http.StatusNotFound,
-			Messages: []string{"Not Found"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
+			Log: log.Fields{
+				"Job ID": ID,
+				"Error":  err.Error(),
+			},
 		})
-		c.Abort()
 		return
 	}
 
-	// set Job to the gin.Context
-	c.Set(CTXJob, job)
-	c.Next() //move to next pending handler
+	roles := new(rbac.JobTemplate)
+	switch c.Request.Method {
+	case "GET":
+		{
+			if !roles.ReadByID(user, job.JobTemplateID) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	case "PUT", "DELETE", "PATCH":
+		{
+			// Reject the request if the user doesn't have write permissions
+			if !roles.WriteByID(user, job.JobTemplateID) {
+				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
+					Message: "You don't have sufficient permissions to perform this action.",
+				})
+				return
+			}
+		}
+	}
+
+	c.Set(cJob, job)
+	c.Next()
 }
 
 // GetJob is a Gin handler function which returns the job as a JSON object
 func (ctrl JobController) One(c *gin.Context) {
-	job := c.MustGet(CTXJob).(ansible.Job)
-
+	job := c.MustGet(cJob).(ansible.Job)
 	metadata.JobMetadata(&job)
-
 	c.JSON(http.StatusOK, job)
 }
 
 // GetJobs is a Gin handler function which returns list of jobs
 // This takes lookup parameters and order parameters to filter and sort output data
 func (ctrl JobController) All(c *gin.Context) {
+	user := c.MustGet(cUser).(common.User)
+
 	parser := util.NewQueryParser(c)
 	match := bson.M{}
 	match = parser.Match([]string{"status", "type", "failed"}, match)
 	match = parser.Lookups([]string{"id", "name", "labels"}, match)
-
-	query := db.Jobs().Find(match) // prepare the query
-
-	// set sort value to the query based on request parameters
+	query := db.Jobs().Find(match)
 	if order := parser.OrderBy(); order != "" {
 		query.Sort(order)
 	}
 
-	log.WithFields(log.Fields{
-		"Query": query,
-	}).Debugln("Parsed query")
-
 	var jobs []ansible.Job
 
-	// new mongodb iterator
+	roles := new(rbac.JobTemplate)
 	iter := query.Iter()
-	// loop through each result and modify for our needs
 	var tmpJob ansible.Job
-	// iterate over all and only get valid objects
 	for iter.Next(&tmpJob) {
-		// TODO: if the user doesn't have access to credential
-		// skip to next
+		if !roles.ReadByID(user, tmpJob.JobTemplateID) {
+			continue
+		}
 		metadata.JobMetadata(&tmpJob)
-		// good to go add to list
 		jobs = append(jobs, tmpJob)
 	}
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
-			"Error": err.Error(),
-		}).Errorln("Error while retriving Job data from the database")
-		c.JSON(http.StatusInternalServerError, common.Error{
-			Code:     http.StatusInternalServerError,
-			Messages: []string{"Error while getting Credential"},
+		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
+			Message: "Error while getting job", Log: log.Fields{
+				"Error": err.Error(),
+			},
 		})
 		return
 	}
 
 	count := len(jobs)
 	pgi := util.NewPagination(c, count)
-	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
-			"Page number": pgi.Page(),
-		}).Debugln("Job page does not exist")
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
 	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
@@ -146,8 +138,6 @@ func (ctrl JobController) All(c *gin.Context) {
 // The response will include the following field:
 // can_cancel: [boolean] Indicates whether this job can be canceled
 func (ctrl JobController) CancelInfo(c *gin.Context) {
-	//get Job set by the middleware
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, gin.H{"can_cancel": false})
 }
 
@@ -155,14 +145,12 @@ func (ctrl JobController) CancelInfo(c *gin.Context) {
 // The response status code will be 202 if successful, or 405 if the job cannot be
 // canceled.
 func (ctrl JobController) Cancel(c *gin.Context) {
-	//get Job set by the middleware
 	c.AbortWithStatus(http.StatusMethodNotAllowed)
 }
 
 // StdOut returns ANSI standard output of a Job
 func (ctrl JobController) StdOut(c *gin.Context) {
-	//get Job set by the middleware
-	job := c.MustGet(CTXJob).(ansible.Job)
+	job := c.MustGet(cJob).(ansible.Job)
 
 	c.JSON(http.StatusOK, job.ResultStdout)
 }

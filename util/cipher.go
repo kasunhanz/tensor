@@ -26,6 +26,12 @@ import (
 
 // CipherEncrypt encrypts string to base64 crypto using AES
 func CipherEncrypt(text string) string {
+
+	//Return empty string if input text is empty
+	if text == "" {
+		return ""
+	}
+
 	// key := []byte(keyText)
 	plaintext := []byte(text)
 
@@ -52,6 +58,11 @@ func CipherEncrypt(text string) string {
 
 // CipherDecrypt from base64 to decrypted string
 func CipherDecrypt(cryptoText string) string {
+	//Return empty string if input cryptoText is also empty
+	if cryptoText == "" {
+		return ""
+	}
+
 	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
 
 	block, err := aes.NewCipher([]byte(Config.Salt))

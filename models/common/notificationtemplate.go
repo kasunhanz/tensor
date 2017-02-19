@@ -27,9 +27,13 @@ type NotificationTemplate struct {
 	Related       gin.H  `bson:"-" json:"related"`
 	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
 
-	Access []AccessControl `bson:"access" json:"-"`
+	Roles []AccessControl `bson:"access" json:"-"`
 }
 
-func (*NotificationTemplate) GetType() string {
+func (NotificationTemplate) GetType() string {
 	return "notification_template"
+}
+
+func (n NotificationTemplate) GetRoles() []AccessControl {
+	return n.Roles
 }

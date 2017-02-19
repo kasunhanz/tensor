@@ -1,19 +1,19 @@
 package misc
 
 import (
-	"testing"
 	"github.com/pearsonappeng/tensor/models/common"
-	"io/ioutil"
-	"os"
 	"github.com/pearsonappeng/tensor/util"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"os"
+	"testing"
 )
 
 func TestRaxCredFile(t *testing.T) {
 	assert := assert.New(t)
 	c := common.Credential{
 		Username: "test",
-		Secret: "test",
+		Secret:   "test",
 	}
 
 	expected := "#!/usr/bin/python\n[rackspace_cloud]" +
@@ -35,7 +35,7 @@ func TestRaxCredFile(t *testing.T) {
 func TestGCECredFile(t *testing.T) {
 	assert := assert.New(t)
 	c := common.Credential{
-		Username: "test",
+		Username:   "test",
 		SSHKeyData: util.CipherEncrypt("test"),
 	}
 
@@ -50,12 +50,11 @@ func TestGCECredFile(t *testing.T) {
 func TestGetCloudCredential(t *testing.T) {
 	assert := assert.New(t)
 
-
 	// Test AWS credential environment variables
 	c := common.Credential{
 		Secret: util.CipherEncrypt("test"),
 		Client: "test",
-		Kind: common.CredentialKindAWS,
+		Kind:   common.CredentialKindAWS,
 	}
 
 	actual, _, _ := GetCloudCredential([]string{}, c)
@@ -64,13 +63,13 @@ func TestGetCloudCredential(t *testing.T) {
 
 	// Test Rackspace credentials
 	c = common.Credential{
-		Secret: util.CipherEncrypt("test"),
+		Secret:   util.CipherEncrypt("test"),
 		Username: "test",
-		Kind: common.CredentialKindRAX,
+		Kind:     common.CredentialKindRAX,
 	}
 
 	actual, f, _ := GetCloudCredential([]string{}, c)
-	expected = []string{"RAX_CREDS_FILE="+ f.Name()}
+	expected = []string{"RAX_CREDS_FILE=" + f.Name()}
 	os.Remove(f.Name())
 
 	assert.Equal(expected, actual, "Must be equal")
@@ -78,13 +77,13 @@ func TestGetCloudCredential(t *testing.T) {
 	// Test GCE credentials
 	c = common.Credential{
 		SSHKeyData: util.CipherEncrypt("test"),
-		Email: "test",
-		Project: "test",
-		Kind: common.CredentialKindGCE,
+		Email:      "test",
+		Project:    "test",
+		Kind:       common.CredentialKindGCE,
 	}
 
 	actual, f, _ = GetCloudCredential([]string{}, c)
-	expected = []string{"GCE_EMAIL=test", "GCE_PROJECT=test", "GCE_CREDENTIALS_FILE_PATH="+ f.Name()}
+	expected = []string{"GCE_EMAIL=test", "GCE_PROJECT=test", "GCE_CREDENTIALS_FILE_PATH=" + f.Name()}
 	os.Remove(f.Name())
 
 	assert.Equal(expected, actual, "Must be equal")
@@ -92,10 +91,10 @@ func TestGetCloudCredential(t *testing.T) {
 	// Test AWS credential environment variables
 	// Test Azure Active directory
 	c = common.Credential{
-		Username: "test",
-		Password: util.CipherEncrypt("test"),
+		Username:     "test",
+		Password:     util.CipherEncrypt("test"),
 		Subscription: "test",
-		Kind: common.CredentialKindAZURE,
+		Kind:         common.CredentialKindAZURE,
 	}
 
 	actual, _, _ = GetCloudCredential([]string{}, c)
@@ -104,11 +103,11 @@ func TestGetCloudCredential(t *testing.T) {
 
 	// Test Azure service principle
 	c = common.Credential{
-		Client: "test",
-		Secret: util.CipherEncrypt("test"),
+		Client:       "test",
+		Secret:       util.CipherEncrypt("test"),
 		Subscription: "test",
-		Tenant: "test",
-		Kind: common.CredentialKindAZURE,
+		Tenant:       "test",
+		Kind:         common.CredentialKindAZURE,
 	}
 
 	actual, _, _ = GetCloudCredential([]string{}, c)

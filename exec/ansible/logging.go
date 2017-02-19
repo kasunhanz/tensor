@@ -7,8 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
-	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/exec/types"
+	"github.com/pearsonappeng/tensor/models/common"
 )
 
 func start(t types.AnsibleJob) {

@@ -19,14 +19,14 @@ Vagrant.configure("2") do |config|
   config.vm.define "centos" do |centos|
     centos.vm.box = "centos/7"
   end
-  
+
   config.vm.define "ubuntu" do |ubuntu|
     ubuntu.vm.box = "ubuntu/xenial64"
   end
 
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine.
-  config.vm.network "forwarded_port", guest: 8010, host: 80
+  config.vm.network "forwarded_port", guest: 8010, host: 8010
   config.vm.network "forwarded_port", guest: 6379, host: 6379 # redis
   config.vm.network "forwarded_port", guest: 27017, host: 27017 # mongodb 
 
@@ -49,15 +49,15 @@ Vagrant.configure("2") do |config|
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
   config.vm.provider "virtualbox" do |vb|
-      vb.memory = "2048"
+    vb.memory = "2048"
   end
 
   config.vm.provider "libvirt" do |lv|
-      lv.memory = "2048"
+    lv.memory = "2048"
   end
 
   config.vm.provider "vmware_workstation" do |vw|
-      vw.memory = "2048"
+    vw.memory = "2048"
   end
 
   # Use local provision so that vagrant will work with windows

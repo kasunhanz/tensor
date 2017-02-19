@@ -13,7 +13,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// AddOrganizationActivity is resposible of creating new activity stream
+// AddOrganizationActivity is responsible of creating new activity stream
 // for Organization related activities
 func AddOrganizationActivity(action string, user common.User, req ...common.Organization) {
 	activity := common.ActivityOrganization{
@@ -35,7 +35,7 @@ func AddOrganizationActivity(action string, user common.User, req ...common.Orga
 	}
 }
 
-// AddUserActivity is resposible of creating new activity stream
+// AddUserActivity is responsible of creating new activity stream
 // for User related activities
 func AddUserActivity(action string, user common.User, req ...common.User) {
 	activity := common.ActivityUser{
@@ -57,7 +57,7 @@ func AddUserActivity(action string, user common.User, req ...common.User) {
 	}
 }
 
-// AddProjectActivity is resposible of creating new activity stream
+// AddProjectActivity is responsible of creating new activity stream
 // for Project related activities
 func AddProjectActivity(action string, user common.User, req ...common.Project) {
 	activity := common.ActivityProject{
@@ -79,7 +79,7 @@ func AddProjectActivity(action string, user common.User, req ...common.Project) 
 	}
 }
 
-// AddCredentialActivity is resposible of creating new activity stream
+// AddCredentialActivity is responsible of creating new activity stream
 // for Credential related activities
 func AddCredentialActivity(action string, user common.User, req ...common.Credential) {
 	activity := common.ActivityCredential{
@@ -101,7 +101,7 @@ func AddCredentialActivity(action string, user common.User, req ...common.Creden
 	}
 }
 
-// AddTeamActivity is resposible of creating new activity stream
+// AddTeamActivity is responsible of creating new activity stream
 // for Team related activities
 func AddTeamActivity(action string, user common.User, req ...common.Team) {
 	activity := common.ActivityTeam{
@@ -145,7 +145,7 @@ func AddInventoryActivity(action string, user common.User, req ...ansible.Invent
 	}
 }
 
-// AddHostActivity is resposible of creating new activity stream
+// AddHostActivity is responsible of creating new activity stream
 // for Host related activities
 func AddHostActivity(action string, user common.User, req ...ansible.Host) {
 	activity := ansible.ActivityHost{
@@ -167,7 +167,7 @@ func AddHostActivity(action string, user common.User, req ...ansible.Host) {
 	}
 }
 
-// AddGroupActivity is resposible of creating new activity stream
+// AddGroupActivity is responsible of creating new activity stream
 // for Group related activities
 func AddGroupActivity(action string, user common.User, req ...ansible.Group) {
 	activity := ansible.ActivityGroup{
@@ -189,7 +189,7 @@ func AddGroupActivity(action string, user common.User, req ...ansible.Group) {
 	}
 }
 
-// AddJobTemplateActivity is resposible of creating new activity stream
+// AddJobTemplateActivity is responsible of creating new activity stream
 // for JobTemplate related activities
 func AddJobTemplateActivity(action string, user common.User, req ...ansible.JobTemplate) {
 	activity := ansible.ActivityJobTemplate{
@@ -211,7 +211,7 @@ func AddJobTemplateActivity(action string, user common.User, req ...ansible.JobT
 	}
 }
 
-// AddTJobTemplateActivity is resposible of creating new activity stream
+// AddTJobTemplateActivity is responsible of creating new activity stream
 // for terraform JobTemplate related activities
 func AddTJobTemplateActivity(action string, user common.User, req ...terraform.JobTemplate) {
 	activity := terraform.ActivityJobTemplate{

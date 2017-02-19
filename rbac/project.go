@@ -6,28 +6,26 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/models"
 )
 
-func projectRead(user common.User, project models.RootModel) bool {
+const (
+	ProjectAdmin  = "admin"
+	ProjectUse    = "use"
+	ProjectUpdate = "update"
+)
+
+type Project struct{}
+
+func (Project) Read(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser || user.IsSystemAuditor {
+	if HasGlobalRead(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
-	// since this is read it doesn't matter what permission assigned to the user
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": project.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational memeber:", err)
-	}
-	if count > 0 {
+	// since this is write permission it is must user need to be an admin
+	if IsOrganizationAdmin(project.OrganizationID, user.ID) {
 		return true
 	}
 
@@ -35,7 +33,7 @@ func projectRead(user common.User, project models.RootModel) bool {
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range project.GetRoles() {
+	for _, v := range project.Roles {
 		if v.Type == RoleTypeTeam {
 			teams = append(teams, v.GranteeID)
 		}
@@ -45,14 +43,15 @@ func projectRead(user common.User, project models.RootModel) bool {
 		}
 	}
 
-	// Check team permissions && whether the user is in an team which has appropriate permissions
-	count, err = db.Teams().Find(bson.M{
-		"_id:": bson.M{"$in": teams},
-		"roles.user_id": user.ID,
-	}).Count()
-
-	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+	// check team permissions of the user,
+	// and team has admin and update privileges
+	query := bson.M{
+		"_id:":             bson.M{"$in": teams},
+		"roles.grantee_id": user.ID,
+	}
+	count, error := db.Teams().Find(query).Count()
+	if error != nil {
+		log.Errorln("Error while checking the user is granted teams' memeber:", error)
 	}
 	if count > 0 {
 		return true
@@ -61,26 +60,16 @@ func projectRead(user common.User, project models.RootModel) bool {
 	return false
 }
 
-
-func projectWrite(user common.User, project models.RootModel) bool {
+func (Project) Write(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser {
+	if HasGlobalWrite(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, error := db.Organizations().Find(bson.M{"" +
-		"roles.user_id": user.ID,
-		"organization_id": project.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-
-	if error != nil {
-		log.Errorln("Error while checking the user and organizational admin:", error)
-	}
-	if count > 0 {
+	if IsOrganizationAdmin(project.OrganizationID, user.ID) {
 		return true
 	}
 
@@ -88,7 +77,7 @@ func projectWrite(user common.User, project models.RootModel) bool {
 	// check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range project.GetRoles() {
+	for _, v := range project.Roles {
 		if v.Type == RoleTypeTeam && v.Role == ProjectAdmin {
 			teams = append(teams, v.GranteeID)
 		}
@@ -101,10 +90,10 @@ func projectWrite(user common.User, project models.RootModel) bool {
 	// check team permissions of the user,
 	// and team has admin and update privileges
 	query := bson.M{
-		"_id:":          bson.M{"$in": teams},
-		"roles.user_id": user.ID,
+		"_id:":             bson.M{"$in": teams},
+		"roles.grantee_id": user.ID,
 	}
-	count, error = db.Teams().Find(query).Count()
+	count, error := db.Teams().Find(query).Count()
 	if error != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", error)
 	}
@@ -115,7 +104,7 @@ func projectWrite(user common.User, project models.RootModel) bool {
 	return false
 }
 
-func projectUse(user common.User, project models.RootModel) bool {
+func (Project) Update(user common.User, project common.Project) bool {
 	// allow access if the user is super user or
 	// a system auditor
 	if user.IsSuperUser {
@@ -124,15 +113,7 @@ func projectUse(user common.User, project models.RootModel) bool {
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, error := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": project.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if error != nil {
-		log.Errorln("Error while checking the user and organizational admin:", error)
-	}
-	if count > 0 {
+	if IsOrganizationAdmin(project.OrganizationID, user.ID) {
 		return true
 	}
 
@@ -142,28 +123,59 @@ func projectUse(user common.User, project models.RootModel) bool {
 	// using roles list
 	// if object has granted team get those teams to list
 	for _, v := range project.GetRoles() {
-		if v.Type == RoleTypeTeam && (v.Role == ProjectAdmin || v.Role == ProjectUse) {
+		if v.Type == RoleTypeTeam && (v.Role == ProjectAdmin || v.Role == ProjectUpdate) {
 			teams = append(teams, v.GranteeID)
 		}
 
-		if v.Type == RoleTypeUser && v.GranteeID == user.ID && (v.Role == ProjectAdmin || v.Role == ProjectUse) {
+		if v.Type == RoleTypeUser && v.GranteeID == user.ID && (v.Role == ProjectAdmin || v.Role == ProjectUpdate) {
 			return true
 		}
 	}
 
 	// check team permissions of the user,
 	// and team has admin and update privileges
-	query := bson.M{
-		"_id:":          bson.M{"$in": teams},
-		"roles.user_id": user.ID,
-	}
-	count, error = db.Teams().Find(query).Count()
-	if error != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", error)
-	}
-	if count > 0 {
+	if IsInTeams(user.ID, teams) {
 		return true
 	}
 
 	return false
+}
+
+func (p Project) ReadByID(user common.User, projectID bson.ObjectId) bool {
+	var project common.Project
+	if err := db.Projects().FindId(projectID).One(&project); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return p.Read(user, project)
+}
+
+func (Project) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.Projects().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to associate the role")
+	}
+
+	return
+}
+
+func (Project) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.Projects().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to disassociate the role")
+	}
+
+	return
 }

@@ -5,28 +5,28 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pearsonappeng/tensor/models/ansible"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/pearsonappeng/tensor/models"
 )
 
-func inventoryRead(user common.User, inventory models.RootModel) bool {
-	// allow access if the user is super user or
+const (
+	InventoryAdmin  = "admin"
+	InventoryUse    = "use"
+	InventoryUpdate = "update"
+)
+
+type Inventory struct{}
+
+func (Inventory) Read(user common.User, inventory ansible.Inventory) bool {
+	// Allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser || user.IsSystemAuditor {
+	if HasGlobalRead(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
-	// since this is read it doesn't matter what permission assigned to the user
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": inventory.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational memeber:", err)
-	}
-	if count > 0 {
+	// since this is write permission it is must user need to be an admin
+	if IsOrganizationAdmin(inventory.OrganizationID, user.ID) {
 		return true
 	}
 
@@ -44,12 +44,10 @@ func inventoryRead(user common.User, inventory models.RootModel) bool {
 		}
 	}
 
-	//check team permissions if, the user is in a team assign indirect permissions
-	count, err = db.Teams().Find(bson.M{
-		"_id:": bson.M{"$in": teams},
-		"organization_id": inventory.GetOrganizationID(),
-		"roles.user_id": user.ID,
-	}).Count()
+	// Check team permissions of the user,
+	// and team has admin and update privileges
+	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.grantee_id": user.ID}
+	count, err := db.Teams().Find(query).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
@@ -60,24 +58,16 @@ func inventoryRead(user common.User, inventory models.RootModel) bool {
 	return false
 }
 
-func inventoryWrite(user common.User, inventory models.RootModel) bool {
+func (Inventory) Write(user common.User, inventory ansible.Inventory) bool {
 	// Allow access if the user is super user or
 	// a system auditor
-	if user.IsSuperUser {
+	if HasGlobalWrite(user) {
 		return true
 	}
 
 	// check whether the user is an member of the objects' organization
 	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": inventory.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational admin:", err)
-	}
-	if count > 0 {
+	if IsOrganizationAdmin(inventory.OrganizationID, user.ID) {
 		return true
 	}
 
@@ -85,7 +75,7 @@ func inventoryWrite(user common.User, inventory models.RootModel) bool {
 	// Check whether the user has access to object
 	// using roles list
 	// if object has granted team get those teams to list
-	for _, v := range inventory.GetRoles() {
+	for _, v := range inventory.Roles {
 		if v.Type == "team" && (v.Role == InventoryAdmin || v.Role == InventoryUpdate) {
 			teams = append(teams, v.GranteeID)
 		}
@@ -97,8 +87,8 @@ func inventoryWrite(user common.User, inventory models.RootModel) bool {
 
 	// Check team permissions of the user,
 	// and team has admin and update privileges
-	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}
-	count, err = db.Teams().Find(query).Count()
+	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.grantee_id": user.ID}
+	count, err := db.Teams().Find(query).Count()
 	if err != nil {
 		log.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
@@ -109,54 +99,52 @@ func inventoryWrite(user common.User, inventory models.RootModel) bool {
 	return false
 }
 
-func inventoryUse(user common.User, inventory models.RootModel) bool {
-	// allow access if the user is super user or
-	// a system auditor
-	if user.IsSuperUser {
-		return true
+func (i Inventory) ReadByID(user common.User, inventoryID bson.ObjectId) bool {
+	var inventory ansible.Inventory
+	if err := db.Inventories().FindId(inventoryID).One(&inventory); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return i.Read(user, inventory)
+}
+
+func (i Inventory) WriteByID(user common.User, inventoryID bson.ObjectId) bool {
+	var inventory ansible.Inventory
+	if err := db.Inventories().FindId(inventoryID).One(&inventory); err != nil {
+		log.WithFields(log.Fields{
+			"Error": err.Error(),
+		})
+		return false
+	}
+	return i.Write(user, inventory)
+}
+
+func (Inventory) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
+
+	if err = db.Inventories().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to assign the role")
 	}
 
-	// check whether the user is an member of the objects' organization
-	// since this is write permission it is must user need to be an admin
-	count, err := db.Organizations().Find(bson.M{
-		"roles.user_id": user.ID,
-		"organization_id": inventory.GetOrganizationID(),
-		"roles.role": OrganizationAdmin,
-	}).Count()
-	if err != nil {
-		log.Errorln("Error while checking the user and organizational admin:", err)
-	}
-	if count > 0 {
-		return true
-	}
+	return
+}
 
-	//teams which has relevant permissions
-	var teams []bson.ObjectId
-	// check whether the user has access to object
-	// using roles list
-	// if object has granted team get those teams to list
-	for _, v := range inventory.GetRoles() {
-		if v.Type == "team" && (v.Role == InventoryAdmin || v.Role == InventoryUse) {
-			teams = append(teams, v.GranteeID)
-		}
+func (Inventory) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
+	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
-		if v.Type == "user" && v.GranteeID == user.ID && (v.Role == InventoryAdmin || v.Role == InventoryUse) {
-			return true
-		}
+	if err = db.Inventories().UpdateId(resourceID, access); err != nil {
+		log.WithFields(log.Fields{
+			"Resource ID": resourceID,
+			"Role Type":   roleType,
+			"Error":       err.Error(),
+		}).Errorln("Unable to disassociate role")
 	}
 
-	// check team permissions of the user,
-	// and team has admin and update privileges
-	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.user_id": user.ID}
-	count, err = db.Teams().Find(query).Count()
-
-	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
-	}
-
-	if count > 0 {
-		return true
-	}
-
-	return false
+	return
 }

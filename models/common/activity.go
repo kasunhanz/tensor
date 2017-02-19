@@ -1,17 +1,17 @@
 package common
 
 import (
-	"time"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
 // Activity constants
 const (
-	Create = "create"
-	Update = "update"
-	Delete = "delete"
-	Associate = "associate"
+	Create       = "create"
+	Update       = "update"
+	Delete       = "delete"
+	Associate    = "associate"
 	Disassociate = "disassociate"
 )
 
