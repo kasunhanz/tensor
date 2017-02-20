@@ -13,23 +13,23 @@ func InventoryMetadata(i *ansible.Inventory) {
 
 	ID := i.ID.Hex()
 	i.Type = "inventory"
-	i.URL = "/v1/inventories/" + ID + "/"
+	i.URL = "/v1/inventories/" + ID
 	i.Related = gin.H{
-		"created_by":         "/v1/users/" + i.CreatedByID.Hex() + "/",
-		"job_templates":      "/v1/inventories/" + ID + "/job_templates/",
-		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates/",
-		"variable_data":      "/v1/inventories/" + ID + "/variable_data/",
-		"root_groups":        "/v1/inventories/" + ID + "/root_groups/",
-		"object_roles":       "/v1/inventories/" + ID + "/object_roles/",
-		"ad_hoc_commands":    "/v1/inventories/" + ID + "/ad_hoc_commands/",
-		"script":             "/v1/inventories/" + ID + "/script/",
-		"tree":               "/v1/inventories/" + ID + "/tree/",
-		"access_list":        "/v1/inventories/" + ID + "/access_list/",
-		"hosts":              "/v1/inventories/" + ID + "/hosts/",
-		"groups":             "/v1/inventories/" + ID + "/groups/",
-		"activity_stream":    "/v1/inventories/" + ID + "/activity_stream/",
-		"inventory_sources":  "/v1/inventories/" + ID + "/inventory_sources/",
-		"organization":       "/v1/organizations/" + i.OrganizationID.Hex() + "/",
+		"created_by":         "/v1/users/" + i.CreatedByID.Hex(),
+		"job_templates":      "/v1/inventories/" + ID + "/job_templates",
+		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates",
+		"variable_data":      "/v1/inventories/" + ID + "/variable_data",
+		"root_groups":        "/v1/inventories/" + ID + "/root_groups",
+		"object_roles":       "/v1/inventories/" + ID + "/object_roles",
+		"ad_hoc_commands":    "/v1/inventories/" + ID + "/ad_hoc_commands",
+		"script":             "/v1/inventories/" + ID + "/script",
+		"tree":               "/v1/inventories/" + ID + "/tree",
+		"access_list":        "/v1/inventories/" + ID + "/access_list",
+		"hosts":              "/v1/inventories/" + ID + "/hosts",
+		"groups":             "/v1/inventories/" + ID + "/groups",
+		"activity_stream":    "/v1/inventories/" + ID + "/activity_stream",
+		"inventory_sources":  "/v1/inventories/" + ID + "/inventory_sources",
+		"organization":       "/v1/organizations/" + i.OrganizationID.Hex(),
 	}
 
 	inventorySummary(i)

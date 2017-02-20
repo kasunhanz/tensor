@@ -14,30 +14,30 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "job_template"
-	jt.URL = "/v1/job_templates/" + ID + "/"
+	jt.URL = "/v1/job_templates/" + ID
 	related := gin.H{
-		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex() + "/",
-		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex() + "/",
-		"labels":                         "/v1/job_templates/" + ID + "/labels/",
-		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex() + "/",
-		"project":                        "/v1/projects/" + jt.ProjectID.Hex() + "/",
-		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error/",
-		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success/",
-		"jobs":                       "/v1/job_templates/" + ID + "/jobs/",
-		"object_roles":               "/v1/job_templates/" + ID + "/object_roles/",
-		"notification_templates_any": "/v1/job_templates/" + ID + "/notification_templates_any/",
-		"access_list":                "/v1/job_templates/" + ID + "/access_list/",
-		"launch":                     "/v1/job_templates/" + ID + "/launch/",
-		"schedules":                  "/v1/job_templates/" + ID + "/schedules/",
-		"activity_stream":            "/v1/job_templates/" + ID + "/activity_stream/",
+		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
+		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
+		"labels":                         "/v1/job_templates/" + ID + "/labels",
+		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex(),
+		"project":                        "/v1/projects/" + jt.ProjectID.Hex(),
+		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error",
+		"notification_templates_success": "/v1/job_templates/" + ID + "/notification_templates_success",
+		"jobs":                       "/v1/job_templates/" + ID + "/jobs",
+		"object_roles":               "/v1/job_templates/" + ID + "/object_roles",
+		"notification_templates_any": "/v1/job_templates/" + ID + "/notification_templates_any",
+		"access_list":                "/v1/job_templates/" + ID + "/access_list",
+		"launch":                     "/v1/job_templates/" + ID + "/launch",
+		"schedules":                  "/v1/job_templates/" + ID + "/schedules",
+		"activity_stream":            "/v1/job_templates/" + ID + "/activity_stream",
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "/v1/jobs/" + (*jt.CurrentJobID).Hex() + "/"
+		related["current_job"] = "/v1/jobs/" + (*jt.CurrentJobID).Hex()
 	}
 
 	if jt.MachineCredentialID != nil {
-		related["credential"] = "/v1/credentials/" + (*jt.MachineCredentialID).Hex() + "/"
+		related["credential"] = "/v1/credentials/" + (*jt.MachineCredentialID).Hex()
 	}
 
 	jt.Related = related

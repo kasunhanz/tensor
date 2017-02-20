@@ -10,7 +10,7 @@ import (
 func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
 	ID := ao.ID.Hex()
 	ao.Type = "activity_stream"
-	ao.URL = "/v1/organizations/" + ID + "/activity_stream/"
+	ao.URL = "/v1/organizations/" + ID + "/activity_stream"
 	ao.Related = gin.H{}
 	ao.Summary = gin.H{}
 }
@@ -19,7 +19,7 @@ func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
 func ActivityUserMetadata(au *common.ActivityUser) {
 	ID := au.ID.Hex()
 	au.Type = "activity_stream"
-	au.URL = "/v1/users/" + ID + "/activity_stream/"
+	au.URL = "/v1/users/" + ID + "/activity_stream"
 	au.Related = gin.H{}
 	au.Summary = gin.H{}
 }
@@ -28,7 +28,7 @@ func ActivityUserMetadata(au *common.ActivityUser) {
 func ActivityProjectMetadata(ap *common.ActivityProject) {
 	ID := ap.ID.Hex()
 	ap.Type = "activity_stream"
-	ap.URL = "/v1/projects/" + ID + "/activity_stream/"
+	ap.URL = "/v1/projects/" + ID + "/activity_stream"
 	ap.Related = gin.H{}
 	ap.Summary = gin.H{}
 }
@@ -37,7 +37,7 @@ func ActivityProjectMetadata(ap *common.ActivityProject) {
 func ActivityCredentialMetadata(ac *common.ActivityCredential) {
 	ID := ac.ID.Hex()
 	ac.Type = "activity_stream"
-	ac.URL = "/v1/credentials/" + ID + "/activity_stream/"
+	ac.URL = "/v1/credentials/" + ID + "/activity_stream"
 	ac.Related = gin.H{}
 	ac.Summary = gin.H{}
 }
@@ -46,7 +46,7 @@ func ActivityCredentialMetadata(ac *common.ActivityCredential) {
 func ActivityTeamMetadata(at *common.ActivityTeam) {
 	ID := at.ID.Hex()
 	at.Type = "activity_stream"
-	at.URL = "/v1/teams/" + ID + "/activity_stream/"
+	at.URL = "/v1/teams/" + ID + "/activity_stream"
 	at.Related = gin.H{}
 	at.Summary = gin.H{}
 }
@@ -55,7 +55,7 @@ func ActivityTeamMetadata(at *common.ActivityTeam) {
 func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
 	ID := ai.ID.Hex()
 	ai.Type = "activity_stream"
-	ai.URL = "/v1/inventories/" + ID + "/activity_stream/"
+	ai.URL = "/v1/inventories/" + ID + "/activity_stream"
 	ai.Related = gin.H{}
 	ai.Summary = gin.H{}
 }
@@ -64,7 +64,7 @@ func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
 func ActivityHostMetadata(ah *ansible.ActivityHost) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity_stream"
-	ah.URL = "/v1/hosts/" + ID + "/activity_stream/"
+	ah.URL = "/v1/hosts/" + ID + "/activity_stream"
 	ah.Related = gin.H{}
 	ah.Summary = gin.H{}
 }
@@ -73,7 +73,7 @@ func ActivityHostMetadata(ah *ansible.ActivityHost) {
 func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity_stream"
-	ah.URL = "/v1/groups/" + ID + "/activity_stream/"
+	ah.URL = "/v1/groups/" + ID + "/activity_stream"
 	ah.Related = gin.H{}
 	ah.Summary = gin.H{}
 }
@@ -82,7 +82,7 @@ func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
 func ActivityJobTemplateMetadata(ah *ansible.ActivityJobTemplate) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity_stream"
-	ah.URL = "/v1/job_templates/" + ID + "/activity_stream/"
+	ah.URL = "/v1/job_templates/" + ID + "/activity_stream"
 	ah.Related = gin.H{}
 	ah.Summary = gin.H{}
 }

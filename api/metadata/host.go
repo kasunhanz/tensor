@@ -13,21 +13,21 @@ func HostMetadata(host *ansible.Host) {
 
 	ID := host.ID.Hex()
 	host.Type = "host"
-	host.URL = "/v1/hosts/" + ID + "/"
+	host.URL = "/v1/hosts/" + ID
 	host.Related = gin.H{
-		"created_by":            "/v1/users/" + host.CreatedByID.Hex() + "/",
-		"modified_by":           "/v1/users/" + host.CreatedByID.Hex() + "/",
-		"job_host_summaries":    "/v1/hosts/" + ID + "/job_host_summaries/",
-		"variable_data":         "/v1/hosts/" + ID + "/variable_data/",
-		"job_events":            "/v1/hosts/" + ID + "/job_events/",
-		"ad_hoc_commands":       "/v1/hosts/" + ID + "/ad_hoc_commands/",
-		"fact_versions":         "/v1/hosts/" + ID + "/fact_versions/",
-		"inventory_sources":     "/v1/hosts/" + ID + "/inventory_sources/",
-		"groups":                "/v1/hosts/" + ID + "/groups/",
-		"activity_stream":       "/v1/hosts/" + ID + "/activity_stream/",
-		"all_groups":            "/v1/hosts/" + ID + "/all_groups/",
-		"ad_hoc_command_events": "/v1/hosts/" + ID + "/ad_hoc_command_events/",
-		"inventory":             "/v1/inventories/" + host.InventoryID.Hex() + "/",
+		"created_by":            "/v1/users/" + host.CreatedByID.Hex(),
+		"modified_by":           "/v1/users/" + host.CreatedByID.Hex(),
+		"job_host_summaries":    "/v1/hosts/" + ID + "/job_host_summaries",
+		"variable_data":         "/v1/hosts/" + ID + "/variable_data",
+		"job_events":            "/v1/hosts/" + ID + "/job_events",
+		"ad_hoc_commands":       "/v1/hosts/" + ID + "/ad_hoc_commands",
+		"fact_versions":         "/v1/hosts/" + ID + "/fact_versions",
+		"inventory_sources":     "/v1/hosts/" + ID + "/inventory_sources",
+		"groups":                "/v1/hosts/" + ID + "/groups",
+		"activity_stream":       "/v1/hosts/" + ID + "/activity_stream",
+		"all_groups":            "/v1/hosts/" + ID + "/all_groups",
+		"ad_hoc_command_events": "/v1/hosts/" + ID + "/ad_hoc_command_events",
+		"inventory":             "/v1/inventories/" + host.InventoryID.Hex(),
 	}
 
 	hostSummary(host)

@@ -13,21 +13,21 @@ func GroupMetadata(grp *ansible.Group) {
 
 	ID := grp.ID.Hex()
 	grp.Type = "group"
-	grp.URL = "/v1/groups/" + ID + "/"
+	grp.URL = "/v1/groups/" + ID
 	grp.Related = gin.H{
-		"created_by":         "/v1/users/" + grp.CreatedByID.Hex() + "/",
-		"job_host_summaries": "/v1/groups/" + ID + "job_host_summaries/",
-		"variable_data":      "/v1/groups/" + ID + "/variable_data/",
-		"job_events":         "/v1/groups/" + ID + "/job_events/",
-		"potential_children": "/v1/groups/" + ID + "/potential_children/",
-		"ad_hoc_commands":    "/v1/groups/" + ID + "/ad_hoc_commands/",
-		"all_hosts":          "/v1/groups/" + ID + "/all_hosts/",
-		"activity_stream":    "/v1/groups/" + ID + "/activity_stream/",
-		"hosts":              "/v1/groups/" + ID + "/hosts/",
-		"children":           "/v1/groups/" + ID + "/children/",
-		"inventory_sources":  "/v1/groups/" + ID + "/inventory_sources/",
-		"inventory":          "/v1/inventories/" + grp.InventoryID.Hex() + "/",
-		"inventory_source":   "/v1/inventory_sources/emptyid/",
+		"created_by":         "/v1/users/" + grp.CreatedByID.Hex(),
+		"job_host_summaries": "/v1/groups/" + ID + "job_host_summaries",
+		"variable_data":      "/v1/groups/" + ID + "/variable_data",
+		"job_events":         "/v1/groups/" + ID + "/job_events",
+		"potential_children": "/v1/groups/" + ID + "/potential_children",
+		"ad_hoc_commands":    "/v1/groups/" + ID + "/ad_hoc_commands",
+		"all_hosts":          "/v1/groups/" + ID + "/all_hosts",
+		"activity_stream":    "/v1/groups/" + ID + "/activity_stream",
+		"hosts":              "/v1/groups/" + ID + "/hosts",
+		"children":           "/v1/groups/" + ID + "/children",
+		"inventory_sources":  "/v1/groups/" + ID + "/inventory_sources",
+		"inventory":          "/v1/inventories/" + grp.InventoryID.Hex(),
+		"inventory_source":   "/v1/inventory_sources/emptyid",
 	}
 
 	groupSummary(grp)

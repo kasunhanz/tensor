@@ -12,32 +12,32 @@ import (
 func JobMetadata(job *terraform.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
-	job.URL = "/v1/terraform/jobs/" + ID + "/"
+	job.URL = "/v1/terraform/jobs/" + ID
 	related := gin.H{
-		"labels":          "/v1/terraform/jobs/" + ID + "/labels/",
-		"project":         "/v1/terraform/projects/" + job.ProjectID.Hex() + "/",
-		"stdout":          "/v1/terraform/jobs/" + ID + "/stdout/",
-		"notifications":   "/v1/terraform/jobs/" + ID + "/notifications/",
-		"activity_stream": "/v1/terraform/jobs/" + ID + "/activity_stream/",
-		"start":           "/v1/terraform/jobs/" + ID + "/start/",
-		"cancel":          "/v1/terraform/jobs/" + ID + "/cancel/",
-		"relaunch":        "/v1/terraform/jobs/" + ID + "/relaunch/",
+		"labels":          "/v1/terraform/jobs/" + ID + "/labels",
+		"project":         "/v1/terraform/projects/" + job.ProjectID.Hex(),
+		"stdout":          "/v1/terraform/jobs/" + ID + "/stdout",
+		"notifications":   "/v1/terraform/jobs/" + ID + "/notifications",
+		"activity_stream": "/v1/terraform/jobs/" + ID + "/activity_stream",
+		"start":           "/v1/terraform/jobs/" + ID + "/start",
+		"cancel":          "/v1/terraform/jobs/" + ID + "/cancel",
+		"relaunch":        "/v1/terraform/jobs/" + ID + "/relaunch",
 	}
 
 	if len(job.CreatedByID) == 12 {
-		related["created_by"] = "/v1/terraform/users/" + job.CreatedByID.Hex() + "/"
+		related["created_by"] = "/v1/terraform/users/" + job.CreatedByID.Hex()
 	}
 
 	if len(job.ModifiedByID) == 12 {
-		related["modified_by"] = "/v1/terraform/users/" + job.ModifiedByID.Hex() + "/"
+		related["modified_by"] = "/v1/terraform/users/" + job.ModifiedByID.Hex()
 	}
 
 	if job.MachineCredentialID != nil {
-		related["credential"] = "/v1/terraform/credentials/" + (*job.MachineCredentialID).Hex() + "/"
+		related["credential"] = "/v1/terraform/credentials/" + (*job.MachineCredentialID).Hex()
 	}
 
 	if len(job.JobTemplateID) == 12 {
-		related["job_template"] = "/v1/terraform/job_templates/" + job.JobTemplateID.Hex() + "/"
+		related["job_template"] = "/v1/terraform/job_templates/" + job.JobTemplateID.Hex()
 	}
 
 	job.Related = related

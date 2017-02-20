@@ -11,20 +11,20 @@ func CredentialMetadata(c *common.Credential) {
 
 	ID := c.ID.Hex()
 	c.Type = "credential"
-	c.URL = "/v1/credentials/" + ID + "/"
+	c.URL = "/v1/credentials/" + ID
 	related := gin.H{
-		"created_by":      "/v1/users/" + c.CreatedByID.Hex() + "/",
-		"modified_by":     "/v1/users/" + c.ModifiedByID.Hex() + "/",
-		"owner_teams":     "/v1/credentials/" + ID + "/owner_teams/",
-		"owner_users":     "/v1/credentials/" + ID + "/owner_users/",
-		"activity_stream": "/v1/credentials/" + ID + "/activity_stream/",
-		"access_list":     "/v1/credentials/" + ID + "/access_list/",
-		"object_roles":    "/api/v1/credentials/" + ID + "/object_roles/",
-		"user":            "/v1/users/" + c.CreatedByID.Hex() + "/",
+		"created_by":      "/v1/users/" + c.CreatedByID.Hex(),
+		"modified_by":     "/v1/users/" + c.ModifiedByID.Hex(),
+		"owner_teams":     "/v1/credentials/" + ID + "/owner_teams",
+		"owner_users":     "/v1/credentials/" + ID + "/owner_users",
+		"activity_stream": "/v1/credentials/" + ID + "/activity_stream",
+		"access_list":     "/v1/credentials/" + ID + "/access_list",
+		"object_roles":    "/api/v1/credentials/" + ID + "/object_roles",
+		"user":            "/v1/users/" + c.CreatedByID.Hex(),
 	}
 
 	if c.OrganizationID != nil {
-		related["organization"] = "/api/v1/organizations/" + (*c.OrganizationID).Hex() + "/"
+		related["organization"] = "/api/v1/organizations/" + (*c.OrganizationID).Hex()
 	}
 
 	c.Related = related
@@ -104,7 +104,7 @@ func credentialSummary(c *common.Credential) {
 					continue
 				}
 				owners = append(owners, gin.H{
-					"url":         "/v1/users/" + v.GranteeID + "/",
+					"url":         "/v1/users/" + v.GranteeID,
 					"description": "",
 					"type":        "user",
 					"id":          v.GranteeID,
@@ -123,7 +123,7 @@ func credentialSummary(c *common.Credential) {
 					continue
 				}
 				owners = append(owners, gin.H{
-					"url":         "/v1/teams/" + v.GranteeID + "/",
+					"url":         "/v1/teams/" + v.GranteeID,
 					"description": team.Description,
 					"type":        "team",
 					"id":          v.GranteeID,
@@ -142,7 +142,7 @@ func credentialSummary(c *common.Credential) {
 			}).Warnln("Error while getting Organization")
 		} else {
 			owners = append(owners, gin.H{
-				"url":         "/v1/organizations/" + *c.OrganizationID + "/",
+				"url":         "/v1/organizations/" + *c.OrganizationID,
 				"description": org.Description,
 				"type":        "organization",
 				"id":          org.ID,

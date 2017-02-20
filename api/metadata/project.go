@@ -13,32 +13,32 @@ func ProjectMetadata(p *common.Project) {
 
 	ID := p.ID.Hex()
 	p.Type = "project"
-	p.URL = "/v1/projects/" + ID + "/"
+	p.URL = "/v1/projects/" + ID
 	related := gin.H{
-		"created_by":                     "/v1/users/" + p.CreatedByID.Hex() + "/",
-		"modified_by":                    "/v1/users/" + p.ModifiedByID.Hex() + "/",
-		"notification_templates_error":   "/v1/projects/" + ID + "/notification_templates_error/",
-		"notification_templates_success": "/v1/projects/" + ID + "/notification_templates_success/",
-		"object_roles":                   "/v1/projects/" + ID + "/object_roles/",
-		"notification_templates_any":     "/v1/projects/" + ID + "/notification_templates_any/",
-		"project_updates":                "/v1/projects/" + ID + "/project_updates/",
-		"update":                         "/v1/projects/" + ID + "/update/",
-		"access_list":                    "/v1/projects/" + ID + "/access_list/",
-		"schedules":                      "/v1/projects/" + ID + "/schedules/",
-		"teams":                          "/v1/projects/" + ID + "/teams/",
-		"activity_stream":                "/v1/projects/" + ID + "/activity_stream/",
-		"organization":                   "/v1/organizations/" + p.OrganizationID.Hex() + "/",
+		"created_by":                     "/v1/users/" + p.CreatedByID.Hex(),
+		"modified_by":                    "/v1/users/" + p.ModifiedByID.Hex(),
+		"notification_templates_error":   "/v1/projects/" + ID + "/notification_templates_error",
+		"notification_templates_success": "/v1/projects/" + ID + "/notification_templates_success",
+		"object_roles":                   "/v1/projects/" + ID + "/object_roles",
+		"notification_templates_any":     "/v1/projects/" + ID + "/notification_templates_any",
+		"project_updates":                "/v1/projects/" + ID + "/project_updates",
+		"update":                         "/v1/projects/" + ID + "/update",
+		"access_list":                    "/v1/projects/" + ID + "/access_list",
+		"schedules":                      "/v1/projects/" + ID + "/schedules",
+		"teams":                          "/v1/projects/" + ID + "/teams",
+		"activity_stream":                "/v1/projects/" + ID + "/activity_stream",
+		"organization":                   "/v1/organizations/" + p.OrganizationID.Hex(),
 	}
 
 	if p.Kind == "ansible" {
-		related["playbooks"] = "/v1/projects/" + ID + "/playbooks/"
+		related["playbooks"] = "/v1/projects/" + ID + "/playbooks"
 	}
 
 	if p.ScmCredentialID != nil {
-		related["credential"] = "/v1/credentials/" + (*p.ScmCredentialID).Hex() + "/"
+		related["credential"] = "/v1/credentials/" + (*p.ScmCredentialID).Hex()
 	}
 	if p.LastJob != nil {
-		related["last_job"] = "/v1/project_updates/" + (*p.LastJob).Hex() + "/"
+		related["last_job"] = "/v1/project_updates/" + (*p.LastJob).Hex()
 	}
 
 	p.Related = related

@@ -13,23 +13,23 @@ func OrganizationMetadata(o *common.Organization) {
 
 	ID := o.ID.Hex()
 	o.Type = "organization"
-	o.URL = "/v1/organizations/" + ID + "/"
+	o.URL = "/v1/organizations/" + ID
 	o.Related = gin.H{
-		"created_by":                     "/v1/users/" + o.CreatedByID.Hex() + "/",
-		"modified_by":                    "/v1/users/" + o.ModifiedByID.Hex() + "/",
-		"notification_templates_error":   "/v1/organizations/" + ID + "/notification_templates_error/",
-		"notification_templates_success": "/v1/organizations/" + ID + "/notification_templates_success/",
-		"users":                      "/v1/organizations/" + ID + "/users/",
-		"object_roles":               "/v1/organizations/" + ID + "/object_roles/",
-		"notification_templates_any": "/v1/organizations/" + ID + "/notification_templates_any/",
-		"teams":                  "/v1/organizations/" + ID + "/teams/",
-		"access_list":            "/v1/organizations/" + ID + "/access_list/",
-		"notification_templates": "/v1/organizations/" + ID + "/notification_templates/",
-		"admins":                 "/v1/organizations/" + ID + "/admins/",
-		"credentials":            "/v1/organizations/" + ID + "/credentials/",
-		"inventories":            "/v1/organizations/" + ID + "/inventories/",
-		"activity_stream":        "/v1/organizations/" + ID + "/activity_stream/",
-		"projects":               "/v1/organizations/" + ID + "/projects/",
+		"created_by":                     "/v1/users/" + o.CreatedByID.Hex(),
+		"modified_by":                    "/v1/users/" + o.ModifiedByID.Hex(),
+		"notification_templates_error":   "/v1/organizations/" + ID + "/notification_templates_error",
+		"notification_templates_success": "/v1/organizations/" + ID + "/notification_templates_success",
+		"users":                      "/v1/organizations/" + ID + "/users",
+		"object_roles":               "/v1/organizations/" + ID + "/object_roles",
+		"notification_templates_any": "/v1/organizations/" + ID + "/notification_templates_any",
+		"teams":                  "/v1/organizations/" + ID + "/teams",
+		"access_list":            "/v1/organizations/" + ID + "/access_list",
+		"notification_templates": "/v1/organizations/" + ID + "/notification_templates",
+		"admins":                 "/v1/organizations/" + ID + "/admins",
+		"credentials":            "/v1/organizations/" + ID + "/credentials",
+		"inventories":            "/v1/organizations/" + ID + "/inventories",
+		"activity_stream":        "/v1/organizations/" + ID + "/activity_stream",
+		"projects":               "/v1/organizations/" + ID + "/projects",
 	}
 
 	organizationSummary(o)

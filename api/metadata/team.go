@@ -11,18 +11,18 @@ import (
 func TeamMetadata(tm *common.Team) {
 
 	tm.Type = "team"
-	tm.URL = "/v1/teams/" + tm.ID.Hex() + "/"
+	tm.URL = "/v1/teams/" + tm.ID.Hex()
 	tm.Related = gin.H{
-		"created_by":      "/v1/users/" + tm.CreatedByID.Hex() + "/",
-		"modified_by":     "/v1/users/" + tm.ModifiedByID.Hex() + "/",
-		"users":           "/v1/teams/" + tm.ID.Hex() + "/users/",
-		"roles":           "/v1/teams/" + tm.ID.Hex() + "/roles/",
-		"object_roles":    "/v1/teams/" + tm.ID.Hex() + "/object_roles/",
-		"credentials":     "/v1/teams/" + tm.ID.Hex() + "/credentials/",
-		"projects":        "/v1/teams/" + tm.ID.Hex() + "/projects/",
-		"activity_stream": "/v1/teams/" + tm.ID.Hex() + "/activity_stream/",
-		"access_list":     "/v1/teams/" + tm.ID.Hex() + "/access_list/",
-		"organization":    "/v1/organizations/" + tm.OrganizationID.Hex() + "/",
+		"created_by":      "/v1/users/" + tm.CreatedByID.Hex(),
+		"modified_by":     "/v1/users/" + tm.ModifiedByID.Hex(),
+		"users":           "/v1/teams/" + tm.ID.Hex() + "/users",
+		"roles":           "/v1/teams/" + tm.ID.Hex() + "/roles",
+		"object_roles":    "/v1/teams/" + tm.ID.Hex() + "/object_roles",
+		"credentials":     "/v1/teams/" + tm.ID.Hex() + "/credentials",
+		"projects":        "/v1/teams/" + tm.ID.Hex() + "/projects",
+		"activity_stream": "/v1/teams/" + tm.ID.Hex() + "/activity_stream",
+		"access_list":     "/v1/teams/" + tm.ID.Hex() + "/access_list",
+		"organization":    "/v1/organizations/" + tm.OrganizationID.Hex(),
 	}
 
 	teamSummary(tm)
