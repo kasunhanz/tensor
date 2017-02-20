@@ -172,7 +172,7 @@ rpm: rpmcommon
 	-ba build/rpm-build/$(NAME).spec
 	@rm -f build/rpm-build/$(NAME).spec
 	@echo "#############################################"
-	@echo "Python RPM is built:"
+	@echo "Tensor RPM is built:"
 	@echo "    build/rpm-build/$(RPMNVR).noarch.rpm"
 	@echo "#############################################"
 

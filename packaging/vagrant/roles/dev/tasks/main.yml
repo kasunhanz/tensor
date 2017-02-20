@@ -50,13 +50,14 @@
     - go-path.sh
     - go-bin.sh
 
-#- name: Set permissions for go path
-#  file:
-#    path: /go
-#    state: directory
-#    owner: "{{ ansible_ssh_user }}"
-#    group: "{{ ansible_ssh_user }}"
-#    recurse: yes
+# Find a clever way to do this
+- name: Set permissions for go path
+  file: "path={{ item }} state=directory owner={{ ansible_ssh_user }} group={{ ansible_ssh_user }}"
+  with_items:
+    - /go/
+    - /go/src/
+    - /go/src/github.com/
+    - /go/src/github.com/pearsonappeng/
 
 - name: Create tensor project dir
   file:
