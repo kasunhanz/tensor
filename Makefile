@@ -95,7 +95,7 @@ clean:
 	rm -f packaging/docker/tensor/tensor.deb
 
 debian:	sdist
-	@echo "Creating destribution specific build directories"
+	@echo "Creating distribution specific build directories"
 	@for DIST in $(DEB_DIST) ; do \
 		mkdir -p build/deb-build/$${DIST} ; \
 		tar -C build/deb-build/$${DIST} -xvf build/dist/$(NAME)-$(VERSION).tar.gz ; \
