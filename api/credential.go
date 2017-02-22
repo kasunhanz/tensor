@@ -21,7 +21,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cCredential   = "credential"
+	cCredential = "credential"
 	cCredentialID = "credential_id"
 )
 
@@ -43,8 +43,8 @@ func (ctrl CredentialController) Middleware(c *gin.Context) {
 	if err := db.Credentials().FindId(bson.ObjectIdHex(objectID)).One(&credential); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Credential does not exist",
 			Log: log.Fields{
-				"Credential ID": objectID,
-				"Error":         err.Error(),
+				"Credential": objectID,
+				"Error":  err.Error(),
 			},
 		})
 		return

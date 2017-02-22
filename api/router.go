@@ -396,7 +396,6 @@ func getSystemInfo(c *gin.Context) {
 			"dbName":       util.Config.MongoDB.DbName,
 			"dbUser":       util.Config.MongoDB.Username,
 			"projectsPath": util.Config.ProjectsHome,
-			"cmdPath":      util.FindTensor(),
 		},
 	}
 

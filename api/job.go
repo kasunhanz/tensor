@@ -28,19 +28,19 @@ type JobController struct{}
 // This function takes CTXJobID from Gin Context and retrieves credential data from the collection
 // and store credential data under key CTXJob in Gin Context
 func (ctrl JobController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cJobID, c)
+	objectID := c.Params.ByName(cJobID)
 	user := c.MustGet(cUser).(common.User)
 
-	if err != nil {
+	if !bson.IsObjectIdHex(objectID) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job does not exist"})
 		return
 	}
 
 	var job ansible.Job
-	if err = db.Jobs().FindId(bson.ObjectIdHex(ID)).One(&job); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
+	if err := db.Jobs().FindId(bson.ObjectIdHex(objectID)).One(&job); err != nil {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job does not exist",
 			Log: log.Fields{
-				"Job ID": ID,
+				"Job ID": objectID,
 				"Error":  err.Error(),
 			},
 		})

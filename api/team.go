@@ -22,8 +22,8 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	CTXTeam = "team"
-	CTXTeamID = "team_id"
+	cTeam = "team"
+	cTeamID = "team_id"
 )
 
 type TeamController struct{}
@@ -32,21 +32,20 @@ type TeamController struct{}
 // This function takes CTXTeamID from Gin Context and retrieves team data from the collection
 // and store team data under key CTXTeam in Gin Context
 func (ctrl TeamController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(CTXTeamID, c)
+	objectID := c.Params.ByName(cTeamID)
 	user := c.MustGet(cUser).(common.User)
-
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
-			Log: log.Fields{"Error": err.Error()},
-		})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist"})
 		return
 	}
 
 	var team common.Team
-	err = db.Teams().FindId(bson.ObjectIdHex(ID)).One(&team)
-	if err != nil {
+	if err := db.Teams().FindId(bson.ObjectIdHex(objectID)).One(&team); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
-			Log: log.Fields{"Error": err.Error()},
+			Log: log.Fields{
+				"Team ID": objectID,
+				"Error":  err.Error(),
+			},
 		})
 		return
 	}
@@ -74,13 +73,13 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 		}
 	}
 
-	c.Set(CTXTeam, team)
+	c.Set(cTeam, team)
 	c.Next()
 }
 
 // GetTeam is a Gin handler function which returns the team as a JSON object
 func (ctrl TeamController) One(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	metadata.TeamMetadata(&team)
 	c.JSON(http.StatusOK, team)
 }
@@ -190,7 +189,7 @@ func (ctrl TeamController) Create(c *gin.Context) {
 
 // UpdateTeam will update the Job Template
 func (ctrl TeamController) Update(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	tmpTeam := team
 	user := c.MustGet(cUser).(common.User)
 
@@ -244,7 +243,7 @@ func (ctrl TeamController) Update(c *gin.Context) {
 // This replaces specified fields in the data, empty "" fields will be
 // removed from the database object. Unspecified fields will be ignored.
 func (ctrl TeamController) Patch(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	tmpTeam := team
 	user := c.MustGet(cUser).(common.User)
 	var req common.PatchTeam
@@ -310,7 +309,7 @@ func (ctrl TeamController) Patch(c *gin.Context) {
 
 // RemoveTeam is a Gin handler function which removes a team object from the database
 func (ctrl TeamController) Delete(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	user := c.MustGet(cUser).(common.User)
 
 	// Remove permissions
@@ -365,7 +364,7 @@ func (ctrl TeamController) Delete(c *gin.Context) {
 
 // Users is a Gin handler function which returns users associated with a team
 func (ctrl TeamController) Users(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 
 	var usrs []common.User
 
@@ -416,7 +415,7 @@ func (ctrl TeamController) Users(c *gin.Context) {
 
 // Credentials is Gin handler function which returns credentials associated with a team
 func (ctrl TeamController) Credentials(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	user := c.MustGet(cUser).(common.User)
 
 	var credentials []common.Credential
@@ -478,7 +477,7 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 
 // Projects is a Gin handler function which returns projects associated with a team
 func (ctrl TeamController) Projects(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 	user := c.MustGet(cUser).(common.User)
 
 	var projects []common.Project
@@ -531,7 +530,7 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 
 // ActivityStream returns the activities of the user on Teams
 func (ctrl TeamController) ActivityStream(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 
 	var activities []common.ActivityTeam
 	var act common.ActivityTeam
@@ -575,7 +574,7 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 }
 
 func (ctrl TeamController) AssignRole(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 
 	var req common.RoleObj
 	err := binding.JSON.Bind(c.Request, &req)

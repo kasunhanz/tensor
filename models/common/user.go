@@ -37,8 +37,6 @@ func (u User) GetRoles() []AccessControl {
 	return u.Roles
 }
 
-//TODO: Implement orgnizationid
-
 func (user User) IsUniqueUsername() bool {
 	count, err := db.Users().Find(bson.M{"username": user.Username}).Count()
 	if err == nil && count > 0 {

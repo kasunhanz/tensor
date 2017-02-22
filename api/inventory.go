@@ -34,18 +34,21 @@ type InventoryController struct{}
 // This function takes project_id parameter from Gin Context and fetches project data from the database
 // this set project data under key project in Gin Context.
 func (ctrl InventoryController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cInventoryID, c)
+	objectID := c.Params.ByName(cInventoryID)
 	user := c.MustGet(cUser).(common.User)
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist",
-			Log: log.Fields{"Error": err.Error()},
-		})
+
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist"})
 		return
 	}
+
 	var inventory ansible.Inventory
-	if err := db.Inventories().FindId(bson.ObjectIdHex(ID)).One(&inventory); err != nil {
+	if err := db.Inventories().FindId(bson.ObjectIdHex(objectID)).One(&inventory); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist",
-			Log: log.Fields{"Error": err.Error()},
+			Log: log.Fields{
+				"Inventory ID": objectID,
+				"Error":  err.Error(),
+			},
 		})
 		return
 	}

@@ -39,19 +39,19 @@ type JobTemplateController struct{}
 // This function takes CTXJobTemplateID from Gin Context and retrieves job template data from the collection
 // and store job template data under key CTXJobTemplate in Gin Context
 func (ctrl JobTemplateController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cJobTemplateID, c)
+	objectID := c.Params.ByName(cJobTemplateID)
 	user := c.MustGet(cUser).(common.User)
 
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job template does not exist"})
 		return
 	}
 
 	var jobTemplate ansible.JobTemplate
-	if err = db.JobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate); err != nil {
+	if err := db.JobTemplates().FindId(bson.ObjectIdHex(objectID)).One(&jobTemplate); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
 			Log: log.Fields{
-				"Job Template ID": ID,
+				"Job Template ID": objectID,
 				"Error":           err.Error(),
 			},
 		})

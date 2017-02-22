@@ -34,21 +34,22 @@ type GroupController struct{}
 // This function takes host_id parameter from the Gin Context and fetches host data from the database
 // it will set host data under key host in the Gin Context.
 func (ctrl GroupController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cGroupID, c)
+	objectID := c.Params.ByName(cGroupID)
 	user := c.MustGet(cUser).(common.User)
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Group does not exist",
-			Log: log.Fields{"Error": err.Error()},
-		})
+
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Group does not exist"})
 		return
 	}
 
 	var group ansible.Group
-	err = db.Groups().FindId(bson.ObjectIdHex(ID)).One(&group)
-
+	err := db.Groups().FindId(bson.ObjectIdHex(objectID)).One(&group)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Group does not exist",
-			Log: log.Fields{"Error": err.Error()},
+			Log: log.Fields{
+				"Group ID": objectID,
+				"Error":  err.Error(),
+			},
 		})
 		return
 	}

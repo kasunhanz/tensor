@@ -33,24 +33,20 @@ type OrganizationController struct{}
 // This function takes CTXOrganizationID from Gin Context and retrieves organization data from the collection
 // and store organization data under key CTXOrganization in Gin Context
 func (ctrl OrganizationController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cOrganizationID, c)
+	objectID := c.Params.ByName(cOrganizationID)
 	user := c.MustGet(cUser).(common.User)
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist",
-			Log: log.Fields{
-				"Organization ID": ID,
-				"Error":           err.Error(),
-			},
-		})
+
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist"})
 		return
 	}
 
 	var organization common.Organization
-	if err = db.Organizations().FindId(bson.ObjectIdHex(ID)).One(&organization); err != nil {
+	if err := db.Organizations().FindId(bson.ObjectIdHex(objectID)).One(&organization); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist",
 			Log: log.Fields{
-				"Organization ID": ID,
-				"Error":           err.Error(),
+				"Organization ID": objectID,
+				"Error":  err.Error(),
 			},
 		})
 		return

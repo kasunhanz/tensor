@@ -38,25 +38,21 @@ type ProjectController struct{}
 // This function takes CTXProjectID from Gin Context and retrieves project data from the collection
 // and store credential data under key CTXProject in Gin Context
 func (ctrl ProjectController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cProjectID, c)
+	objectID := c.Params.ByName(cProjectID)
 	user := c.MustGet(cUser).(common.User)
 
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist",
-			Log: log.Fields{
-				"Project ID": ID,
-				"Error":      err.Error(),
-			},
-		})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist"})
 		return
 	}
 
+
 	var project common.Project
-	err = db.Projects().FindId(bson.ObjectIdHex(ID)).One(&project)
+	err := db.Projects().FindId(bson.ObjectIdHex(objectID)).One(&project)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist",
 			Log: log.Fields{
-				"Project ID": ID,
+				"Project ID": objectID,
 				"Error":      err.Error(),
 			},
 		})

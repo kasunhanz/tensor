@@ -22,8 +22,7 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 	credential := c.MustGet(cCredential).(common.Credential)
 
 	var organization common.Organization
-	err := db.Organizations().FindId(credential.OrganizationID).One(&organization)
-	if err != nil {
+	if err := db.Organizations().FindId(credential.OrganizationID).One(&organization); err != nil {
 		log.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
@@ -369,7 +368,7 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 }
 
 func (ctrl TeamController) AccessList(c *gin.Context) {
-	team := c.MustGet(CTXTeam).(common.Team)
+	team := c.MustGet(cTeam).(common.Team)
 
 	var organization common.Organization
 	err := db.Organizations().FindId(team.OrganizationID).One(&organization)

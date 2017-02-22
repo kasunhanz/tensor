@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTerraformJobTemplate   = "job_template"
+	cTerraformJobTemplate = "job_template"
 	cTerraformJobTemplateID = "job_template_id"
 )
 
@@ -39,19 +39,19 @@ type TJobTmplController struct{}
 // This function takes CTXTerraformJobTemplateID from Gin Context and retrieves terraform job template data from the collection
 // and store terraform job template data under key CTXTerraformJobTemplate in Gin Context
 func (ctrl TJobTmplController) Middleware(c *gin.Context) {
-	ID, err := util.GetIdParam(cTerraformJobTemplateID, c)
+	objectID := c.Params.ByName(cTerraformJobTemplateID)
 	user := c.MustGet(cUser).(common.User)
 
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist"})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job template does not exist"})
 		return
 	}
 
 	var jobTemplate terraform.JobTemplate
-	if err = db.TerrafromJobTemplates().FindId(bson.ObjectIdHex(ID)).One(&jobTemplate); err != nil {
+	if err := db.TerrafromJobTemplates().FindId(bson.ObjectIdHex(objectID)).One(&jobTemplate); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
 			Log: log.Fields{
-				"Job Template ID": ID,
+				"Job Template ID": objectID,
 				"Error":           err.Error(),
 			},
 		})

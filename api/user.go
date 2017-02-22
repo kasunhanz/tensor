@@ -31,21 +31,20 @@ const (
 type UserController struct{}
 
 func (ctrl UserController) Middleware(c *gin.Context) {
-	userID, err := util.GetIdParam(cUserID, c)
+	objectID := c.Params.ByName(cUserID)
 	loginUser := c.MustGet(cUser).(common.User)
 
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "User does not exist",
-			Log: log.Fields{"Error": err.Error()},
-		})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "User does not exist"})
 		return
 	}
 
 	var user common.User
-	err = db.Users().FindId(bson.ObjectIdHex(userID)).One(&user)
-	if err != nil {
+	if err := db.Users().FindId(bson.ObjectIdHex(objectID)).One(&user); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "User does not exist",
-			Log: log.Fields{"Error": err.Error()},
+			Log: log.Fields{
+				"User ID": objectID,
+				"Error": err.Error()},
 		})
 		return
 	}

@@ -34,20 +34,21 @@ type HostController struct{}
 // Middleware takes CTXHostID parameter from the Gin Context and fetches host data from the database
 // it set host data under key CTXHost in the Gin Context
 func (ctrl HostController) Middleware(c *gin.Context) {
+	objectID := c.Params.ByName(cHostID)
 	user := c.MustGet(cUser).(common.User)
-	ID, err := util.GetIdParam(cHostID, c)
 
-	if err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
-			Log: log.Fields{"Error": err.Error()},
-		})
+	if !bson.IsObjectIdHex(objectID) {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist"})
 		return
 	}
 
 	var host ansible.Host
-	if err := db.Hosts().FindId(bson.ObjectIdHex(ID)).One(&host); err != nil {
+	if err := db.Hosts().FindId(bson.ObjectIdHex(objectID)).One(&host); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
-			Log: log.Fields{"Error": err.Error()},
+			Log: log.Fields{
+				"Host ID": objectID,
+				"Error":  err.Error(),
+			},
 		})
 		return
 	}
