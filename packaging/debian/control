@@ -1,17 +1,17 @@
 Source: tensor
+Section: admin
+Priority: optional
+Standards-Version: 0.4.0
 Maintainer: Gamunu Balagalla <gamunu.balagalla@outlook.com>
-Homepage: https://gamunu.github.io/tensor/
-Vcs-Git: git://pearson.com/tensor.git
-Vcs-Browser: https://pearson.com/tensor.git
+Homepage: https://pearsonappeng.github.io
+Vcs-Git: git://github.com/pearsonappeng/tensor.git
+Vcs-Browser: https://github.com/pearsonappeng/tensor.git
 Build-Depends: cdbs, debhelper (>= 5.0.0)
 
 Package: tensor
 Architecture: amd64
 Depends: python-minimal (>= 2.7), ansible (>= 2.2), git (>= 2.7), adduser, ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}
 Recommends: python-dev (>=2.7), libkrb5-dev (>= 1.13), krb5-user (>= 1.13), python-kerberos, python-xmltodict, python-requests-kerberos, subversion (>=1.9), mercurial (>=3.7)
-Section: admin
-Priority: extra
-Homepage: https://gamunu.github.io/tensor/
 Description: Comprehensive web-based automation framework and
  Centralized infrastructure management platform,
  provides role-based access control, job scheduling, inventory management.
