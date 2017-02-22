@@ -177,20 +177,8 @@ rpm: rpmcommon
 	@echo "#############################################"
 
 # Build tensor docker image and tag with current version
-docker-build-image: deb
-	cp build/deb-build/xenial/*.deb packaging/docker/tensor/tensor.deb
+docker-build:
 	cd packaging/docker/tensor/ && docker build -t gamunu/tensor:$(VERSION) -t gamunu/tensor:latest .
-
-# Build using docker compose file located in packaging/docker/docker-compose.yml
-docker-build: docker-build-image
-	cp build/deb-build/xenial/*.deb packaging/docker/tensor/tensor.deb
-	docker-compose -f packaging/docker/docker-compose.yml build
-
-# Build and Spin-up containers using docker compose file located in packaging/docker/docker-compose.yml
-docker-build-up: docker-build
-	cp build/deb-build/xenial/*.deb packaging/docker/tensor/tensor.deb
-	docker-compose -f packaging/docker/docker-compose.yml up
-
 
 # Spin-up, Remove, Stop containers using docker compose file located in packaging/docker/docker-compose.yml
 docker-stop:
@@ -202,17 +190,6 @@ docker-down:
 
 docker-up:
 	docker-compose -f packaging/docker/docker-compose.yml up
-
-# up, stop, down tensor container
-docker-up-tensor: docker-build-image
-	docker-compose -f packaging/docker/docker-compose.yml up tensor
-
-docker-stop-tensor:
-	docker-compose -f packaging/docker/docker-compose.yml stop tensor
-
-docker-rm-tensor:
-	docker-compose -f packaging/docker/docker-compose.yml rm tensor
-
 
 # Serve godoc
 # requres: sudo apt install golang-golang-x-tools (ubuntu)
