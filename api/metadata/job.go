@@ -11,8 +11,8 @@ import (
 func JobMetadata(job *ansible.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
-	job.URL = "/v1/jobs/" + ID
 	related := gin.H{
+		"self":"/v1/jobs/" + ID,
 		"labels":             "/v1/jobs/" + ID + "/labels",
 		"project":            "/v1/projects/" + job.ProjectID.Hex(),
 		"stdout":             "/v1/jobs/" + ID + "/stdout",
@@ -47,7 +47,7 @@ func JobMetadata(job *ansible.Job) {
 		related["job_template"] = "/v1/job_templates/" + job.JobTemplateID.Hex()
 	}
 
-	job.Related = related
+	job.Links = related
 	JobSummary(job)
 }
 
@@ -179,5 +179,5 @@ func JobSummary(job *ansible.Job) {
 		}
 	}
 
-	job.Summary = summary
+	job.Meta = summary
 }

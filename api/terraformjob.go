@@ -128,7 +128,7 @@ func (ctrl TerraformJobController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  jobs[pgi.Skip():pgi.End()],
+		Data:  jobs[pgi.Skip():pgi.End()],
 	})
 }
 

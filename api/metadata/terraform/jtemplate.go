@@ -13,8 +13,8 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "job_template"
-	jt.URL = "/v1/terraform/job_templates/" + ID
 	related := gin.H{
+		"self":"/v1/terraform/job_templates/" + ID,
 		"created_by":                     "/v1/terraform/users/" + jt.CreatedByID.Hex(),
 		"modified_by":                    "/v1/terraform/users/" + jt.ModifiedByID.Hex(),
 		"labels":                         "/v1/terraform/job_templates/" + ID + "/labels",
@@ -38,7 +38,7 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 		related["credential"] = "/v1/terraform/credentials/" + (*jt.MachineCredentialID).Hex()
 	}
 
-	jt.Related = related
+	jt.Links = related
 
 	jTemplateSummary(jt)
 }
@@ -198,5 +198,5 @@ func jTemplateSummary(jt *terraform.JobTemplate) {
 		summary["recent_jobs"] = a
 	}
 
-	jt.Summary = summary
+	jt.Meta = summary
 }

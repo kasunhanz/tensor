@@ -134,7 +134,7 @@ func (ctrl GroupController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  groups[pgi.Skip():pgi.End()],
+		Data:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -441,6 +441,6 @@ func (ctrl GroupController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }

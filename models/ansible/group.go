@@ -30,10 +30,9 @@ type Group struct {
 	Modified                 time.Time `bson:"modified" json:"modified"`
 
 	Type                     string  `bson:"-" json:"type"`
-	URL                      string  `bson:"-" json:"url"`
 	Children                 []Group `bson:"-" json:"children,omitempty"`
-	Related                  gin.H   `bson:"-" json:"related"`
-	Summary                  gin.H   `bson:"-" json:"summary_fields"`
+	Links                    gin.H   `bson:"-" json:"links"`
+	Meta                     gin.H   `bson:"-" json:"meta"`
 	LastJob                  gin.H   `bson:"-" json:"last_job"`
 	LastJobHostSummary       gin.H   `bson:"-" json:"last_job_host_summary"`
 }

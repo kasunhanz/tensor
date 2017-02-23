@@ -8,8 +8,8 @@ import (
 // Create a new organization
 func UserMetadata(u *common.User) {
 	u.Type = "user"
-	u.URL = "/v1/users/" + u.ID.Hex()
-	u.Related = gin.H{
+	u.Links = gin.H{
+		"self": "/v1/users/" + u.ID.Hex(),
 		"admin_of_organizations": "/v1/users/" + u.ID.Hex() + "/admin_of_organizations",
 		"organizations":          "/v1/users/" + u.ID.Hex() + "/organizations",
 		"roles":                  "/v1/users/" + u.ID.Hex() + "/roles",
@@ -23,8 +23,8 @@ func UserMetadata(u *common.User) {
 
 func AccessUserMetadata(u *common.AccessUser) {
 	u.Type = "user"
-	u.URL = "/v1/users/" + u.ID.Hex()
 	u.Related = gin.H{
+		"self": "/v1/users/" + u.ID.Hex(),
 		"admin_of_organizations": "/v1/users/" + u.ID.Hex() + "/admin_of_organizations",
 		"organizations":          "/v1/users/" + u.ID.Hex() + "/organizations",
 		"roles":                  "/v1/users/" + u.ID.Hex() + "/roles",

@@ -130,7 +130,7 @@ func (ctrl OrganizationController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  organizations[pgi.Skip():pgi.End()],
+		Data:  organizations[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -434,7 +434,7 @@ func (ctrl OrganizationController) GetUsers(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  users[pgi.Skip():pgi.End()],
+		Data:  users[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -496,7 +496,7 @@ func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  users[pgi.Skip():pgi.End()],
+		Data:  users[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -528,7 +528,7 @@ func (ctrl OrganizationController) GetTeams(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  teams[pgi.Skip():pgi.End()],
+		Data:  teams[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -560,7 +560,7 @@ func (ctrl OrganizationController) GetProjects(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  projects[pgi.Skip():pgi.End()],
+		Data:  projects[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -592,7 +592,7 @@ func (ctrl OrganizationController) GetInventories(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  inventories[pgi.Skip():pgi.End()],
+		Data:  inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -628,7 +628,7 @@ func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  credentials[pgi.Skip():pgi.End()],
+		Data:  credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -667,6 +667,6 @@ func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }

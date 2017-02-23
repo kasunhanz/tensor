@@ -135,7 +135,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  credentials[pgi.Skip():pgi.End()],
+		Data:  credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -525,7 +525,7 @@ func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  tms[pgi.Skip():pgi.End()],
+		Data:  tms[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -566,7 +566,7 @@ func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  usrs[pgi.Skip():pgi.End()],
+		Data:  usrs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -614,6 +614,6 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }

@@ -11,8 +11,8 @@ func CredentialMetadata(c *common.Credential) {
 
 	ID := c.ID.Hex()
 	c.Type = "credential"
-	c.URL = "/v1/credentials/" + ID
 	related := gin.H{
+		"self": "/v1/credentials/" + ID,
 		"created_by":      "/v1/users/" + c.CreatedByID.Hex(),
 		"modified_by":     "/v1/users/" + c.ModifiedByID.Hex(),
 		"owner_teams":     "/v1/credentials/" + ID + "/owner_teams",
@@ -27,7 +27,7 @@ func CredentialMetadata(c *common.Credential) {
 		related["organization"] = "/api/v1/organizations/" + (*c.OrganizationID).Hex()
 	}
 
-	c.Related = related
+	c.Links = related
 	credentialSummary(c)
 }
 
@@ -159,5 +159,5 @@ func credentialSummary(c *common.Credential) {
 
 	summary["owners"] = owners
 
-	c.Summary = summary
+	c.Meta = summary
 }

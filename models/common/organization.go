@@ -10,22 +10,21 @@ import (
 
 // Organization is the model for organization collection
 type Organization struct {
-	ID      bson.ObjectId `bson:"_id" json:"id"`
-	Type    string        `bson:"-" json:"type"`
-	URL     string        `bson:"-" json:"url"`
-	Related gin.H         `bson:"-" json:"related"`
-	Summary gin.H         `bson:"-" json:"summary_fields"`
+	ID           bson.ObjectId `bson:"_id" json:"id"`
+	Type         string        `bson:"-" json:"type"`
+	Links        gin.H         `bson:"-" json:"links"`
+	Meta         gin.H         `bson:"-" json:"meta"`
 
-	Name        string `bson:"name" json:"name" binding:"required,min=1,max=500"`
-	Description string `bson:"description" json:"description"`
+	Name         string `bson:"name" json:"name" binding:"required,min=1,max=500"`
+	Description  string `bson:"description" json:"description"`
 
 	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
 	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Created  time.Time `bson:"created" json:"created"`
-	Modified time.Time `bson:"modified" json:"modified"`
+	Created      time.Time `bson:"created" json:"created"`
+	Modified     time.Time `bson:"modified" json:"modified"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles        []AccessControl `bson:"roles" json:"-"`
 }
 
 func (Organization) GetType() string {

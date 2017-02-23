@@ -9,7 +9,7 @@ import (
 // Inventory collection
 // TODO: not implemented
 type InventorySource struct {
-	ID bson.ObjectId `bson:"_id" json:"id"`
+	ID                 bson.ObjectId `bson:"_id" json:"id"`
 
 	Source             string        `bson:"source" json:"source"`
 	SourcePath         string        `bson:"source_path" json:"source_path"`
@@ -26,10 +26,9 @@ type InventorySource struct {
 	InventoryID        bson.ObjectId `bson:"inventory_id" json:"inventory"`
 	SourceScriptID     bson.ObjectId `bson:"source_script_id" json:"source_script"`
 
-	Type          string `bson:"-" json:"type"`
-	URL           string `bson:"-" json:"url"`
-	Related       gin.H  `bson:"-" json:"related"`
-	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
+	Type               string `bson:"-" json:"type"`
+	Links              gin.H  `bson:"-" json:"links"`
+	Meta               gin.H  `bson:"-" json:"meta"`
 }
 
 func (*InventorySource) GetType() string {

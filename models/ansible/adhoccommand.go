@@ -25,9 +25,8 @@ type AdHocCommand struct {
 	Modified      time.Time     `bson:"modified" json:"modified"`
 
 	Type          string `bson:"-" json:"type"`
-	URL           string `bson:"-" json:"url"`
-	Related       gin.H  `bson:"-" json:"related"`
-	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
+	Links         gin.H  `bson:"-" json:"links"`
+	Meta          gin.H  `bson:"-" json:"meta"`
 }
 
 type AdHocCommandEvent struct {
@@ -41,8 +40,7 @@ type AdHocCommandEvent struct {
 	HostID         bson.ObjectId `bson:"host_id" json:"host"`
 	AdHocCommandID bson.ObjectId `bson:"ad_hoc_command_id" json:"ad_hoc_command_id"`
 
-	Type          string `bson:"-" json:"type"`
-	URL           string `bson:"-" json:"url"`
-	Related       gin.H  `bson:"-" json:"related"`
-	SummaryFields gin.H  `bson:"-" json:"summary_fields"`
+	Type           string `bson:"-" json:"type"`
+	Links          gin.H  `bson:"-" json:"links"`
+	Meta           gin.H  `bson:"-" json:"meta"`
 }

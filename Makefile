@@ -2,7 +2,7 @@
 
 NAME = tensor
 OS = $(shell uname -s)
-DEB_OS = $(shell lsb_release -si)
+-DEB_OS = $(shell lsb_release -si)
 
 # VERSION file provides one place to update the software version
 VERSION := $(shell cat VERSION | cut -f1 -d' ')

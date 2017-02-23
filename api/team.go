@@ -128,7 +128,7 @@ func (ctrl TeamController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  teams[pgi.Skip():pgi.End()],
+		Data:  teams[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -409,7 +409,7 @@ func (ctrl TeamController) Users(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  usrs[pgi.Skip():pgi.End()],
+		Data:  usrs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -471,7 +471,7 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  credentials[pgi.Skip():pgi.End()],
+		Data:  credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -524,7 +524,7 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  projects[pgi.Skip():pgi.End()],
+		Data:  projects[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -569,7 +569,7 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }
 

@@ -153,7 +153,7 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  jobTemplates[pgi.Skip():pgi.End()],
+		Data:  jobTemplates[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -648,7 +648,7 @@ func (ctrl TJobTmplController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -697,7 +697,7 @@ func (ctrl TJobTmplController) Jobs(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  jbs[pgi.Skip():pgi.End()],
+		Data:  jbs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -1001,7 +1001,7 @@ func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  roles[pgi.Skip():pgi.End()],
+		Data:  roles[pgi.Skip():pgi.End()],
 	})
 
 }

@@ -13,8 +13,8 @@ func InventoryMetadata(i *ansible.Inventory) {
 
 	ID := i.ID.Hex()
 	i.Type = "inventory"
-	i.URL = "/v1/inventories/" + ID
-	i.Related = gin.H{
+	i.Links = gin.H{
+		"self": "/v1/inventories/" + ID,
 		"created_by":         "/v1/users/" + i.CreatedByID.Hex(),
 		"job_templates":      "/v1/inventories/" + ID + "/job_templates",
 		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates",
@@ -120,5 +120,5 @@ func inventorySummary(i *ansible.Inventory) {
 		}
 	}
 
-	i.Summary = summary
+	i.Meta = summary
 }

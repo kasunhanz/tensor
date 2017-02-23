@@ -13,8 +13,8 @@ func HostMetadata(host *ansible.Host) {
 
 	ID := host.ID.Hex()
 	host.Type = "host"
-	host.URL = "/v1/hosts/" + ID
-	host.Related = gin.H{
+	host.Links = gin.H{
+		"self": "/v1/hosts/" + ID,
 		"created_by":            "/v1/users/" + host.CreatedByID.Hex(),
 		"modified_by":           "/v1/users/" + host.CreatedByID.Hex(),
 		"job_host_summaries":    "/v1/hosts/" + ID + "/job_host_summaries",
@@ -98,5 +98,5 @@ func hostSummary(host *ansible.Host) {
 		}
 	}
 
-	host.Summary = summary
+	host.Meta = summary
 }

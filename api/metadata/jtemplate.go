@@ -14,8 +14,8 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 
 	ID := jt.ID.Hex()
 	jt.Type = "job_template"
-	jt.URL = "/v1/job_templates/" + ID
 	related := gin.H{
+		"self": "/v1/job_templates/" + ID,
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
 		"labels":                         "/v1/job_templates/" + ID + "/labels",
@@ -40,7 +40,7 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 		related["credential"] = "/v1/credentials/" + (*jt.MachineCredentialID).Hex()
 	}
 
-	jt.Related = related
+	jt.Links = related
 
 	jTemplateSummary(jt)
 }
@@ -223,5 +223,5 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 		summary["recent_jobs"] = a
 	}
 
-	jt.Summary = summary
+	jt.Meta = summary
 }

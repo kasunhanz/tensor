@@ -11,10 +11,9 @@ import (
 type ActivityJobTemplate struct {
 	ID        bson.ObjectId `bson:"_id" json:"id"`
 	Type      string        `bson:"-" json:"type"`
-	URL       string        `bson:"-" json:"url"`
 	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Related   gin.H         `bson:"-" json:"related"`
-	Summary   gin.H         `bson:"-" json:"summary_fields"`
+	Links     gin.H         `bson:"-" json:"links"`
+	Meta      gin.H         `bson:"-" json:"meta"`
 	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
 	Operation string        `bson:"operation" json:"operation"`
 	Object1   JobTemplate   `bson:"object1" json:"object1"`

@@ -11,25 +11,24 @@ import (
 // team is the model for organization
 // collection
 type Team struct {
-	ID bson.ObjectId `bson:"_id" json:"id"`
+	ID             bson.ObjectId `bson:"_id" json:"id"`
 
-	Type    string `bson:"-" json:"type"`
-	URL     string `bson:"-" json:"url"`
-	Related gin.H  `bson:"-" json:"related"`
-	Summary gin.H  `bson:"-" json:"summary_fields"`
+	Type           string `bson:"-" json:"type"`
+	Links          gin.H  `bson:"-" json:"links"`
+	Meta           gin.H  `bson:"-" json:"meta"`
 
 	Name           string        `bson:"name" json:"name" binding:"required,min=1,max=500"`
 	OrganizationID bson.ObjectId `bson:"organization_id" json:"organization" binding:"required"`
 
-	Description string `bson:"description,omitempty" json:"description"`
+	Description    string `bson:"description,omitempty" json:"description"`
 
-	CreatedByID  bson.ObjectId `bson:"created_by" json:"-"`
-	ModifiedByID bson.ObjectId `bson:"modified_by" json:"-"`
+	CreatedByID    bson.ObjectId `bson:"created_by" json:"-"`
+	ModifiedByID   bson.ObjectId `bson:"modified_by" json:"-"`
 
-	Created  time.Time `bson:"created" json:"created"`
-	Modified time.Time `bson:"modified" json:"modified"`
+	Created        time.Time `bson:"created" json:"created"`
+	Modified       time.Time `bson:"modified" json:"modified"`
 
-	Roles []AccessControl `bson:"roles" json:"-"`
+	Roles          []AccessControl `bson:"roles" json:"-"`
 }
 
 func (Team) GetType() string {

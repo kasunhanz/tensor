@@ -134,7 +134,7 @@ func (ctrl HostController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  hosts[pgi.Skip():pgi.End()],
+		Data:  hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -447,7 +447,7 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 			Count:    nobj,
 			Next:     pgi.NextPage(),
 			Previous: pgi.PreviousPage(),
-			Results:  outobjects[pgi.Limit():pgi.Offset()],
+			Data:  outobjects[pgi.Limit():pgi.Offset()],
 		})
 		return
 	}
@@ -492,6 +492,6 @@ func (ctrl HostController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }

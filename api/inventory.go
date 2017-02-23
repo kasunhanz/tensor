@@ -132,7 +132,7 @@ func (ctrl InventoryController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  inventories[pgi.Skip():pgi.End()],
+		Data:  inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -546,7 +546,7 @@ func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  jobTemplate[pgi.Skip():pgi.End()],
+		Data:  jobTemplate[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -589,7 +589,7 @@ func (ctrl InventoryController) RootGroups(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  groups[pgi.Skip():pgi.End()],
+		Data:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -625,7 +625,7 @@ func (ctrl InventoryController) Groups(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  groups[pgi.Skip():pgi.End()],
+		Data:  groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -662,7 +662,7 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  hosts[pgi.Skip():pgi.End()],
+		Data:  hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -703,7 +703,7 @@ func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  activities[pgi.Skip():pgi.End()],
+		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -783,7 +783,7 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Results:  groups[pgi.Skip():pgi.End()],
+		Data:  groups[pgi.Skip():pgi.End()],
 	})
 }
 

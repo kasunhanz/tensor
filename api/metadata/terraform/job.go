@@ -12,8 +12,8 @@ import (
 func JobMetadata(job *terraform.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
-	job.URL = "/v1/terraform/jobs/" + ID
 	related := gin.H{
+		"self": "/v1/terraform/jobs/" + ID,
 		"labels":          "/v1/terraform/jobs/" + ID + "/labels",
 		"project":         "/v1/terraform/projects/" + job.ProjectID.Hex(),
 		"stdout":          "/v1/terraform/jobs/" + ID + "/stdout",
@@ -40,7 +40,7 @@ func JobMetadata(job *terraform.Job) {
 		related["job_template"] = "/v1/terraform/job_templates/" + job.JobTemplateID.Hex()
 	}
 
-	job.Related = related
+	job.Links = related
 	JobSummary(job)
 }
 
@@ -146,5 +146,5 @@ func JobSummary(job *terraform.Job) {
 		}
 	}
 
-	job.Summary = summary
+	job.Meta = summary
 }
