@@ -215,7 +215,7 @@ lint:
 
 # run tensor locally using reflex 
 run:
-	reflex -r '\.go$$' -s -d none -- sh -c 'go run tensord/main.go'
+	reflex -r '\.go$$' -s -- sh -c 'go run tensord/main.go'
 
 runsetup:
 	go run cmd/main.go -setup

@@ -18,7 +18,7 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 		"self": "/v1/job_templates/" + ID,
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
-		"labels":                         "/v1/job_templates/" + ID + "/labels",
+		"labels":                         "/v1/terraform_job_templates/" + ID + "/labels",
 		"inventory":                      "/v1/inventories/" + jt.InventoryID.Hex(),
 		"project":                        "/v1/projects/" + jt.ProjectID.Hex(),
 		"notification_templates_error":   "/v1/job_templates/" + ID + "/notification_templates_error",

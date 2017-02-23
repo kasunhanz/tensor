@@ -28,7 +28,7 @@ import (
 
 // Keys for project related items stored in the Gin Context
 const (
-	cProject = "project"
+	cProject   = "project"
 	cProjectID = "project_id"
 )
 
@@ -45,6 +45,7 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist"})
 		return
 	}
+
 
 	var project common.Project
 	err := db.Projects().FindId(bson.ObjectIdHex(objectID)).One(&project)
@@ -69,7 +70,7 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE":
+	case "PUT", "DELETE", "PATCH":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, project) {
@@ -395,7 +396,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
 			}
 		}
 		return nil

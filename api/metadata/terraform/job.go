@@ -13,15 +13,15 @@ func JobMetadata(job *terraform.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
 	related := gin.H{
-		"self": "/v1/terraform/jobs/" + ID,
-		"labels":          "/v1/terraform/jobs/" + ID + "/labels",
-		"project":         "/v1/terraform/projects/" + job.ProjectID.Hex(),
-		"stdout":          "/v1/terraform/jobs/" + ID + "/stdout",
-		"notifications":   "/v1/terraform/jobs/" + ID + "/notifications",
-		"activity_stream": "/v1/terraform/jobs/" + ID + "/activity_stream",
-		"start":           "/v1/terraform/jobs/" + ID + "/start",
-		"cancel":          "/v1/terraform/jobs/" + ID + "/cancel",
-		"relaunch":        "/v1/terraform/jobs/" + ID + "/relaunch",
+		"self": "/v1/terraform_jobs/" + ID,
+		"labels":          "/v1/terraform_jobs/" + ID + "/labels",
+		"project":         "/v1/projects/" + job.ProjectID.Hex(),
+		"stdout":          "/v1/terraform_jobs/" + ID + "/stdout",
+		"notifications":   "/v1/terraform_jobs/" + ID + "/notifications",
+		"activity_stream": "/v1/terraform_jobs/" + ID + "/activity_stream",
+		"start":           "/v1/terraform_jobs/" + ID + "/start",
+		"cancel":          "/v1/terraform_jobs/" + ID + "/cancel",
+		"relaunch":        "/v1/terraform_jobs/" + ID + "/relaunch",
 	}
 
 	if len(job.CreatedByID) == 12 {

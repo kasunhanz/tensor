@@ -14,7 +14,6 @@ import (
 
 // Route defines all API endpoints
 func Route(r *gin.Engine) {
-
 	// Include CORS middleware to accept cross origin requests
 	// Apply the middleware to the router (works with groups too)
 	r.Use(cors.Middleware(cors.Config{
@@ -26,7 +25,6 @@ func Route(r *gin.Engine) {
 		Credentials:     true,
 		ValidateHeaders: false,
 	}))
-
 	// Handle 404
 	// this creates a response with standard error body
 	r.NoRoute(func(c *gin.Context) {
@@ -35,339 +33,274 @@ func Route(r *gin.Engine) {
 			Errors: []string{"Not found"},
 		})
 	})
-
-	r.GET("", util.GetAPIVersion)
-
+	r.GET("", GetAPIVersion)
 	v1 := r.Group("v1")
 	{
-		v1.GET("/", util.GetAPIInfo)
-		v1.GET("/ping", util.GetPing)
+		v1.GET("/", GetAPIInfo)
+		v1.GET("/ping", GetPing)
 		v1.GET("/queue", QueueStats)
 		v1.POST("/authtoken", jwt.HeaderAuthMiddleware.LoginHandler)
 
-		// Include jwt authentication middleware
 		v1.Use(jwt.HeaderAuthMiddleware.MiddlewareFunc())
 		{
 			dashboard := new(DashBoardController)
 			users := new(UserController)
-
 			v1.GET("/refresh_token", jwt.HeaderAuthMiddleware.RefreshHandler)
 			v1.GET("/config", getSystemInfo)
 			v1.GET("/dashboard", dashboard.GetInfo)
 			v1.GET("/me", users.One)
 
-			organizations := new(OrganizationController)
-			// Organizations endpoints
-			orgz := v1.Group("/organizations")
+			organizations := v1.Group("/organizations")
 			{
-				orgz.GET("", organizations.All)
-				orgz.POST("", organizations.Create)
-
-				org := orgz.Group("/:organization_id", organizations.Middleware)
+				ctrl := new(OrganizationController)
+				organizations.GET("", ctrl.All)
+				organizations.POST("", ctrl.Create)
+				organization := organizations.Group("/:organization_id", ctrl.Middleware)
 				{
-					org.GET("", organizations.One)
-					org.PUT("", organizations.Update)
-					org.DELETE("", organizations.Delete)
-
-					// 'Organization' related endpoints
-					org.GET("/users", organizations.GetUsers)
-					org.GET("/inventories", organizations.GetInventories)
-					org.GET("/activity_stream", organizations.ActivityStream)
-					org.GET("/projects", organizations.GetProjects)
-					org.GET("/admins", organizations.GetAdmins)
-					org.GET("/teams", organizations.GetTeams)
-					org.GET("/credentials", organizations.GetCredentials)
-
-					org.GET("/notification_templates_error", notImplemented)   //TODO: implement
-					org.GET("/notification_templates_success", notImplemented) //TODO: implement
-					org.GET("/object_roles", notImplemented)                   //TODO: implement
-					org.GET("/notification_templates", notImplemented)         //TODO: implement
-					org.GET("/notification_templates_any", notImplemented)     //TODO: implement
-					org.GET("/access_list", notImplemented)                    //TODO: implement
+					organization.GET("", ctrl.One)
+					organization.PUT("", ctrl.Update)
+					organization.DELETE("", ctrl.Delete)
+					organization.GET("/users", ctrl.GetUsers)
+					organization.GET("/inventories", ctrl.GetInventories)
+					organization.GET("/activity_stream", ctrl.ActivityStream)
+					organization.GET("/projects", ctrl.GetProjects)
+					organization.GET("/admins", ctrl.GetAdmins)
+					organization.GET("/teams", ctrl.GetTeams)
+					organization.GET("/credentials", ctrl.GetCredentials)
+					organization.GET("/object_roles", notImplemented)                   //TODO: implement
+					organization.GET("/access_list", notImplemented)                    //TODO: implement
+					organization.GET("/notification_templates_error", notImplemented)   //TODO: implement
+					organization.GET("/notification_templates_success", notImplemented) //TODO: implement
+					organization.GET("/notification_templates", notImplemented)         //TODO: implement
+					organization.GET("/notification_templates_any", notImplemented)     //TODO: implement
 				}
 			}
 
-			usrs := v1.Group("/users")
+			groupUsers := v1.Group("/users")
 			{
-				// Users endpoints
-				usrs.GET("", users.All)
-				usrs.POST("", users.Create)
-
-				usr := usrs.Group("/:user_id", users.Middleware)
+				groupUsers.GET("", users.All)
+				groupUsers.POST("", users.Create)
+				user := groupUsers.Group("/:user_id", users.Middleware)
 				{
-					usr.GET("", users.One)
-					usr.PUT("", users.Update)
-					usr.DELETE("", users.Delete)
-					// 'User' related endpoints
-					usr.GET("/admin_of_organizations", users.AdminsOfOrganizations)
-					usr.GET("/organizations", users.Organizations)
-					usr.GET("/teams", users.Teams)
-					usr.GET("/credentials", users.Credentials)
-					usr.GET("/activity_stream", users.ActivityStream)
-					usr.GET("/projects", users.Projects)
-					usr.GET("/access_list", notImplemented) //TODO: implement
-
-					usr.GET("/roles", users.GetRoles)
-					usr.POST("/roles", users.AssignRole)
+					user.GET("", users.One)
+					user.PUT("", users.Update)
+					user.DELETE("", users.Delete)
+					user.GET("/admin_of_organizations", users.AdminsOfOrganizations)
+					user.GET("/organizations", users.Organizations)
+					user.GET("/teams", users.Teams)
+					user.GET("/credentials", users.Credentials)
+					user.GET("/activity_stream", users.ActivityStream)
+					user.GET("/projects", users.Projects)
+					user.GET("/roles", users.GetRoles)
+					user.POST("/roles", users.AssignRole)
+					user.GET("/access_list", notImplemented) //TODO: implement
 				}
 			}
 
-			prjcts := v1.Group("/projects")
+			projects := v1.Group("/projects")
 			{
-				projects := new(ProjectController)
-				// Projects endpoints
-				prjcts.GET("", projects.All)
-				prjcts.POST("", projects.Create)
-
-				prjct := prjcts.Group("/:project_id", projects.Middleware)
+				ctrl := new(ProjectController)
+				projects.GET("", ctrl.All)
+				projects.POST("", ctrl.Create)
+				project := projects.Group("/:project_id", ctrl.Middleware)
 				{
-					prjct.GET("", projects.One)
-					prjct.PUT("", projects.Update)
-					prjct.DELETE("", projects.Delete)
-
-					// 'Project' related endpoints
-					prjct.GET("/activity_stream", projects.ActivityStream)
-					prjct.GET("/teams", projects.OwnerTeams)
-					prjct.GET("/playbooks", projects.Playbooks)
-					prjct.GET("/access_list", projects.AccessList)
-					prjct.GET("/update", projects.SCMUpdateInfo)
-					prjct.POST("/update", projects.SCMUpdate)
-					prjct.GET("/project_updates", projects.ProjectUpdates)
-
-					prjct.GET("/schedules", notImplemented) //TODO: implement
+					project.GET("", ctrl.One)
+					project.PUT("", ctrl.Update)
+					project.DELETE("", ctrl.Delete)
+					project.GET("/activity_stream", ctrl.ActivityStream)
+					project.GET("/teams", ctrl.OwnerTeams)
+					project.GET("/playbooks", ctrl.Playbooks)
+					project.GET("/access_list", ctrl.AccessList)
+					project.GET("/update", ctrl.SCMUpdateInfo)
+					project.POST("/update", ctrl.SCMUpdate)
+					project.GET("/project_updates", ctrl.ProjectUpdates)
+					project.GET("/schedules", notImplemented) //TODO: implement
 				}
 			}
 
-			crdntls := v1.Group("/credentials")
+			credentials := v1.Group("/credentials")
 			{
-				credentials := new(CredentialController)
-				// Credentials endpoints
-				crdntls.GET("", credentials.All)
-				crdntls.POST("", credentials.Create)
-
-				crdntl := crdntls.Group("/:credential_id", credentials.Middleware)
+				ctrl := new(CredentialController)
+				credentials.GET("", ctrl.All)
+				credentials.POST("", ctrl.Create)
+				credential := credentials.Group("/:credential_id", ctrl.Middleware)
 				{
-					crdntl.GET("", credentials.One)
-					crdntl.PUT("", credentials.Update)
-					crdntl.DELETE("", credentials.Delete)
-
-					// 'Credential' related endpoints
-					crdntl.GET("/owner_teams", credentials.OwnerTeams)
-					crdntl.GET("/owner_users", credentials.OwnerUsers)
-					crdntl.GET("/activity_stream", credentials.ActivityStream)
-					crdntl.GET("/access_list", notImplemented)  //TODO: implement
-					crdntl.GET("/object_roles", notImplemented) //TODO: implement
+					credential.GET("", ctrl.One)
+					credential.PUT("", ctrl.Update)
+					credential.DELETE("", ctrl.Delete)
+					credential.GET("/owner_teams", ctrl.OwnerTeams)
+					credential.GET("/owner_users", ctrl.OwnerUsers)
+					credential.GET("/activity_stream", ctrl.ActivityStream)
+					credential.GET("/access_list", notImplemented)  //TODO: implement
+					credential.GET("/object_roles", notImplemented) //TODO: implement
 				}
 			}
 
-			tms := v1.Group("/teams")
+			teams := v1.Group("/teams")
 			{
-				teams := new(TeamController)
-				// Teams endpoints
-				tms.GET("", teams.All)
-				tms.POST("", teams.Create)
-
-				tm := tms.Group("/:team_id", teams.Middleware)
+				ctrl := new(TeamController)
+				teams.GET("", ctrl.All)
+				teams.POST("", ctrl.Create)
+				team := teams.Group("/:team_id", ctrl.Middleware)
 				{
-					tm.GET("", teams.One)
-					tm.PUT("", teams.Update)
-					tm.DELETE("", teams.Delete)
-
-					// 'Team' related endpoints
-					tm.GET("/users", teams.Users)
-					tm.GET("/credentials", teams.Credentials)
-					tm.GET("/projects", teams.Projects)
-					tm.GET("/activity_stream", teams.ActivityStream)
-					tm.GET("/access_list", teams.AccessList)
-
-					tm.GET("/roles", teams.GetRoles)
-					tm.POST("/roles", teams.AssignRole)
+					team.GET("", ctrl.One)
+					team.PUT("", ctrl.Update)
+					team.DELETE("", ctrl.Delete)
+					team.GET("/users", ctrl.Users)
+					team.GET("/credentials", ctrl.Credentials)
+					team.GET("/projects", ctrl.Projects)
+					team.GET("/activity_stream", ctrl.ActivityStream)
+					team.GET("/access_list", ctrl.AccessList)
+					team.GET("/roles", ctrl.GetRoles)
+					team.POST("/roles", ctrl.AssignRole)
 				}
 			}
 
-			invtrs := v1.Group("/inventories")
+			inventories := v1.Group("/inventories")
 			{
-				inventories := new(InventoryController)
-				// Inventories endpoints
-				invtrs.GET("", inventories.All)
-				invtrs.POST("", inventories.Create)
-
-				intr := invtrs.Group("/:inventory_id", inventories.Middleware)
+				ctrl := new(InventoryController)
+				inventories.GET("", ctrl.All)
+				inventories.POST("", ctrl.Create)
+				inventory := inventories.Group("/:inventory_id", ctrl.Middleware)
 				{
-					intr.GET("", inventories.One)
-					intr.PUT("", inventories.Update)
-					intr.DELETE("", inventories.Delete)
-					intr.GET("/script", inventories.Script)
-
-					// 'Inventory' related endpoints
-					intr.GET("/job_templates", inventories.JobTemplates)
-					intr.GET("/variable_data", inventories.VariableData)
-					intr.GET("/root_groups", inventories.RootGroups)
-					intr.GET("/ad_hoc_commands", notImplemented) //TODO: implement
-					intr.GET("/tree", inventories.Tree)          //TODO: implement
-					intr.GET("/access_list", inventories.AccessList)
-					intr.GET("/hosts", inventories.Hosts)
-					intr.GET("/groups", inventories.Groups)
-					intr.GET("/activity_stream", inventories.ActivityStream)
-					intr.GET("/inventory_sources", notImplemented) //TODO: implement
+					inventory.GET("", ctrl.One)
+					inventory.PUT("", ctrl.Update)
+					inventory.DELETE("", ctrl.Delete)
+					inventory.GET("/script", ctrl.Script)
+					inventory.GET("/job_templates", ctrl.JobTemplates)
+					inventory.GET("/variable_data", ctrl.VariableData)
+					inventory.GET("/root_groups", ctrl.RootGroups)
+					inventory.GET("/access_list", ctrl.AccessList)
+					inventory.GET("/hosts", ctrl.Hosts)
+					inventory.GET("/groups", ctrl.Groups)
+					inventory.GET("/activity_stream", ctrl.ActivityStream)
+					inventory.GET("/tree", ctrl.Tree)          //TODO: implement
+					inventory.GET("/inventory_sources", notImplemented) //TODO: implement
 				}
 			}
 
-			hsts := v1.Group("/hosts")
+			hosts := v1.Group("/hosts")
 			{
-				hosts := new(HostController)
-				// Hosts endpoints
-				hsts.GET("", hosts.All)
-				hsts.POST("", hosts.Create)
-
-				hst := hsts.Group("/:host_id", hosts.Middleware)
+				ctrl := new(HostController)
+				hosts.GET("", ctrl.All)
+				hosts.POST("", ctrl.Create)
+				host := hosts.Group("/:host_id", ctrl.Middleware)
 				{
-					hst.GET("", hosts.One)
-					hst.PUT("", hosts.Update)
-					hst.DELETE("", hosts.Delete)
-
-					// 'Host' related endpoints
-					hst.GET("/job_host_summaries", notImplemented) //TODO: implement
-					hst.GET("/job_events", notImplemented)         //TODO: implement
-					hst.GET("/ad_hoc_commands", notImplemented)    //TODO: implement
-					hst.GET("/inventory_sources", notImplemented)  //TODO: implement
-					hst.GET("/activity_stream", hosts.ActivityStream)
-					hst.GET("/ad_hoc_command_events", notImplemented) //TODO: implement
-					hst.GET("/variable_data", hosts.VariableData)
-					hst.GET("/groups", hosts.Groups)
-					hst.GET("/all_groups", hosts.AllGroups)
+					host.GET("", ctrl.One)
+					host.PUT("", ctrl.Update)
+					host.DELETE("", ctrl.Delete)
+					host.GET("/activity_stream", ctrl.ActivityStream)
+					host.GET("/variable_data", ctrl.VariableData)
+					host.GET("/groups", ctrl.Groups)
+					host.GET("/all_groups", ctrl.AllGroups)
+					host.GET("/job_host_summaries", notImplemented) //TODO: implement
+					host.GET("/job_events", notImplemented)         //TODO: implement
+					host.GET("/inventory_sources", notImplemented)  //TODO: implement
 				}
 			}
 
-			grps := v1.Group("/groups")
+			groups := v1.Group("/groups")
 			{
-				groups := new(GroupController)
-				// Groups endpoints
-				grps.GET("", groups.All)
-				grps.POST("", groups.Create)
-
-				grp := grps.Group("/:group_id", groups.Middleware)
+				ctrl := new(GroupController)
+				groups.GET("", ctrl.All)
+				groups.POST("", ctrl.Create)
+				group := groups.Group("/:group_id", ctrl.Middleware)
 				{
-					grp.GET("", groups.One)
-					grp.PUT("", groups.Update)
-					grp.DELETE("", groups.Delete)
-
-					// 'Group' related endpoints
-					grp.GET("/variable_data", groups.VariableData)
-					grp.GET("/job_events", notImplemented)         //TODO: implement
-					grp.GET("/potential_children", notImplemented) //TODO: implement
-					grp.GET("/ad_hoc_commands", notImplemented)    //TODO: implement
-					grp.GET("/all_hosts", notImplemented)          //TODO: implement
-					grp.GET("/activity_stream", groups.ActivityStream)
-					grp.GET("/hosts", notImplemented)              //TODO: implement
-					grp.GET("/children", notImplemented)           //TODO: implement
-					grp.GET("/job_host_summaries", notImplemented) //TODO: implement
+					group.GET("", ctrl.One)
+					group.PUT("", ctrl.Update)
+					group.DELETE("", ctrl.Delete)
+					group.GET("/variable_data", ctrl.VariableData)
+					group.GET("/activity_stream", ctrl.ActivityStream)
+					group.GET("/job_events", notImplemented)         //TODO: implement
+					group.GET("/potential_children", notImplemented) //TODO: implement
+					group.GET("/all_hosts", notImplemented)          //TODO: implement
+					group.GET("/hosts", notImplemented)              //TODO: implement
+					group.GET("/children", notImplemented)           //TODO: implement
+					group.GET("/job_host_summaries", notImplemented) //TODO: implement
 				}
 			}
 
-			ajtmps := v1.Group("/job_templates")
+			ansibleTemplates := v1.Group("/job_templates")
 			{
-				jtemplate := new(JobTemplateController)
-				// Job Templates endpoints for Ansible
-				ajtmps.GET("", jtemplate.All)
-				ajtmps.POST("", jtemplate.Create)
-
-				jtmp := ajtmps.Group("/:job_template_id", jtemplate.Middleware)
+				ctrl := new(JobTemplateController)
+				ansibleTemplates.GET("", ctrl.All)
+				ansibleTemplates.POST("", ctrl.Create)
+				template := ansibleTemplates.Group("/:job_template_id", ctrl.Middleware)
 				{
-					jtmp.GET("", jtemplate.One)
-					jtmp.PUT("", jtemplate.Update)
-					jtmp.DELETE("", jtemplate.Delete)
-
-					// 'Job Template' related endpoints
-					jtmp.GET("/jobs", jtemplate.Jobs)
-					jtmp.GET("/object_roles", jtemplate.ObjectRoles)
-					jtmp.GET("/access_list", jtemplate.AccessList)
-					jtmp.GET("/launch", jtemplate.LaunchInfo)
-					jtmp.POST("/launch", jtemplate.Launch)
-					jtmp.GET("/activity_stream", jtemplate.ActivityStream)
-
-					jtmp.GET("/schedules", notImplemented)                      //TODO: implement
-					jtmp.GET("/notification_templates_error", notImplemented)   //TODO: implement
-					jtmp.GET("/notification_templates_success", notImplemented) //TODO: implement
-					jtmp.GET("/notification_templates_any", notImplemented)     //TODO: implement
+					template.GET("", ctrl.One)
+					template.PUT("", ctrl.Update)
+					template.DELETE("", ctrl.Delete)
+					template.GET("/jobs", ctrl.Jobs)
+					template.GET("/object_roles", ctrl.ObjectRoles)
+					template.GET("/access_list", ctrl.AccessList)
+					template.GET("/launch", ctrl.LaunchInfo)
+					template.POST("/launch", ctrl.Launch)
+					template.GET("/activity_stream", ctrl.ActivityStream)
+					template.GET("/schedules", notImplemented)                      //TODO: implement
+					template.GET("/notification_templates_error", notImplemented)   //TODO: implement
+					template.GET("/notification_templates_success", notImplemented) //TODO: implement
+					template.GET("/notification_templates_any", notImplemented)     //TODO: implement
 				}
 			}
 
-			ajbs := v1.Group("/jobs")
+			ansibleJobs := v1.Group("/jobs")
 			{
-				jobs := new(JobController)
-				// Jobs endpoints for Ansible
-				ajbs.GET("", jobs.All)
-
-				jb := ajbs.Group("/:job_id", jobs.Middleware)
+				ctrl := new(JobController)
+				ansibleJobs.GET("", ctrl.All)
+				job := ansibleJobs.Group("/:job_id", ctrl.Middleware)
 				{
-					jb.GET("", jobs.One)
-					jb.GET("/cancel", jobs.CancelInfo)
-					jb.POST("/cancel", jobs.Cancel)
-					jb.GET("/stdout", jobs.StdOut)
-
-					// 'Job' related endpoints
-					jb.GET("/job_tasks", notImplemented)       //TODO: implement
-					jb.GET("/job_plays", notImplemented)       //TODO: implement
-					jb.GET("/job_events", notImplemented)      //TODO: implement
-					jb.GET("/notifications", notImplemented)   //TODO: implement
-					jb.GET("/activity_stream", notImplemented) //TODO: implement
-					jb.GET("/start", notImplemented)           //TODO: implement
-					jb.GET("/relaunch", notImplemented)        //TODO: implement
+					job.GET("", ctrl.One)
+					job.GET("/cancel", ctrl.CancelInfo)         //TODO: implement
+					job.POST("/cancel", ctrl.Cancel)            //TODO: implement
+					job.GET("/stdout", ctrl.StdOut)
+					job.GET("/job_tasks", notImplemented)       //TODO: implement
+					job.GET("/job_plays", notImplemented)       //TODO: implement
+					job.GET("/job_events", notImplemented)      //TODO: implement
+					job.GET("/notifications", notImplemented)   //TODO: implement
+					job.GET("/activity_stream", notImplemented) //TODO: implement
+					job.GET("/start", notImplemented)           //TODO: implement
+					job.GET("/relaunch", notImplemented)        //TODO: implement
 				}
 			}
 
-			terraform := v1.Group("/terraform")
+			terraformTemplate := v1.Group("/terraform_job_templates")
 			{
-				tjtmps := terraform.Group("/job_templates")
+				ctrl := new(TJobTmplController)
+				terraformTemplate.GET("", ctrl.All)
+				terraformTemplate.POST("", ctrl.Create)
+				template := terraformTemplate.Group("/:job_template_id", ctrl.Middleware)
 				{
-					tjtemplate := new(TJobTmplController)
-					// Job Templates endpoints for Terraform
-					tjtmps.GET("", tjtemplate.All)
-					tjtmps.POST("", tjtemplate.Create)
-
-					jtmp := tjtmps.Group("/:job_template_id", tjtemplate.Middleware)
-					{
-						jtmp.GET("", tjtemplate.One)
-						jtmp.PUT("", tjtemplate.Update)
-						jtmp.DELETE("", tjtemplate.Delete)
-
-						// 'Job Template' endpoints
-						jtmp.GET("/jobs", tjtemplate.Jobs)
-						jtmp.GET("/object_roles", tjtemplate.ObjectRoles)
-						jtmp.GET("/access_list", tjtemplate.AccessList)
-						jtmp.GET("/launch", tjtemplate.LaunchInfo)
-						jtmp.POST("/launch", tjtemplate.Launch)
-						jtmp.GET("/activity_stream", tjtemplate.ActivityStream)
-
-						jtmp.GET("/schedules", notImplemented)                      //TODO: implement
-						jtmp.GET("/notification_templates_error", notImplemented)   //TODO: implement
-						jtmp.GET("/notification_templates_success", notImplemented) //TODO: implement
-						jtmp.GET("/notification_templates_any", notImplemented)     //TODO: implement
-					}
+					template.GET("", ctrl.One)
+					template.PUT("", ctrl.Update)
+					template.DELETE("", ctrl.Delete)
+					template.GET("/jobs", ctrl.Jobs)
+					template.GET("/object_roles", ctrl.ObjectRoles)
+					template.GET("/access_list", ctrl.AccessList)
+					template.GET("/launch", ctrl.LaunchInfo)
+					template.POST("/launch", ctrl.Launch)
+					template.GET("/activity_stream", ctrl.ActivityStream)
+					template.GET("/schedules", notImplemented)                      //TODO: implement
+					template.GET("/notification_templates_error", notImplemented)   //TODO: implement
+					template.GET("/notification_templates_success", notImplemented) //TODO: implement
+					template.GET("/notification_templates_any", notImplemented)     //TODO: implement
 				}
+			}
 
-				tjbs := terraform.Group("/jobs")
+			terraformJobs := v1.Group("/terraform_jobs")
+			{
+				ctrl := new(TerraformJobController)
+				terraformJobs.GET("", ctrl.All)
+				job := terraformJobs.Group("/:job_id", ctrl.Middleware)
 				{
-					tjobs := new(TerraformJobController)
-					// Jobs endpoints for Terraform
-					tjbs.GET("", tjobs.All)
-
-					jb := tjbs.Group("/:job_id", tjobs.Middleware)
-					{
-						jb.GET("", tjobs.One)
-						jb.GET("/cancel", tjobs.CancelInfo)
-						jb.POST("/cancel", tjobs.Cancel)
-						jb.GET("/stdout", tjobs.StdOut)
-
-						// 'TerraformJob' endpoints
-						jb.GET("/notifications", notImplemented)   //TODO: implement
-						jb.GET("/activity_stream", notImplemented) //TODO: implement
-						jb.GET("/start", notImplemented)           //TODO: implement
-						jb.GET("/relaunch", notImplemented)        //TODO: implement
-					}
+					job.GET("", ctrl.One)
+					job.GET("/cancel", ctrl.CancelInfo)
+					job.POST("/cancel", ctrl.Cancel)
+					job.GET("/stdout", ctrl.StdOut)
+					job.GET("/notifications", notImplemented)   //TODO: implement
+					job.GET("/activity_stream", notImplemented) //TODO: implement
+					job.GET("/start", notImplemented)           //TODO: implement
+					job.GET("/relaunch", notImplemented)        //TODO: implement
 				}
-
 			}
 		}
 	}

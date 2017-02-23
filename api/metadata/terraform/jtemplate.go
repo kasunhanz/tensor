@@ -15,19 +15,19 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 	jt.Type = "job_template"
 	related := gin.H{
 		"self":"/v1/terraform/job_templates/" + ID,
-		"created_by":                     "/v1/terraform/users/" + jt.CreatedByID.Hex(),
-		"modified_by":                    "/v1/terraform/users/" + jt.ModifiedByID.Hex(),
+		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
+		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
 		"labels":                         "/v1/terraform/job_templates/" + ID + "/labels",
-		"project":                        "/v1/terraform/projects/" + jt.ProjectID.Hex(),
-		"notification_templates_error":   "/v1/terraform/job_templates/" + ID + "/notification_templates_error",
-		"notification_templates_success": "/v1/terraform/job_templates/" + ID + "/notification_templates_success",
-		"jobs":                       "/v1/terraform/job_templates/" + ID + "/jobs",
-		"object_roles":               "/v1/terraform/job_templates/" + ID + "/object_roles",
-		"notification_templates_any": "/v1/terraform/job_templates/" + ID + "/notification_templates_any",
-		"access_list":                "/v1/terraform/job_templates/" + ID + "/access_list",
-		"launch":                     "/v1/terraform/job_templates/" + ID + "/launch",
-		"schedules":                  "/v1/terraform/job_templates/" + ID + "/schedules",
-		"activity_stream":            "/v1/terraform/job_templates/" + ID + "/activity_stream",
+		"project":                        "/v1/projects/" + jt.ProjectID.Hex(),
+		"notification_templates_error":   "/v1/terraform_job_templates/" + ID + "/notification_templates_error",
+		"notification_templates_success": "/v1/terraform_job_templates/" + ID + "/notification_templates_success",
+		"jobs":                       "/v1/terraform_job_templates/" + ID + "/jobs",
+		"object_roles":               "/v1/terraform_job_templates/" + ID + "/object_roles",
+		"notification_templates_any": "/v1/terraform_job_templates/" + ID + "/notification_templates_any",
+		"access_list":                "/v1/terraform_job_templates/" + ID + "/access_list",
+		"launch":                     "/v1/terraform_job_templates/" + ID + "/launch",
+		"schedules":                  "/v1/terraform_job_templates/" + ID + "/schedules",
+		"activity_stream":            "/v1/terraform_job_templates/" + ID + "/activity_stream",
 	}
 
 	if jt.CurrentJobID != nil {
@@ -35,7 +35,7 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 	}
 
 	if jt.MachineCredentialID != nil {
-		related["credential"] = "/v1/terraform/credentials/" + (*jt.MachineCredentialID).Hex()
+		related["credential"] = "/v1/credentials/" + (*jt.MachineCredentialID).Hex()
 	}
 
 	jt.Links = related
