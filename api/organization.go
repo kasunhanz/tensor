@@ -23,7 +23,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cOrganization   = "organization"
+	cOrganization = "organization"
 	cOrganizationID = "organization_id"
 )
 
@@ -63,7 +63,7 @@ func (ctrl OrganizationController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "PATCH", "DELETE":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, organization) {
@@ -347,52 +347,6 @@ func (ctrl OrganizationController) Update(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating Organization",
 			Log:     log.Fields{"Organization ID": req.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	activity.AddOrganizationActivity(common.Update, user, tmpOrg, organization)
-	metadata.OrganizationMetadata(&organization)
-	c.JSON(http.StatusOK, organization)
-}
-
-// PatchOrganization is a Gin handler function which partially updates a organization using request payload.
-// This replaces specified fields in the data, empty "" fields will be
-// removed from the database object. Unspecified fields will be ignored.
-func (ctrl OrganizationController) Patch(c *gin.Context) {
-	organization := c.MustGet(cOrganization).(common.Organization)
-	user := c.MustGet(cUser).(common.User)
-	tmpOrg := organization
-
-	var req common.PatchOrganization
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	// since this is a patch request if the name specified check the
-	// Organization name is unique
-	if req.Name != nil && *req.Name != organization.Name {
-		organization.Name = strings.Trim(*req.Name, " ")
-		if !organization.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Organization with this Name already exists.",
-			})
-			return
-		}
-	}
-
-	if req.Description != nil {
-		organization.Description = strings.Trim(*req.Description, " ")
-	}
-	organization.Modified = time.Now()
-	organization.ModifiedByID = user.ID
-	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating Organization",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

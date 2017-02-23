@@ -69,13 +69,3 @@ func (host *Host) GroupExist() bool {
 	}
 	return false
 }
-
-type PatchHost struct {
-	Name        *string        `json:"name" binding:"omitempty,iphost"`
-	InventoryID *bson.ObjectId `json:"inventory"`
-	Description *string        `json:"description"`
-	GroupID     *bson.ObjectId `json:"group"`
-	InstanceID  *string        `json:"instance_id"`
-	Variables   *string        `json:"variables"`
-	Enabled     *bool          `json:"enabled"`
-}

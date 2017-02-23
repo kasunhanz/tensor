@@ -55,8 +55,3 @@ func (org Organization) Exist() bool {
 	}
 	return false
 }
-
-type PatchOrganization struct {
-	Name        *string `json:"name" binding:"omitempty,min=1,max=500"`
-	Description *string `json:"description"`
-}

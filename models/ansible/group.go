@@ -84,12 +84,3 @@ func (group *Group) InventoryExist() bool {
 	}
 	return false
 }
-
-// PatchGroup to support patch requests
-type PatchGroup struct {
-	Name          *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	Description   *string        `json:"description"`
-	Variables     *string        `json:"variables"`
-	InventoryID   *bson.ObjectId `json:"inventory"`
-	ParentGroupID *bson.ObjectId `json:"parent_group"`
-}

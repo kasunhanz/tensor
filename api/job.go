@@ -58,7 +58,7 @@ func (ctrl JobController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.WriteByID(user, job.JobTemplateID) {

@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cJobTemplate   = "job_template"
+	cJobTemplate = "job_template"
 	cJobTemplateID = "job_template_id"
 )
 
@@ -69,7 +69,7 @@ func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "POST", "PATCH":
+	case "PUT", "POST":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, jobTemplate) {
@@ -457,191 +457,6 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
-	}
-
-	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
-	metadata.JTemplateMetadata(&jobTemplate)
-	c.JSON(http.StatusOK, jobTemplate)
-}
-
-// PatchJTemplate is a Gin handler function which partially updates a Job Template using request payload.
-// patch will only update fields which included in the POST body
-// A success returns 200 status code
-// A failure returns 500 status code
-// if the request body is invalid returns serialized Error model with 400 status code
-func (ctrl JobTemplateController) Patch(c *gin.Context) {
-	jobTemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
-	tmpJobTemplate := jobTemplate
-	user := c.MustGet(cUser).(common.User)
-	var req ansible.PatchJobTemplate
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	if req.ProjectID != nil {
-		jobTemplate.ProjectID = *req.ProjectID
-		if !jobTemplate.ProjectExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Project does not exists.",
-			})
-			return
-		}
-
-		if !new(rbac.Project).ReadByID(user, jobTemplate.ProjectID) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-		}
-	}
-
-	if req.Name != nil && *req.Name != jobTemplate.Name {
-		jobTemplate.Name = strings.Trim(*req.Name, " ")
-
-		if !jobTemplate.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Job Template with this name already exists.",
-			})
-			return
-		}
-	}
-
-	roles := new(rbac.Credential)
-	if req.MachineCredentialID != nil {
-		jobTemplate.MachineCredentialID = req.MachineCredentialID
-		if !jobTemplate.MachineCredentialExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Machine Credential does not exists"},
-			})
-			return
-		}
-
-		if !roles.ReadByID(user, *req.MachineCredentialID) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-			return
-		}
-	}
-
-	// check whether the network credential exist or not
-	if req.NetworkCredentialID != nil {
-		jobTemplate.NetworkCredentialID = req.NetworkCredentialID
-
-		if !jobTemplate.NetworkCredentialExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Network credential does not exists"},
-			})
-			return
-		}
-
-		if !roles.ReadByID(user, *req.NetworkCredentialID) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-			return
-		}
-	}
-
-	// check whether the network credential exist or not
-	if req.CloudCredentialID != nil {
-		jobTemplate.CloudCredentialID = req.CloudCredentialID
-
-		if !jobTemplate.CloudCredentialExist() {
-			c.JSON(http.StatusBadRequest, common.Error{
-				Code:   http.StatusBadRequest,
-				Errors: []string{"Cloud credential does not exists"},
-			})
-			return
-		}
-
-		if !roles.ReadByID(user, *req.CloudCredentialID) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-			return
-		}
-	}
-
-	if req.JobType != nil {
-		jobTemplate.JobType = *req.JobType
-	}
-	if req.InventoryID != nil {
-		jobTemplate.InventoryID = *req.InventoryID
-	}
-	if req.Playbook != nil {
-		jobTemplate.Playbook = *req.Playbook
-	}
-	if req.Verbosity != nil {
-		jobTemplate.Verbosity = *req.Verbosity
-	}
-	if req.Description != nil {
-		jobTemplate.Description = strings.Trim(*req.Description, " ")
-	}
-	if req.Forks != nil {
-		jobTemplate.Forks = *req.Forks
-	}
-	if req.Limit != nil {
-		jobTemplate.Limit = *req.Limit
-	}
-	if req.ExtraVars != nil {
-		jobTemplate.ExtraVars = *req.ExtraVars
-	}
-	if req.JobTags != nil {
-		jobTemplate.JobTags = *req.JobTags
-	}
-	if req.SkipTags != nil {
-		jobTemplate.SkipTags = *req.SkipTags
-	}
-	if req.StartAtTask != nil {
-		jobTemplate.StartAtTask = *req.StartAtTask
-	}
-	if req.ForceHandlers != nil {
-		jobTemplate.ForceHandlers = *req.ForceHandlers
-	}
-	if req.PromptVariables != nil {
-		jobTemplate.PromptVariables = *req.PromptVariables
-	}
-	if req.BecomeEnabled != nil {
-		jobTemplate.BecomeEnabled = *req.BecomeEnabled
-	}
-	if req.PromptLimit != nil {
-		jobTemplate.PromptLimit = *req.PromptLimit
-	}
-	if req.PromptInventory != nil {
-		jobTemplate.PromptInventory = *req.PromptInventory
-	}
-	if req.PromptCredential != nil {
-		jobTemplate.PromptCredential = *req.PromptCredential
-	}
-	if req.PromptJobType != nil {
-		jobTemplate.PromptJobType = *req.PromptJobType
-	}
-	if req.PromptTags != nil {
-		jobTemplate.PromptTags = *req.PromptTags
-	}
-	if req.PromptSkipTags != nil {
-		jobTemplate.PromptSkipTags = *req.PromptSkipTags
-	}
-	if req.AllowSimultaneous != nil {
-		jobTemplate.AllowSimultaneous = *req.AllowSimultaneous
-	}
-	if req.PolymorphicCtypeID != nil {
-		jobTemplate.PolymorphicCtypeID = req.PolymorphicCtypeID
-	}
-	jobTemplate.Modified = time.Now()
-	jobTemplate.ModifiedByID = user.ID
-
-	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating job template",
-			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
-		})
-		return
 	}
 
 	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)

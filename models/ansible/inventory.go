@@ -75,12 +75,3 @@ func (inv *Inventory) OrganizationExist() bool {
 func (inv Inventory) GetRoles() []common.AccessControl {
 	return inv.Roles
 }
-
-// PatchInventory is the model for patch requests
-type PatchInventory struct {
-	// required fields
-	Name           *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	OrganizationID *bson.ObjectId `json:"organization"`
-	Description    *string        `json:"description"`
-	Variables      *string        `json:"variables"`
-}

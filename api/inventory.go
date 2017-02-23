@@ -65,7 +65,7 @@ func (ctrl InventoryController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have inventory write permissions
 			if !roles.Write(user, inventory) {
@@ -254,77 +254,6 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
 	}
 
-	activity.AddInventoryActivity(common.Update, user, tmpInventory, inventory)
-	metadata.InventoryMetadata(&inventory)
-	c.JSON(http.StatusOK, inventory)
-}
-
-// PatchInventory is a Gin handler function which partially updates a inventory using request payload.
-// This replaces specified fields in the data, empty "" fields will be
-// removed from the database object. unspecified fields will be ignored.
-func (ctrl InventoryController) Patch(c *gin.Context) {
-	inventory := c.MustGet(cInventory).(ansible.Inventory)
-	tmpInventory := inventory
-	user := c.MustGet(cUser).(common.User)
-
-	var req ansible.PatchInventory
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	if req.OrganizationID != nil {
-		inventory.OrganizationID = *req.OrganizationID
-		// check whether the organization exist or not
-		if !inventory.OrganizationExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Organization does not exist.",
-			})
-			return
-		}
-		// Check whether the user has permissions to associate the inventory with organization
-		if !(rbac.HasGlobalRead(user) || rbac.HasOrganizationRead(inventory.OrganizationID, user.ID)) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-			return
-		}
-	}
-
-	if req.Name != nil && *req.Name != inventory.Name {
-		inventory.Name = strings.Trim(*req.Name, " ")
-		if !inventory.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Inventory with this name already exists.",
-			})
-			return
-		}
-	}
-
-	if req.Description != nil {
-		inventory.Description = strings.Trim(*req.Description, " ")
-	}
-	if req.Variables != nil {
-		inventory.Variables = *req.Variables
-	}
-	inventory.Modified = time.Now()
-	inventory.ModifiedByID = user.ID
-	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating inventory",
-			Log:     log.Fields{"Credential ID": inventory.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	roles := new(rbac.Inventory)
-	if !(rbac.HasGlobalWrite(user) || rbac.IsOrganizationAdmin(inventory.OrganizationID, user.ID)) {
-		roles.Associate(inventory.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
-	}
-
-	// add new activity to activity stream
 	activity.AddInventoryActivity(common.Update, user, tmpInventory, inventory)
 	metadata.InventoryMetadata(&inventory)
 	c.JSON(http.StatusOK, inventory)

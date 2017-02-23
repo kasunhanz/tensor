@@ -195,33 +195,3 @@ func (jt *JobTemplate) CloudCredentialExist() bool {
 func (jt JobTemplate) GetRoles() []common.AccessControl {
 	return jt.Roles
 }
-
-type PatchJobTemplate struct {
-	Name                *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	JobType             *string        `json:"job_type" binding:"omitempty,jobtype"`
-	InventoryID         *bson.ObjectId `json:"inventory"`
-	ProjectID           *bson.ObjectId `json:"project"`
-	Playbook            *string        `json:"playbook"`
-	MachineCredentialID *bson.ObjectId `json:"credential"`
-	Verbosity           *uint8         `json:"verbosity" binding:"omitempty,min=0,max=5"`
-	Description         *string        `json:"description"`
-	Forks               *uint8         `json:"forks"`
-	Limit               *string        `json:"limit" binding:"omitempty,max=1024"`
-	ExtraVars           *gin.H         `json:"extra_vars"`
-	JobTags             *string        `json:"job_tags" binding:"omitempty,max=1024"`
-	SkipTags            *string        `json:"skip_tags" binding:"omitempty,max=1024"`
-	StartAtTask         *string        `json:"start_at_task"`
-	ForceHandlers       *bool          `json:"force_handlers"`
-	PromptVariables     *bool          `json:"ask_variables_on_launch"`
-	BecomeEnabled       *bool          `json:"become_enabled"`
-	CloudCredentialID   *bson.ObjectId `json:"cloud_credential"`
-	NetworkCredentialID *bson.ObjectId `json:"network_credential"`
-	PromptLimit         *bool          `json:"ask_limit_on_launch"`
-	PromptInventory     *bool          `json:"ask_inventory_on_launch"`
-	PromptCredential    *bool          `json:"ask_credential_on_launch"`
-	PromptJobType       *bool          `json:"ask_job_type_on_launch"`
-	PromptTags          *bool          `json:"ask_tags_on_launch"`
-	PromptSkipTags      *bool          `json:"ask_skip_tags_on_launch"`
-	AllowSimultaneous   *bool          `json:"allow_simultaneous"`
-	PolymorphicCtypeID  *bson.ObjectId `json:"polymorphic_ctype"`
-}

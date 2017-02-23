@@ -64,7 +64,7 @@ func (ctrl HostController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have inventory write permissions
 			if !roles.WriteByID(user, host.InventoryID) {
@@ -254,86 +254,6 @@ func (ctrl HostController) Update(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating host.",
 			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	activity.AddHostActivity(common.Update, user, tmpHost, host)
-	metadata.HostMetadata(&host)
-	c.JSON(http.StatusOK, host)
-}
-
-// PatchHost is a Gin handler function which partially updates a credential using request payload.
-// This replaces specified fields in the database, empty "" fields will be
-// removed from the database object. Unspecified fields will ignored.
-func (ctrl HostController) Patch(c *gin.Context) {
-	host := c.MustGet(cHost).(ansible.Host)
-	tmpHost := host
-	user := c.MustGet(cUser).(common.User)
-
-	var req ansible.PatchHost
-
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	// check whether the inventory exist or not
-	if req.InventoryID != nil {
-		host.InventoryID = *req.InventoryID
-		if !host.InventoryExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Inventory does not exists.",
-			})
-			return
-		}
-	}
-
-	if req.Name != nil && *req.Name != host.Name {
-		host.Name = strings.Trim(*req.Name, " ")
-		if !host.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Host with this Name and Inventory already exists.",
-			})
-			return
-		}
-	}
-
-	// check whether the group exist or not
-	if req.GroupID != nil  && !host.GroupExist() {
-		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-			Message: "Group does not exists.",
-		})
-		return
-	}
-	if req.Description != nil {
-		host.Description = *req.Description
-	}
-	if req.GroupID != nil {
-		if len(*req.GroupID) == 12 {
-			host.GroupID = req.GroupID
-		} else {
-			host.GroupID = nil
-		}
-	}
-	if req.InstanceID != nil {
-		host.InstanceID = *req.InstanceID
-	}
-	if req.Variables != nil {
-		host.Variables = *req.Variables
-	}
-	if req.Enabled != nil {
-		host.Enabled = *req.Enabled
-	}
-	host.Modified = time.Now()
-	host.ModifiedByID = user.ID
-
-	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating host",
-			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

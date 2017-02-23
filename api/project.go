@@ -28,7 +28,7 @@ import (
 
 // Keys for project related items stored in the Gin Context
 const (
-	cProject   = "project"
+	cProject = "project"
 	cProjectID = "project_id"
 )
 
@@ -45,7 +45,6 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist"})
 		return
 	}
-
 
 	var project common.Project
 	err := db.Projects().FindId(bson.ObjectIdHex(objectID)).One(&project)
@@ -70,7 +69,7 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, project) {
@@ -331,119 +330,6 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, project)
 }
 
-// PatchProject partially updates a project
-// this only updates given files in the request payload
-func (ctrl ProjectController) Patch(c *gin.Context) {
-	project := c.MustGet(cProject).(common.Project)
-	tmpProject := project
-	user := c.MustGet(cUser).(common.User)
-
-	var req common.PatchProject
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	if req.OrganizationID != nil {
-		project.OrganizationID = *req.OrganizationID
-		if !project.OrganizationExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Organization does not exists.",
-			})
-			return
-		}
-
-		// Check whether the user has permissions to associate the credential with organization
-		if !(rbac.HasGlobalRead(user) || rbac.HasOrganizationRead(project.OrganizationID, user.ID)) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-			return
-		}
-	}
-
-	if req.Name != nil && *req.Name != project.Name {
-		// if a project exists within the Organization, reject the request
-		if !project.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Project with this Name and Organization already exists.",
-			})
-			return
-		}
-	}
-
-	// check whether the ScmCredential exist
-	// if the credential is empty
-	if req.ScmCredentialID != nil {
-		project.ScmCredentialID = req.ScmCredentialID
-		if !project.SCMCredentialExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "SCM Credential does not exists.",
-			})
-			return
-		}
-	}
-
-	// trim strings white space
-	if req.Name != nil {
-		project.Name = strings.Trim(*req.Name, " ")
-	}
-	if req.Description != nil {
-		project.Description = strings.Trim(*req.Description, " ")
-	}
-	if req.ScmType != nil {
-		project.ScmType = *req.ScmType
-	}
-	if req.Description != nil {
-		project.Description = *req.Description
-	}
-	if req.ScmURL != nil {
-		project.ScmURL = *req.ScmURL
-	}
-	if req.ScmBranch != nil {
-		project.ScmBranch = *req.ScmBranch
-	}
-	if req.ScmClean != nil {
-		project.ScmClean = *req.ScmClean
-	}
-	if req.ScmDeleteOnUpdate != nil {
-		project.ScmDeleteOnUpdate = *req.ScmDeleteOnUpdate
-	}
-	if req.ScmDeleteOnNextUpdate != nil {
-		project.ScmDeleteOnNextUpdate = *req.ScmDeleteOnNextUpdate
-	}
-	if req.ScmUpdateOnLaunch != nil {
-		project.ScmUpdateOnLaunch = *req.ScmUpdateOnLaunch
-	}
-	if req.ScmUpdateCacheTimeout != nil {
-		project.ScmUpdateCacheTimeout = *req.ScmUpdateCacheTimeout
-	}
-	project.ModifiedByID = user.ID
-	project.Modified = time.Now()
-
-	// update object
-	if err := db.Projects().UpdateId(project.ID, project); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating project",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-	// before set metadata update the project
-	if sysJobID, err := sync.UpdateProject(project); err != nil {
-		log.WithFields(log.Fields{
-			"SystemJob ID": sysJobID.Job.ID.Hex(),
-			"Error":        err.Error(),
-		}).Errorln("Error while scm update")
-	}
-
-	activity.AddProjectActivity(common.Update, user, tmpProject, project)
-	metadata.ProjectMetadata(&project)
-	c.JSON(http.StatusOK, project)
-}
-
 // RemoveProject is a Gin handler function which removes a project object from the database
 func (ctrl ProjectController) Delete(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
@@ -509,7 +395,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
 			}
 		}
 		return nil

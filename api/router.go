@@ -19,7 +19,7 @@ func Route(r *gin.Engine) {
 	// Apply the middleware to the router (works with groups too)
 	r.Use(cors.Middleware(cors.Config{
 		Origins:         "*",
-		Methods:         "POST, GET, OPTIONS, PUT, PATCH, DELETE",
+		Methods:         "POST, GET, OPTIONS, PUT, DELETE",
 		RequestHeaders:  "X-Requested-With, Content-Type, Origin, Authorization, Accept, Client-Security-Token, Accept-Encoding, x-access-token",
 		ExposedHeaders:  "Content-Length",
 		MaxAge:          86400 * time.Second,
@@ -67,7 +67,6 @@ func Route(r *gin.Engine) {
 				{
 					org.GET("", organizations.One)
 					org.PUT("", organizations.Update)
-					org.PATCH("", organizations.Patch)
 					org.DELETE("", organizations.Delete)
 
 					// 'Organization' related endpoints
@@ -98,7 +97,6 @@ func Route(r *gin.Engine) {
 				{
 					usr.GET("", users.One)
 					usr.PUT("", users.Update)
-					usr.PATCH("", users.Patch)
 					usr.DELETE("", users.Delete)
 					// 'User' related endpoints
 					usr.GET("/admin_of_organizations", users.AdminsOfOrganizations)
@@ -125,7 +123,6 @@ func Route(r *gin.Engine) {
 				{
 					prjct.GET("", projects.One)
 					prjct.PUT("", projects.Update)
-					prjct.PATCH("", projects.Patch)
 					prjct.DELETE("", projects.Delete)
 
 					// 'Project' related endpoints
@@ -152,7 +149,6 @@ func Route(r *gin.Engine) {
 				{
 					crdntl.GET("", credentials.One)
 					crdntl.PUT("", credentials.Update)
-					crdntl.PATCH("", credentials.Patch)
 					crdntl.DELETE("", credentials.Delete)
 
 					// 'Credential' related endpoints
@@ -175,7 +171,6 @@ func Route(r *gin.Engine) {
 				{
 					tm.GET("", teams.One)
 					tm.PUT("", teams.Update)
-					tm.PATCH("", teams.Patch)
 					tm.DELETE("", teams.Delete)
 
 					// 'Team' related endpoints
@@ -201,7 +196,6 @@ func Route(r *gin.Engine) {
 				{
 					intr.GET("", inventories.One)
 					intr.PUT("", inventories.Update)
-					intr.PATCH("", inventories.Patch)
 					intr.DELETE("", inventories.Delete)
 					intr.GET("/script", inventories.Script)
 
@@ -230,7 +224,6 @@ func Route(r *gin.Engine) {
 				{
 					hst.GET("", hosts.One)
 					hst.PUT("", hosts.Update)
-					hst.PATCH("", hosts.Patch)
 					hst.DELETE("", hosts.Delete)
 
 					// 'Host' related endpoints
@@ -257,7 +250,6 @@ func Route(r *gin.Engine) {
 				{
 					grp.GET("", groups.One)
 					grp.PUT("", groups.Update)
-					grp.PATCH("", groups.Patch)
 					grp.DELETE("", groups.Delete)
 
 					// 'Group' related endpoints
@@ -284,7 +276,6 @@ func Route(r *gin.Engine) {
 				{
 					jtmp.GET("", jtemplate.One)
 					jtmp.PUT("", jtemplate.Update)
-					jtmp.PATCH("", jtemplate.Patch)
 					jtmp.DELETE("", jtemplate.Delete)
 
 					// 'Job Template' related endpoints
@@ -339,7 +330,6 @@ func Route(r *gin.Engine) {
 					{
 						jtmp.GET("", tjtemplate.One)
 						jtmp.PUT("", tjtemplate.Update)
-						jtmp.PATCH("", tjtemplate.Patch)
 						jtmp.DELETE("", tjtemplate.Delete)
 
 						// 'Job Template' endpoints

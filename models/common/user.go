@@ -54,16 +54,6 @@ func (user User) IsUniqueEmail() bool {
 	return true
 }
 
-type PatchUser struct {
-	Username        *string `json:"username" binding:"omitempty,min=1,max=30"`
-	FirstName       *string `json:"first_name" binding:"omitempty,min=1,max=30"`
-	LastName        *string `json:"last_name" binding:"omitempty,min=1,max=30"`
-	Email           *string `json:"email" binding:"omitempty,email"`
-	IsSuperUser     *bool   `json:"is_superuser"`
-	IsSystemAuditor *bool   `json:"is_system_auditor"`
-	Password        *string `json:"password"`
-}
-
 type AccessUser struct {
 	ID              bson.ObjectId `bson:"_id" json:"id"`
 	Type            string        `bson:"-" json:"type"`

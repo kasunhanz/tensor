@@ -61,9 +61,3 @@ func (team Team) OrganizationExist() bool {
 	}
 	return false
 }
-
-type PatchTeam struct {
-	Name           *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	OrganizationID *bson.ObjectId `json:"organization"`
-	Description    *string        `json:"description"`
-}

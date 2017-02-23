@@ -140,18 +140,3 @@ func (jt *JobTemplate) CloudCredentialExist() bool {
 	}
 	return false
 }
-
-type PatchJobTemplate struct {
-	Name                *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	JobType             *string        `json:"job_type" binding:"omitempty,terraform_jobtype"`
-	ProjectID           *bson.ObjectId `json:"project"`
-	MachineCredentialID *bson.ObjectId `json:"credential"`
-	Description         *string        `json:"description"`
-	Vars                *gin.H         `json:"vars"`
-	PromptVariables     *bool          `json:"ask_variables_on_launch"`
-	CloudCredentialID   *bson.ObjectId `json:"cloud_credential"`
-	NetworkCredentialID *bson.ObjectId `json:"network_credential"`
-	PromptCredential    *bool          `json:"ask_credential_on_launch"`
-	PromptJobType       *bool          `json:"ask_job_type_on_launch"`
-	AllowSimultaneous   *bool          `json:"allow_simultaneous"`
-}

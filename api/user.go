@@ -9,8 +9,6 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	"strings"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
@@ -60,7 +58,7 @@ func (ctrl UserController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(loginUser, user) {
@@ -238,65 +236,6 @@ func (ctrl UserController) Update(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating user.",
 			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	activity.AddUserActivity(common.Update, actor, tmpUser, user)
-	user.Password = "$encrypted$"
-	metadata.UserMetadata(&user)
-	c.JSON(http.StatusOK, user)
-}
-
-func (ctrl UserController) Patch(c *gin.Context) {
-	actor := c.MustGet(cUser).(common.User)
-	user := c.MustGet("_user").(common.User)
-	tmpUser := user
-
-	var req common.PatchUser
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	if req.Email != nil {
-		user.Email = *req.Email
-		if user.Email != *req.Email && !user.IsUniqueEmail() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Email is alredy in use.",
-			})
-			return
-		}
-	}
-
-	if req.Username != nil {
-		user.Username = strings.Trim(*req.Username, " ")
-
-		if user.Username != *req.Username && !user.IsUniqueUsername() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Username is alredy in use.",
-			})
-			return
-		}
-	}
-
-	if req.FirstName != nil {
-		user.FirstName = *req.FirstName
-	}
-	if req.LastName != nil {
-		user.LastName = *req.LastName
-	}
-	if req.Password != nil && *req.Password != "$encrypted$" {
-		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(*req.Password), 11)
-		user.Password = string(pwdHash)
-	}
-	user.Modified = time.Now()
-	if err := db.Users().UpdateId(user.ID, user); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating user.",
-			Log:     log.Fields{"Host ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

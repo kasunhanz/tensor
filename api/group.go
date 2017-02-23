@@ -65,7 +65,7 @@ func (ctrl GroupController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have inventory write permissions
 			if !roles.WriteByID(user, group.InventoryID) {
@@ -266,78 +266,6 @@ func (ctrl GroupController) Update(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating group.",
 			Log:     log.Fields{"Group ID": req.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	activity.AddGroupActivity(common.Update, user, tmpGroup, group)
-	metadata.GroupMetadata(&group)
-	c.JSON(http.StatusOK, group)
-}
-
-// PatchGroup is a Gin handler function which partially updates a group using request payload.
-// This replaces specified fields in the database, empty "" fields will be
-// removed from the database object. Unspecified fields will be ignored.
-func (ctrl GroupController) Patch(c *gin.Context) {
-	group := c.MustGet(cGroup).(ansible.Group)
-	tmpGroup := group
-	user := c.MustGet(cUser).(common.User)
-
-	var req ansible.PatchGroup
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	// check whether the inventory exist or not
-	if req.InventoryID != nil {
-		group.InventoryID = *req.InventoryID
-		if !group.InventoryExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Inventory does not exists.",
-			})
-			return
-		}
-	}
-
-	// since this is a patch request if the name specified check the
-	// inventory name is unique
-	if req.Name != nil && *req.Name != group.Name {
-		group.Name = strings.Trim(*req.Name, " ")
-		// if the group exist in the collection it is not unique
-		if !group.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Group with this Name and Inventory already exists.",
-			})
-			return
-		}
-	}
-
-	// check whether the group exist or not
-	if req.ParentGroupID != nil && *req.ParentGroupID != group.ID {
-		group.ParentGroupID = req.ParentGroupID
-		if !group.ParentExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Parent Group does not exists.",
-			})
-			return
-		}
-	}
-
-	if req.Description != nil {
-		group.Description = strings.Trim(*req.Description, " ")
-	}
-	if req.Variables != nil {
-		group.Variables = *req.Variables
-	}
-	group.Modified = time.Now()
-	group.ModifiedByID = user.ID
-	if err := db.Groups().UpdateId(group.ID, group); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating group",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

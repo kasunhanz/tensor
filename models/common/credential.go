@@ -156,29 +156,3 @@ func (crd Credential) OrganizationExist() bool {
 	}
 	return false
 }
-
-type PatchCredential struct {
-	Name              *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	Kind              *string        `json:"kind" binding:"omitempty,credential_kind"`
-	Cloud             *bool          `json:"cloud"`
-	Description       *string        `json:"description"`
-	Host              *string        `json:"host"`
-	Username          *string        `json:"username"`
-	Password          *string        `json:"password"`
-	SecurityToken     *string        `json:"security_token"`
-	Project           *string        `json:"project"`
-	Domain            *string        `json:"domain"`
-	SSHKeyData        *string        `json:"ssh_key_data"`
-	SSHKeyUnlock      *string        `json:"ssh_key_unlock"`
-	BecomeMethod      *string        `json:"become_method" binding:"omitempty,become_method"`
-	BecomeUsername    *string        `json:"become_username"`
-	BecomePassword    *string        `json:"become_password"`
-	VaultPassword     *string        `json:"vault_password"`
-	Subscription      *string        `json:"subscription"`
-	Tenant            *string        `json:"tenant"`
-	Secret            *string        `json:"secret"`
-	Client            *string        `json:"client"`
-	Authorize         *bool          `json:"authorize"`
-	AuthorizePassword *string        `json:"authorize_password"`
-	OrganizationID    *bson.ObjectId `json:"organization"`
-}

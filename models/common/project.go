@@ -105,19 +105,3 @@ func (project *Project) SCMCredentialExist() bool {
 	}
 	return false
 }
-
-// PatchProject is the model for PATCH requests
-type PatchProject struct {
-	Name                  *string        `json:"name" binding:"omitempty,min=1,max=500"`
-	ScmType               *string        `json:"scm_type" binding:"omitempty,scmtype"`
-	OrganizationID        *bson.ObjectId `json:"organization"`
-	Description           *string        `json:"description"`
-	ScmURL                *string        `json:"scm_url" binding:"omitempty,url"`
-	ScmBranch             *string        `json:"scm_branch"`
-	ScmClean              *bool          `json:"scm_clean"`
-	ScmDeleteOnUpdate     *bool          `json:"scm_delete_on_update"`
-	ScmCredentialID       *bson.ObjectId `json:"credential"`
-	ScmDeleteOnNextUpdate *bool          `json:"scm_delete_on_next_update"`
-	ScmUpdateOnLaunch     *bool          `json:"scm_update_on_launch"`
-	ScmUpdateCacheTimeout *int           `json:"scm_update_cache_timeout"`
-}

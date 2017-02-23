@@ -58,7 +58,7 @@ func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "POST", "PATCH":
+	case "PUT", "POST":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.WriteByID(user, job.JobTemplateID) {

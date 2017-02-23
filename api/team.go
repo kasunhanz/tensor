@@ -61,7 +61,7 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "DELETE", "PATCH":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, team) {
@@ -230,74 +230,6 @@ func (ctrl TeamController) Update(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating team.",
 			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
-		})
-		return
-	}
-
-	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
-	metadata.TeamMetadata(&team)
-	c.JSON(http.StatusOK, team)
-}
-
-// PatchTeam is a Gin handler function which partially updates a team using request payload.
-// This replaces specified fields in the data, empty "" fields will be
-// removed from the database object. Unspecified fields will be ignored.
-func (ctrl TeamController) Patch(c *gin.Context) {
-	team := c.MustGet(cTeam).(common.Team)
-	tmpTeam := team
-	user := c.MustGet(cUser).(common.User)
-	var req common.PatchTeam
-	if err := binding.JSON.Bind(c.Request, &req); err != nil {
-		AbortWithErrors(c, http.StatusBadRequest,
-			"Invalid JSON body",
-			validate.GetValidationErrors(err)...)
-		return
-	}
-
-	if req.OrganizationID != nil {
-		team.OrganizationID = *req.OrganizationID
-		if !team.OrganizationExist() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Organization does not exists.",
-			})
-			return
-		}
-
-		if !new(rbac.Organization).WriteByID(user, team.OrganizationID) {
-			AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
-				Message: "You don't have sufficient permissions to perform this action.",
-			})
-		}
-	}
-
-	if req.Name != nil && *req.Name != team.Name {
-		team.Name = strings.Trim(*req.Name, " ")
-
-		if req.OrganizationID != nil {
-			team.OrganizationID = *req.OrganizationID
-		}
-		// if the team exist in the collection it is not unique
-		if !team.IsUnique() {
-			AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
-				Message: "Team with this name and organization already exists.",
-			})
-			return
-		}
-	}
-
-	if req.Description != nil {
-		team.Description = strings.Trim(*req.Description, " ")
-	}
-	if req.OrganizationID != nil {
-		team.OrganizationID = *req.OrganizationID
-	}
-	team.Modified = time.Now()
-	team.ModifiedByID = user.ID
-
-	if err := db.Teams().UpdateId(team.ID, team); err != nil {
-		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while updating team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
