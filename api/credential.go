@@ -446,18 +446,69 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
-
 	if pgi.HasPage() {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
 			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
 		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
 		Data:  activities[pgi.Skip():pgi.End()],
+	})
+}
+
+
+// ObjectRoles is a Gin handler function
+// This returns available roles can be associated with a Credential model
+func (ctrl CredentialController) ObjectRoles(c *gin.Context) {
+	credential := c.MustGet(cCredential).(common.Credential)
+
+	roles := []gin.H{
+		{
+			"type": "role",
+			"related": gin.H{
+				"credential": "/v1/credentials/" + credential.ID.Hex(),
+			},
+			"summary_fields": gin.H{
+				"resource_name": credential.Name,
+				"resource_type": "credential",
+				"resource_type_display_name": "Credential",
+			},
+			"name": "admin",
+			"description": "Can manage all aspects of the credential",
+		},
+		{
+			"type": "role",
+			"links": gin.H{
+				"credential": "/v1/credentials/" + credential.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": credential.Name,
+				"resource_type": "credential",
+				"resource_type_display_name": "Credential",
+			},
+			"name": "use",
+			"description": "Can use the credential in a job template",
+		},
+	}
+
+	count := len(roles)
+	pgi := util.NewPagination(c, count)
+	if pgi.HasPage() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, common.Response{
+		Count:    count,
+		Next:     pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Data:  roles[pgi.Skip():pgi.End()],
 	})
 }

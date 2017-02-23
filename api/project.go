@@ -28,7 +28,7 @@ import (
 
 // Keys for project related items stored in the Gin Context
 const (
-	cProject   = "project"
+	cProject = "project"
 	cProjectID = "project_id"
 )
 
@@ -45,7 +45,6 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist"})
 		return
 	}
-
 
 	var project common.Project
 	err := db.Projects().FindId(bson.ObjectIdHex(objectID)).One(&project)
@@ -396,7 +395,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
 			}
 		}
 		return nil
@@ -583,4 +582,69 @@ func (ctrl ProjectController) SCMUpdate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"project_update": updateID.Job.ID.Hex()})
+}
+
+
+// ObjectRoles is a Gin handler function
+// This returns available roles can be associated with a Project model
+func (ctrl ProjectController) ObjectRoles(c *gin.Context) {
+	project := c.MustGet(cProject).(common.Project)
+
+	roles := []gin.H{
+		{
+			"type": "role",
+			"links": gin.H{
+				"project": "/v1/projects/" + project.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": project.Name,
+				"resource_type": "project",
+				"resource_type_display_name": "Project",
+			},
+			"name": "admin",
+			"description": "Can manage all aspects of the project",
+		},
+		{
+			"type": "role",
+			"related": gin.H{
+				"project": "/v1/projects/" + project.ID.Hex(),
+			},
+			"summary_fields": gin.H{
+				"resource_name": project.Name,
+				"resource_type": "project",
+				"resource_type_display_name": "Project",
+			},
+			"name": "use",
+			"description": "Can use the project in a job template",
+		},
+		{
+			"type": "role",
+			"related": gin.H{
+				"project": "/v1/projects/" + project.ID.Hex(),
+			},
+			"summary_fields": gin.H{
+				"resource_name": project.Name,
+				"resource_type": "project",
+				"resource_type_display_name": "Project",
+			},
+			"name": "update",
+			"description": "May update project or inventory or group using the configured source update system",
+		},
+	}
+
+	count := len(roles)
+	pgi := util.NewPagination(c, count)
+	if pgi.HasPage() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, common.Response{
+		Count:    count,
+		Next:     pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Data:  roles[pgi.Skip():pgi.End()],
+	})
 }

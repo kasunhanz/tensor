@@ -624,3 +624,69 @@ func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 		Data:  activities[pgi.Skip():pgi.End()],
 	})
 }
+
+
+// ObjectRoles is a Gin handler function
+// This returns available roles can be associated with a Organization model
+func (ctrl OrganizationController) ObjectRoles(c *gin.Context) {
+	organization := c.MustGet(cOrganization).(common.Organization)
+
+	roles := []gin.H{
+		{
+			"type": "role",
+			"links": gin.H{
+				"organization": "/v1/organizations/" + organization.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": organization.Name,
+				"resource_type": "organization",
+				"resource_type_display_name": "Organization",
+			},
+			"name": "member",
+			"description": "User is a member of the organization",
+		},
+		{
+			"type": "role",
+			"links": gin.H{
+				"organization": "/v1/organizations/" + organization.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": organization.Name,
+				"resource_type": "organization",
+				"resource_type_display_name": "Organization",
+			},
+			"name": "admin",
+			"description": "Can manage all aspects of the organization",
+		},
+		{
+			"type": "role",
+			"links": gin.H{
+				"organization": "/v1/organizations/" + organization.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": organization.Name,
+				"resource_type": "organization",
+				"resource_type_display_name": "Organization",
+			},
+			"name": "auditor",
+			"description": "Can view all settings for the organization",
+		},
+	}
+
+	count := len(roles)
+	pgi := util.NewPagination(c, count)
+	if pgi.HasPage() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, common.Response{
+		Count:    count,
+		Next:     pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Data:  roles[pgi.Skip():pgi.End()],
+	})
+
+}

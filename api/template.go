@@ -924,12 +924,12 @@ func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
 	roles := []gin.H{
 		{
 			"type": "role",
-			"related": gin.H{
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			"links": gin.H{
+				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex(),
 			},
-			"summary_fields": gin.H{
+			"meta": gin.H{
 				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
+				"resource_type":              "job_template",
 				"resource_type_display_name": "Job Template",
 			},
 			"name":        "admin",
@@ -937,26 +937,12 @@ func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
 		},
 		{
 			"type": "role",
-			"related": gin.H{
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			"links": gin.H{
+				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex(),
 			},
-			"summary_fields": gin.H{
+			"meta": gin.H{
 				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
-				"resource_type_display_name": "Job Template",
-			},
-			"name":        "read",
-			"description": "May view settings for the job template",
-		},
-		{
-			"type": "role",
-			"related": gin.H{
-				"users":        "/api/v1/roles/22/users/",
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
-			},
-			"summary_fields": gin.H{
-				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
+				"resource_type":              "job_template",
 				"resource_type_display_name": "Job Template",
 			},
 			"name":        "execute",
@@ -967,7 +953,9 @@ func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
 	count := len(roles)
 	pgi := util.NewPagination(c, count)
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
 

@@ -792,19 +792,19 @@ func (ctrl TJobTmplController) LaunchInfo(c *gin.Context) {
 }
 
 // ObjectRoles is a Gin handler function
-// This returns available roles can be associated with a Job Template model
+// This returns available roles can be associated with a Terraform Job Template model
 func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 	jobTemplate := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
 
 	roles := []gin.H{
 		{
 			"type": "role",
-			"related": gin.H{
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+			"links": gin.H{
+				"job_template": "/v1/terraform_job_templates/" + jobTemplate.ID.Hex(),
 			},
 			"summary_fields": gin.H{
 				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
+				"resource_type":              "terraform_job_template",
 				"resource_type_display_name": "Job Template",
 			},
 			"name":        "admin",
@@ -813,11 +813,11 @@ func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 		{
 			"type": "role",
 			"related": gin.H{
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+				"job_template": "/v1/terraform_job_templates/" + jobTemplate.ID.Hex(),
 			},
 			"summary_fields": gin.H{
 				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
+				"resource_type":              "terraform_job_template",
 				"resource_type_display_name": "Job Template",
 			},
 			"name":        "read",
@@ -826,12 +826,11 @@ func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 		{
 			"type": "role",
 			"related": gin.H{
-				"users":        "/api/v1/roles/22/users/",
-				"job_template": "/v1/job_templates/" + jobTemplate.ID.Hex() + "/",
+				"job_template": "/v1/terraform_job_templates/" + jobTemplate.ID.Hex(),
 			},
 			"summary_fields": gin.H{
 				"resource_name":              jobTemplate.Name,
-				"resource_type":              "job template",
+				"resource_type":              "terraform_job_template",
 				"resource_type_display_name": "Job Template",
 			},
 			"name":        "execute",
@@ -841,12 +840,13 @@ func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 
 	count := len(roles)
 	pgi := util.NewPagination(c, count)
-
 	if pgi.HasPage() {
-		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
 		return
 	}
-	// send response with JSON rendered data
+
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),

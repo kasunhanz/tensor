@@ -24,7 +24,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cInventory   = "inventory"
+	cInventory = "inventory"
 	cInventoryID = "inventory_id"
 )
 
@@ -728,4 +728,68 @@ func (ctrl InventoryController) VariableData(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, variables)
+}
+
+// ObjectRoles is a Gin handler function
+// This returns available roles can be associated with a Inventory model
+func (ctrl InventoryController) ObjectRoles(c *gin.Context) {
+	inventory := c.MustGet(cInventory).(ansible.Inventory)
+
+	roles := []gin.H{
+		{
+			"type": "role",
+			"links": gin.H{
+				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": inventory.Name,
+				"resource_type": "inventory",
+				"resource_type_display_name": "Inventory",
+			},
+			"name": "admin",
+			"description": "Can manage all aspects of the inventory",
+		},
+		{
+			"type": "role",
+			"links": gin.H{
+				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": inventory.Name,
+				"resource_type": "inventory",
+				"resource_type_display_name": "Inventory",
+			},
+			"name": "use",
+			"description": "Can use the inventory in a job template",
+		},
+		{
+			"type": "role",
+			"links": gin.H{
+				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
+			},
+			"meta": gin.H{
+				"resource_name": inventory.Name,
+				"resource_type": "inventory",
+				"resource_type_display_name": "Inventory",
+			},
+			"name": "update",
+			"description": "May update project or inventory or group using the configured source update system",
+		},
+	}
+
+	count := len(roles)
+	pgi := util.NewPagination(c, count)
+	if pgi.HasPage() {
+		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound,
+			Message: "#" + strconv.Itoa(pgi.Page()) + " page contains no results.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, common.Response{
+		Count:    count,
+		Next:     pgi.NextPage(),
+		Previous: pgi.PreviousPage(),
+		Data:  roles[pgi.Skip():pgi.End()],
+	})
 }

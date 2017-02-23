@@ -67,7 +67,7 @@ func Route(r *gin.Engine) {
 					organization.GET("/admins", ctrl.GetAdmins)
 					organization.GET("/teams", ctrl.GetTeams)
 					organization.GET("/credentials", ctrl.GetCredentials)
-					organization.GET("/object_roles", notImplemented)                   //TODO: implement
+					organization.GET("/object_roles", ctrl.ObjectRoles)
 					organization.GET("/access_list", notImplemented)                    //TODO: implement
 					organization.GET("/notification_templates_error", notImplemented)   //TODO: implement
 					organization.GET("/notification_templates_success", notImplemented) //TODO: implement
@@ -114,6 +114,7 @@ func Route(r *gin.Engine) {
 					project.GET("/update", ctrl.SCMUpdateInfo)
 					project.POST("/update", ctrl.SCMUpdate)
 					project.GET("/project_updates", ctrl.ProjectUpdates)
+					project.GET("/object_roles", ctrl.ObjectRoles)
 					project.GET("/schedules", notImplemented) //TODO: implement
 				}
 			}
@@ -131,8 +132,8 @@ func Route(r *gin.Engine) {
 					credential.GET("/owner_teams", ctrl.OwnerTeams)
 					credential.GET("/owner_users", ctrl.OwnerUsers)
 					credential.GET("/activity_stream", ctrl.ActivityStream)
+					credential.GET("/object_roles", ctrl.ObjectRoles)
 					credential.GET("/access_list", notImplemented)  //TODO: implement
-					credential.GET("/object_roles", notImplemented) //TODO: implement
 				}
 			}
 
@@ -174,6 +175,7 @@ func Route(r *gin.Engine) {
 					inventory.GET("/hosts", ctrl.Hosts)
 					inventory.GET("/groups", ctrl.Groups)
 					inventory.GET("/activity_stream", ctrl.ActivityStream)
+					inventory.GET("/object_roles", ctrl.ObjectRoles)
 					inventory.GET("/tree", ctrl.Tree)          //TODO: implement
 					inventory.GET("/inventory_sources", notImplemented) //TODO: implement
 				}
@@ -274,11 +276,11 @@ func Route(r *gin.Engine) {
 					template.PUT("", ctrl.Update)
 					template.DELETE("", ctrl.Delete)
 					template.GET("/jobs", ctrl.Jobs)
-					template.GET("/object_roles", ctrl.ObjectRoles)
 					template.GET("/access_list", ctrl.AccessList)
 					template.GET("/launch", ctrl.LaunchInfo)
 					template.POST("/launch", ctrl.Launch)
 					template.GET("/activity_stream", ctrl.ActivityStream)
+					template.GET("/object_roles", ctrl.ObjectRoles)
 					template.GET("/schedules", notImplemented)                      //TODO: implement
 					template.GET("/notification_templates_error", notImplemented)   //TODO: implement
 					template.GET("/notification_templates_success", notImplemented) //TODO: implement
