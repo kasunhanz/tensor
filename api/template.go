@@ -69,7 +69,7 @@ func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 				return
 			}
 		}
-	case "PUT", "POST":
+	case "PUT", "DELETE":
 		{
 			// Reject the request if the user doesn't have write permissions
 			if !roles.Write(user, jobTemplate) {
@@ -240,7 +240,7 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	}
 
 	// Reject the request if the user doesn't have inventory read permissions
-	if new(rbac.Inventory).ReadByID(user, req.InventoryID) {
+	if !new(rbac.Inventory).ReadByID(user, req.InventoryID) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
 			Message: "You don't have sufficient permissions to perform this action.",
 		})
