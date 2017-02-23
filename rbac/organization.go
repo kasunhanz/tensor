@@ -1,7 +1,7 @@
 package rbac
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
@@ -51,7 +51,7 @@ func (Organization) Write(user common.User, organization common.Organization) bo
 func (o Organization) WriteByID(user common.User, organizationID bson.ObjectId) bool {
 	var organization common.Organization
 	if err := db.Organizations().FindId(organizationID).One(&organization); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -63,7 +63,7 @@ func (Organization) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, r
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Organizations().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -77,7 +77,7 @@ func (Organization) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Organizations().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

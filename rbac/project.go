@@ -4,7 +4,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -51,7 +51,7 @@ func (Project) Read(user common.User, project common.Project) bool {
 	}
 	count, error := db.Teams().Find(query).Count()
 	if error != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", error)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", error)
 	}
 	if count > 0 {
 		return true
@@ -95,7 +95,7 @@ func (Project) Write(user common.User, project common.Project) bool {
 	}
 	count, error := db.Teams().Find(query).Count()
 	if error != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", error)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", error)
 	}
 	if count > 0 {
 		return true
@@ -144,7 +144,7 @@ func (Project) Update(user common.User, project common.Project) bool {
 func (p Project) ReadByID(user common.User, projectID bson.ObjectId) bool {
 	var project common.Project
 	if err := db.Projects().FindId(projectID).One(&project); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -156,7 +156,7 @@ func (Project) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleTy
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Projects().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -170,7 +170,7 @@ func (Project) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, rol
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Projects().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

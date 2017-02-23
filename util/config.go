@@ -10,10 +10,10 @@ import (
 
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
+	"github.com/Sirupsen/logrus"
 )
 
 var InteractiveSetup bool
@@ -32,26 +32,26 @@ type RedisConfig struct {
 }
 
 type configType struct {
-	MongoDB MongoDBConfig `yaml:"mongodb"`
+	MongoDB             MongoDBConfig `yaml:"mongodb"`
 
-	Redis RedisConfig `yaml:"redis"`
+	Redis               RedisConfig `yaml:"redis"`
 	// Format `:port_num` eg, :3000
-	Port string `yaml:"port"`
+	Port                string `yaml:"port"`
 
 	// Tensor stores projects here
-	ProjectsHome string `yaml:"projects_home"`
+	ProjectsHome        string `yaml:"projects_home"`
 
 	// cookie hashing & encryption
-	Salt string `yaml:"salt"`
+	Salt                string `yaml:"salt"`
 
 	AnsibleJobTimeOut   int `yaml:"ansible_job_timeout"`
 	SyncJobTimeOut      int `yaml:"sync_job_timeout"`
 	TerraformJobTimeOut int `yaml:"terraform_job_timeout"`
 
-	JWTTimeout        int `yaml:"jwt_timeout"`
-	JWTRefreshTimeout int `yaml:"jwt_refresh_timeout"`
+	JWTTimeout          int `yaml:"jwt_timeout"`
+	JWTRefreshTimeout   int `yaml:"jwt_refresh_timeout"`
 
-	Debug bool `yaml:"debug"`
+	Debug               bool `yaml:"debug"`
 }
 
 var Config *configType
@@ -75,19 +75,19 @@ func init() {
 	}
 
 	if _, err := os.Stat("/etc/tensor.conf"); os.IsNotExist(err) {
-		log.Println("Configuration file does not exist")
+		logrus.Println("Configuration file does not exist")
 		Config = &configType{} // initialize empty
 
 	} else {
 		conf, err := ioutil.ReadFile("/etc/tensor.conf")
 
 		if err != nil {
-			log.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
+			logrus.Fatal(errors.New("Could not find configuration!\n\n" + err.Error()))
 			os.Exit(5)
 		}
 
 		if err := yaml.Unmarshal(conf, &Config); err != nil {
-			log.Fatal("Invalid Configuration!\n\n" + err.Error())
+			logrus.Fatal("Invalid Configuration!\n\n" + err.Error())
 			os.Exit(6)
 		}
 	}
@@ -176,7 +176,7 @@ func init() {
 	if _, err := os.Stat(Config.ProjectsHome); os.IsNotExist(err) {
 		fmt.Printf(" Running: mkdir -p %v..\n", Config.ProjectsHome)
 		if err := os.MkdirAll(Config.ProjectsHome, 0755); err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 			os.Exit(7)
 		}
 	}

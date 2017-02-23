@@ -6,7 +6,7 @@ import (
 	"github.com/adjust/uniuri"
 	"github.com/gamunu/rmq"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/util"
 )
 
@@ -27,7 +27,7 @@ func Connect() (err error) {
 	// if in case Hostname fails generate randon uniuri
 	if e != nil {
 		hostname = uniuri.New()
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"hostname": hostname,
 		}).Info("Coud not determine server hostname using random string for connection tag")
 	}

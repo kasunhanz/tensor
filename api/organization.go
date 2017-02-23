@@ -12,7 +12,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
 	"github.com/pearsonappeng/tensor/validate"
@@ -44,7 +44,7 @@ func (ctrl OrganizationController) Middleware(c *gin.Context) {
 	var organization common.Organization
 	if err := db.Organizations().FindId(bson.ObjectIdHex(objectID)).One(&organization); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Organization ID": objectID,
 				"Error":  err.Error(),
 			},
@@ -112,7 +112,7 @@ func (ctrl OrganizationController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Organization",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -173,7 +173,7 @@ func (ctrl OrganizationController) Create(c *gin.Context) {
 	if err := db.Organizations().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating Organization",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -197,7 +197,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if err := orgIter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing Projects",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -211,7 +211,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if err := orgIter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing projects",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -220,7 +220,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Jobs().RemoveAll(bson.M{"project_id": bson.M{"$in": projectIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing jobs",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -229,7 +229,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.JobTemplates().RemoveAll(bson.M{"project_id": bson.M{"$in": projectIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing job tempaltes",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -238,7 +238,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.TerrafromJobs().RemoveAll(bson.M{"project_id": bson.M{"$in": projectIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing terraform jobs",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -247,7 +247,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.TerrafromJobTemplates().RemoveAll(bson.M{"project_id": bson.M{"$in": projectIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing terraform job templates",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -255,7 +255,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Projects().RemoveAll(bson.M{"organization_id": organization.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing projects",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -263,7 +263,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Hosts().RemoveAll(bson.M{"inventory_id": bson.M{"$in": invIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing hosts",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -271,7 +271,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Groups().RemoveAll(bson.M{"inventory_id": bson.M{"$in": invIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing groups",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -279,7 +279,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Inventories().RemoveAll(bson.M{"organization_id": organization.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing inventories",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -287,7 +287,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Teams().RemoveAll(bson.M{"organization_id": organization.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing terraform teams",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -295,7 +295,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if _, err := db.Credentials().RemoveAll(bson.M{"organization_id": organization.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing terraform credentials",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -304,7 +304,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 	if err := db.Organizations().RemoveId(organization.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing organization",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -346,7 +346,7 @@ func (ctrl OrganizationController) Update(c *gin.Context) {
 	if err := db.Organizations().UpdateId(organization.ID, organization); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating Organization",
-			Log:     log.Fields{"Organization ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -364,7 +364,7 @@ func (ctrl OrganizationController) GetUsers(c *gin.Context) {
 	if err := db.Users().Find(bson.M{"organization_id": organization.ID}).All(&users); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Organization users",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -402,7 +402,7 @@ func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 			var user common.User
 			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Organization ID": organization.ID,
 					"Error":           err.Error(),
 				}).Warnln("Error while getting owner users for organization")
@@ -415,7 +415,7 @@ func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 			var team common.Team
 			err := db.Teams().FindId(v.GranteeID).One(&team)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Organization ID": organization.ID,
 					"Error":           err.Error(),
 				}).Warningln("Error while getting team for organization role")
@@ -425,7 +425,7 @@ func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 				var user common.User
 				if v.Type == "user" {
 					if err := db.Users().FindId(v.GranteeID).One(&user); err != nil {
-						log.WithFields(log.Fields{
+						logrus.WithFields(logrus.Fields{
 							"Organization ID": organization.ID,
 							"Error":           err.Error(),
 						}).Warningln("Error while getting owner users for organization")
@@ -461,7 +461,7 @@ func (ctrl OrganizationController) GetTeams(c *gin.Context) {
 	if err := db.Teams().Find(bson.M{"organization_id": organization.ID}).All(&teams); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting organization teams",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -493,7 +493,7 @@ func (ctrl OrganizationController) GetProjects(c *gin.Context) {
 	if err := db.Projects().Find(bson.M{"organization_id": organization.ID}).All(&projects); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting organization projects",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -525,7 +525,7 @@ func (ctrl OrganizationController) GetInventories(c *gin.Context) {
 	if err := db.Inventories().Find(bson.M{"organization_id": organization.ID}).All(&inventories); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting organization inventories",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -565,7 +565,7 @@ func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting organization projects",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -604,7 +604,7 @@ func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Organization ID": organization.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

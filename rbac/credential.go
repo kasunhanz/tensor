@@ -1,7 +1,7 @@
 package rbac
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/mgo.v2/bson"
@@ -52,7 +52,7 @@ func (Credential) Read(user common.User, credential common.Credential) bool {
 	count, err := db.Teams().Find(query).Count()
 
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -98,7 +98,7 @@ func (Credential) Write(user common.User, credential common.Credential) bool {
 	count, err := db.Teams().Find(query).Count()
 
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -110,7 +110,7 @@ func (Credential) Write(user common.User, credential common.Credential) bool {
 func (c Credential) ReadByID(user common.User, credentialID bson.ObjectId) bool {
 	var credential common.Credential
 	if err := db.Credentials().FindId(credentialID).One(&credential); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -122,7 +122,7 @@ func (Credential) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, rol
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Credentials().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -136,7 +136,7 @@ func (Credential) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, 
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Credentials().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

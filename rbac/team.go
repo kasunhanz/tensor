@@ -4,7 +4,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -29,7 +29,7 @@ func (Team) Read(user common.User, team common.Team) bool {
 		"_id":              team.OrganizationID,
 	}).Count()
 	if err != nil {
-		log.Errorln("Error while checking the user and organizational memeber:", err)
+		logrus.Errorln("Error while checking the user and organizational memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -70,7 +70,7 @@ func (Team) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType 
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Teams().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -84,7 +84,7 @@ func (Team) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleTy
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Teams().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

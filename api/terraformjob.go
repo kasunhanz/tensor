@@ -9,7 +9,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -39,7 +39,7 @@ func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 	var job terraform.Job
 	if err := db.TerrafromJobs().FindId(bson.ObjectIdHex(objectID)).One(&job); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Job ID": objectID,
 				"Error":           err.Error(),
 			},
@@ -108,7 +108,7 @@ func (ctrl TerraformJobController) All(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while getting job", Log: log.Fields{
+			Message: "Error while getting job", Log: logrus.Fields{
 				"Error": err.Error(),
 			},
 		})

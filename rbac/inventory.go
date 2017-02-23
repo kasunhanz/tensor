@@ -4,7 +4,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -49,7 +49,7 @@ func (Inventory) Read(user common.User, inventory ansible.Inventory) bool {
 	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.grantee_id": user.ID}
 	count, err := db.Teams().Find(query).Count()
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -90,7 +90,7 @@ func (Inventory) Write(user common.User, inventory ansible.Inventory) bool {
 	query := bson.M{"_id:": bson.M{"$in": teams}, "roles.grantee_id": user.ID}
 	count, err := db.Teams().Find(query).Count()
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -102,7 +102,7 @@ func (Inventory) Write(user common.User, inventory ansible.Inventory) bool {
 func (i Inventory) ReadByID(user common.User, inventoryID bson.ObjectId) bool {
 	var inventory ansible.Inventory
 	if err := db.Inventories().FindId(inventoryID).One(&inventory); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -113,7 +113,7 @@ func (i Inventory) ReadByID(user common.User, inventoryID bson.ObjectId) bool {
 func (i Inventory) WriteByID(user common.User, inventoryID bson.ObjectId) bool {
 	var inventory ansible.Inventory
 	if err := db.Inventories().FindId(inventoryID).One(&inventory); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -125,7 +125,7 @@ func (Inventory) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, role
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Inventories().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -139,7 +139,7 @@ func (Inventory) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, r
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.Inventories().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

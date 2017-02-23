@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/log/activity"
@@ -42,7 +42,7 @@ func (ctrl CredentialController) Middleware(c *gin.Context) {
 	var credential common.Credential
 	if err := db.Credentials().FindId(bson.ObjectIdHex(objectID)).One(&credential); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Credential does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Credential": objectID,
 				"Error":  err.Error(),
 			},
@@ -115,7 +115,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while getting credential", Log: log.Fields{
+			Message: "Error while getting credential", Log: logrus.Fields{
 				"Error": err.Error(),
 			},
 		})
@@ -191,7 +191,7 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	if err := db.Credentials().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Could not create Credential",
-			Log:     log.Fields{"Credential ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Credential ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -293,7 +293,7 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating Credential",
-			Log:     log.Fields{"Credential ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Credential ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -320,7 +320,7 @@ func (ctrl CredentialController) Delete(c *gin.Context) {
 	if err := db.Credentials().RemoveId(credential.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while deleting Credential",
-			Log:     log.Fields{"Credential ID": credential.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Credential ID": credential.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -343,7 +343,7 @@ func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 			var team common.Team
 			err := db.Teams().FindId(v.GranteeID).One(&team)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Credential ID": credential.ID,
 					"Error":         err.Error(),
 				}).Errorln("Error while getting owner teams for credential")
@@ -384,7 +384,7 @@ func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 			var user common.User
 			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Credential ID": credential.ID,
 					"Error":         err.Error(),
 				}).Errorln("Error while getting owner users for Credential")
@@ -439,7 +439,7 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Activities",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}

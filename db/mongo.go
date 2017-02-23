@@ -3,7 +3,7 @@ package db
 import (
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/util"
 	"gopkg.in/mgo.v2"
 )
@@ -14,24 +14,24 @@ var MongoDb *mgo.Database
 
 // MongoDB collection names
 const (
-	CAdHocCommands         = "ad_hoc_commands"
-	CCredentials           = "credentials"
-	CGroups                = "groups"
-	CHosts                 = "hosts"
-	CInventories           = "inventories"
-	CInventoryScripts      = "inventory_scripts"
-	CInventorySources      = "inventory_sources"
-	CJobs                  = "jobs"
-	CJobTemplates          = "job_templates"
+	CAdHocCommands = "ad_hoc_commands"
+	CCredentials = "credentials"
+	CGroups = "groups"
+	CHosts = "hosts"
+	CInventories = "inventories"
+	CInventoryScripts = "inventory_scripts"
+	CInventorySources = "inventory_sources"
+	CJobs = "jobs"
+	CJobTemplates = "job_templates"
 	CTerraformJobTemplates = "terrafrom_job_templates"
-	CTerraformJobs         = "terraform_jobs"
-	CNotifications         = "notifications"
+	CTerraformJobs = "terraform_jobs"
+	CNotifications = "notifications"
 	CNotificationTemplates = "notification_templates"
-	COrganizations         = "organizations"
-	CProjects              = "projects"
-	CTeams                 = "teams"
-	CUsers                 = "users"
-	CActivityStream        = "ativity_stream"
+	COrganizations = "organizations"
+	CProjects = "projects"
+	CTeams = "teams"
+	CUsers = "users"
+	CActivityStream = "ativity_stream"
 )
 
 // Connect will create a session to Mongodb database given in the Config file or env
@@ -63,7 +63,7 @@ func Connect() error {
 	// session.SetMode(mgo.Monotonic, true)
 
 	if err := session.Ping(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Println("Unable to ping mongodb session")
 		return err
@@ -94,7 +94,7 @@ func createIndexes() {
 		Unique:     true,
 		Background: true,
 	}); err != nil {
-		log.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
+		logrus.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
 	}
 
 	// Unique index email
@@ -103,7 +103,7 @@ func createIndexes() {
 		Unique:     true,
 		Background: true,
 	}); err != nil {
-		log.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
+		logrus.Errorln("Failed to create Unique Index for username of ", CUsers, "Collection")
 	}
 
 }

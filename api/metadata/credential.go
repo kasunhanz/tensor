@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -59,7 +59,7 @@ func credentialSummary(c *common.Credential) {
 	}
 
 	if err := db.Users().FindId(c.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":       c.CreatedByID.Hex(),
 			"Credential":    c.Name,
 			"Credential ID": c.ID.Hex(),
@@ -74,7 +74,7 @@ func credentialSummary(c *common.Credential) {
 	}
 
 	if err := db.Users().FindId(c.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":       c.ModifiedByID.Hex(),
 			"Credential":    c.Name,
 			"Credential ID": c.ID.Hex(),
@@ -96,7 +96,7 @@ func credentialSummary(c *common.Credential) {
 			{
 				var user common.User
 				if err := db.Users().FindId(v.GranteeID).One(&user); err != nil {
-					log.WithFields(log.Fields{
+					logrus.WithFields(logrus.Fields{
 						"User ID":       v.GranteeID.Hex(),
 						"Credential":    c.Name,
 						"Credential ID": c.ID.Hex(),
@@ -115,7 +115,7 @@ func credentialSummary(c *common.Credential) {
 			{
 				var team common.Team
 				if err := db.Teams().FindId(v.GranteeID).One(&team); err != nil {
-					log.WithFields(log.Fields{
+					logrus.WithFields(logrus.Fields{
 						"Team ID":       v.GranteeID.Hex(),
 						"Credential":    c.Name,
 						"Credential ID": c.ID.Hex(),
@@ -135,7 +135,7 @@ func credentialSummary(c *common.Credential) {
 
 	if c.OrganizationID != nil {
 		if err := db.Organizations().FindId(*c.OrganizationID).One(&org); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Organization ID": (*c.OrganizationID).Hex(),
 				"Credential":      c.Name,
 				"Credential ID":   c.ID.Hex(),

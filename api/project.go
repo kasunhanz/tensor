@@ -16,7 +16,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -51,7 +51,7 @@ func (ctrl ProjectController) Middleware(c *gin.Context) {
 	err := db.Projects().FindId(bson.ObjectIdHex(objectID)).One(&project)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Project does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Project ID": objectID,
 				"Error":      err.Error(),
 			},
@@ -120,7 +120,7 @@ func (ctrl ProjectController) All(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while getting project", Log: log.Fields{
+			Message: "Error while getting project", Log: logrus.Fields{
 				"Error": err.Error(),
 			},
 		})
@@ -212,7 +212,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	if err := db.Projects().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Could not create project",
-			Log:     log.Fields{"Project ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -224,7 +224,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 
 	// before set metadata update the project
 	if sysJobID, err := sync.UpdateProject(req); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
@@ -308,7 +308,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	if err := db.Projects().UpdateId(project.ID, project); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating project",
-			Log:     log.Fields{"Project ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -320,7 +320,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 
 	// before set metadata update the project
 	if sysJobID, err := sync.UpdateProject(project); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"SystemJob ID": sysJobID.Job.ID.Hex(),
 			"Error":        err.Error(),
 		}).Errorln("Error while scm update")
@@ -339,7 +339,7 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	if _, err := db.Jobs().RemoveAll(bson.M{"project_id": project.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing project jobs",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -347,7 +347,7 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	if _, err := db.JobTemplates().RemoveAll(bson.M{"project_id": project.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing job templates",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -355,7 +355,7 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	if err := db.Projects().RemoveId(project.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing project",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -363,7 +363,7 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 	// cleanup directories from a concurrent thread
 	go func() {
 		if err := os.RemoveAll(project.LocalPath); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("An error occured while removing project directory")
 		}
@@ -387,7 +387,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 	if _, err := os.Stat(project.LocalPath); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNoContent,
 			Message: "Project directory does not exist",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -403,7 +403,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 	}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 			Message: "Error while getting playbooks",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -425,7 +425,7 @@ func (ctrl ProjectController) OwnerTeams(c *gin.Context) {
 			if err != nil {
 				AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 					Message: "Error while getting teams",
-					Log:     log.Fields{"Error": err.Error()},
+					Log:     logrus.Fields{"Error": err.Error()},
 				})
 				return
 			}
@@ -471,7 +471,7 @@ func (ctrl ProjectController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Project ID": project.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -514,7 +514,7 @@ func (ctrl ProjectController) ProjectUpdates(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 			Message: "Error while getting credential",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}

@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -77,7 +77,7 @@ func inventorySummary(i *ansible.Inventory) {
 	}
 
 	if err := db.Users().FindId(i.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":      i.CreatedByID.Hex(),
 			"Inventory":    i.Name,
 			"Inventory ID": i.ID.Hex(),
@@ -92,7 +92,7 @@ func inventorySummary(i *ansible.Inventory) {
 	}
 
 	if err := db.Users().FindId(i.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":      i.CreatedByID.Hex(),
 			"Inventory":    i.Name,
 			"Inventory ID": i.ID.Hex(),
@@ -107,7 +107,7 @@ func inventorySummary(i *ansible.Inventory) {
 	}
 
 	if err := db.Organizations().FindId(i.OrganizationID).One(&org); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization ID": i.OrganizationID.Hex(),
 			"Inventory":       i.Name,
 			"Inventory ID":    i.ID.Hex(),

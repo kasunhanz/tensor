@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/util"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/appleboy/gin-jwt.v2"
@@ -41,12 +41,12 @@ func init() {
 			var user common.User
 
 			if err := db.Users().Find(q).One(&user); err != nil {
-				log.Warningln("Auth: User not found", q)
+				logrus.Warningln("Auth: User not found", q)
 				return "", false
 			}
 
 			if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-				log.Warningln("Auth: PasswordHash mismach")
+				logrus.Warningln("Auth: PasswordHash mismach")
 				return "", false
 			}
 
@@ -56,7 +56,7 @@ func init() {
 		Authorizator: func(userID string, c *gin.Context) bool {
 			var user common.User
 			if err := db.Users().FindId(bson.ObjectIdHex(userID)).One(&user); err != nil {
-				log.Warningln("Auth: User not found", userID)
+				logrus.Warningln("Auth: User not found", userID)
 				return false
 			}
 

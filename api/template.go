@@ -14,7 +14,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/exec/sync"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/log/activity"
@@ -50,7 +50,7 @@ func (ctrl JobTemplateController) Middleware(c *gin.Context) {
 	var jobTemplate ansible.JobTemplate
 	if err := db.JobTemplates().FindId(bson.ObjectIdHex(objectID)).One(&jobTemplate); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job Template does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Job Template ID": objectID,
 				"Error":           err.Error(),
 			},
@@ -135,7 +135,7 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 	}
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
-			Message: "Error while getting job template", Log: log.Fields{
+			Message: "Error while getting job template", Log: logrus.Fields{
 				"Error": err.Error(),
 			},
 		})
@@ -307,7 +307,7 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	if err := db.JobTemplates().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Could not create job template",
-			Log:     log.Fields{"Job Template ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Job Template ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -447,7 +447,7 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	if err := db.JobTemplates().UpdateId(jobTemplate.ID, jobTemplate); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating job template",
-			Log:     log.Fields{"ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -474,7 +474,7 @@ func (ctrl JobTemplateController) Delete(c *gin.Context) {
 	if _, err := db.Jobs().RemoveAll(bson.M{"job_template_id": jobTemplate.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing jobs",
-			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -482,7 +482,7 @@ func (ctrl JobTemplateController) Delete(c *gin.Context) {
 	if err := db.JobTemplates().RemoveId(jobTemplate.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing job tempalte",
-			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -510,7 +510,7 @@ func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Job Template ID": jtemplate.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Job Template ID": jtemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -558,7 +558,7 @@ func (ctrl JobTemplateController) Jobs(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting jobs",
-			Log:     log.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Job Template ID": jobTemplate.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -727,7 +727,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		if err := db.Credentials().FindId(*job.NetworkCredentialID).One(&credential); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting network credential",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -740,7 +740,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		if err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting cloud credential",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -751,7 +751,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if err := db.Inventories().FindId(job.InventoryID).One(&inventory); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting inventory",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -762,7 +762,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&credential); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting machine credential",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -774,7 +774,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if err := db.Projects().FindId(job.ProjectID).One(&project); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting project",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -785,7 +785,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if err := jwt.NewAuthToken(&token); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting token",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -795,7 +795,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if err := db.Jobs().Insert(job); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating job",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -807,7 +807,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 		if err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while creating update job",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -819,7 +819,7 @@ func (ctrl JobTemplateController) Launch(c *gin.Context) {
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while queueing job",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -867,7 +867,7 @@ func (ctrl JobTemplateController) LaunchInfo(c *gin.Context) {
 	var cred common.Credential
 
 	if err := db.Credentials().FindId(jt.MachineCredentialID).One(&cred); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Cound not find Credential")
 		defaults["credential"] = nil
@@ -882,7 +882,7 @@ func (ctrl JobTemplateController) LaunchInfo(c *gin.Context) {
 	var inven ansible.Inventory
 
 	if err := db.Inventories().FindId(jt.InventoryID).One(&inven); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Cound not find Inventory")
 		defaults["inventory"] = nil

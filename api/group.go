@@ -12,7 +12,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -46,7 +46,7 @@ func (ctrl GroupController) Middleware(c *gin.Context) {
 	err := db.Groups().FindId(bson.ObjectIdHex(objectID)).One(&group)
 	if err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Group does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Group ID": objectID,
 				"Error":  err.Error(),
 			},
@@ -116,7 +116,7 @@ func (ctrl GroupController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Groups",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -206,7 +206,7 @@ func (ctrl GroupController) Create(c *gin.Context) {
 	if err := db.Groups().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating group",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -265,7 +265,7 @@ func (ctrl GroupController) Update(c *gin.Context) {
 	if err := db.Groups().UpdateId(group.ID, group); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating group.",
-			Log:     log.Fields{"Group ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -296,7 +296,7 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing groups",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -304,7 +304,7 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if _, err := db.Hosts().RemoveAll(bson.M{"group_id": bson.M{"$in": groupIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing groups",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -312,7 +312,7 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 	if _, err := db.Groups().RemoveAll(bson.M{"_id": bson.M{"$in": groupIDs}}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing groups",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -328,7 +328,7 @@ func (ctrl GroupController) VariableData(c *gin.Context) {
 	if err := json.Unmarshal([]byte(group.Variables), &variables); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting group variables",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -352,7 +352,7 @@ func (ctrl GroupController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Group ID": group.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

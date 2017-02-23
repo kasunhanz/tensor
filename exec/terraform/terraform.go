@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/gamunu/rmq"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/misc"
@@ -43,7 +43,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	jb := types.TerraformJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
-		log.Warningln("TerraformJob delivery rejected")
+		logrus.Warningln("TerraformJob delivery rejected")
 		delivery.Reject()
 		jobFail(jb)
 		return
@@ -51,14 +51,14 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 
 	// perform task
 	delivery.Ack()
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Job ID": jb.Job.ID.Hex(),
 		"Name":   jb.Job.Name,
 	}).Infoln("TerraformJob successfuly received")
 
 	status(jb, "pending")
 
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": jb.Job.ID.Hex(),
 		"Name":             jb.Job.Name,
 	}).Infoln("Terraform Job changed status to pending")
@@ -75,7 +75,7 @@ func Run() {
 }
 
 func terraformRun(j types.TerraformJob) {
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
 	}).Infoln("Terraform Job starting")
@@ -85,7 +85,7 @@ func terraformRun(j types.TerraformJob) {
 		// wait for scm update
 		status(j, "waiting")
 
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Job ID": j.Job.ID.Hex(),
 			"Name":   j.Job.Name,
 		}).Infoln("Terraform Job changed status to waiting")
@@ -94,13 +94,13 @@ func terraformRun(j types.TerraformJob) {
 
 		for range ticker.C {
 			if err := db.Jobs().FindId(j.PreviousJob.Job.ID).One(&j.PreviousJob.Job); err != nil {
-				log.Warningln("Could not find Previous Job", err)
+				logrus.Warningln("Could not find Previous Job", err)
 				continue
 			}
 
 			if j.PreviousJob.Job.Status == "failed" || j.PreviousJob.Job.Status == "error" {
 				e := "Previous Task Failed: {\"job_type\": \"project_update\", \"job_name\": \"" + j.Job.Name + "\", \"job_id\": \"" + j.PreviousJob.Job.ID.Hex() + "\"}"
-				log.Errorln(e)
+				logrus.Errorln(e)
 				j.Job.JobExplanation = e
 				j.Job.ResultStdout = "stdout capture is missing"
 				jobError(j)
@@ -108,7 +108,7 @@ func terraformRun(j types.TerraformJob) {
 			}
 			if j.PreviousJob.Job.Status == "successful" {
 				// stop the ticker and break the loop
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Job ID": j.PreviousJob.Job.ID.Hex(),
 					"Name":   j.PreviousJob.Job.Name,
 				}).Infoln("Update job successful")
@@ -121,7 +121,7 @@ func terraformRun(j types.TerraformJob) {
 	start(j)
 
 	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
 	}).Infoln("Terraform Job started")
@@ -130,7 +130,7 @@ func terraformRun(j types.TerraformJob) {
 	client, socket, pid, cleanup := ssh.StartAgent()
 
 	defer func() {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Terrraform Job ID": j.Job.ID.Hex(),
 			"Name":              j.Job.Name,
 			"Status":            j.Job.Status,
@@ -143,7 +143,7 @@ func terraformRun(j types.TerraformJob) {
 		if len(j.Machine.SSHKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Machine.SSHKeyUnlock))
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while decrypting Machine Credential")
 				j.Job.JobExplanation = err.Error()
@@ -151,7 +151,7 @@ func terraformRun(j types.TerraformJob) {
 				return
 			}
 			if client.Add(key); err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
@@ -162,7 +162,7 @@ func terraformRun(j types.TerraformJob) {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
 		if err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while decrypting Machine Credential")
 			j.Job.JobExplanation = err.Error()
@@ -171,7 +171,7 @@ func terraformRun(j types.TerraformJob) {
 		}
 
 		if client.Add(key); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
@@ -185,7 +185,7 @@ func terraformRun(j types.TerraformJob) {
 		if len(j.Network.SSHKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Network.SSHKeyUnlock))
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while decrypting Machine Credential")
 				j.Job.JobExplanation = err.Error()
@@ -193,7 +193,7 @@ func terraformRun(j types.TerraformJob) {
 				return
 			}
 			if client.Add(key); err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while adding decrypted Machine Credential to SSH Agent")
 				j.Job.JobExplanation = err.Error()
@@ -204,7 +204,7 @@ func terraformRun(j types.TerraformJob) {
 
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
 		if err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while decyrpting Machine Credential")
 			j.Job.JobExplanation = err.Error()
@@ -213,7 +213,7 @@ func terraformRun(j types.TerraformJob) {
 		}
 
 		if client.Add(key); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while adding decyrpted Machine Credential to SSH Agent")
 			j.Job.JobExplanation = err.Error()
@@ -225,7 +225,7 @@ func terraformRun(j types.TerraformJob) {
 
 	cmd, cleanup, err := getCmd(&j, socket, pid)
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.ResultStdout = "stdout capture is missing"
@@ -246,7 +246,7 @@ func terraformRun(j types.TerraformJob) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	if err := cmd.Start(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.JobExplanation = err.Error()
@@ -257,12 +257,12 @@ func terraformRun(j types.TerraformJob) {
 
 	var timer *time.Timer
 	timer = time.AfterFunc(time.Duration(util.Config.TerraformJobTimeOut)*time.Second, func() {
-		log.Println("Killing the process. Execution exceeded threashold value")
+		logrus.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
 
 	if err := cmd.Wait(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running terraform " + j.Job.JobType + " failed")
 		j.Job.JobExplanation = err.Error()
@@ -288,7 +288,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ")}
 
-	log.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
+	logrus.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
 
 	cmd = exec.Command("terraform", pargs...)
 	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
@@ -327,7 +327,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 
 	cmd.Env = env
 
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
 	}).Infoln("Job Directory and Environment")
@@ -335,7 +335,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 	return cmd, func() {
 		if f != nil {
 			if err := os.Remove(f.Name()); err != nil {
-				log.Errorln("Unable to remove cloud credential")
+				logrus.Errorln("Unable to remove cloud credential")
 			}
 		}
 	}, nil
@@ -351,7 +351,7 @@ func buildParams(j types.TerraformJob, params []string) []string {
 	if len(j.Job.Vars) > 0 {
 		vars, err := json.Marshal(j.Job.Vars)
 		if err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err,
 			}).Errorln("Could not marshal extra vars")
 		}

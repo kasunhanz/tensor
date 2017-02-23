@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -50,7 +50,7 @@ func groupSummary(grp *ansible.Group) {
 	}
 
 	if err := db.Users().FindId(grp.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":  grp.CreatedByID.Hex(),
 			"Group":    grp.Name,
 			"Group ID": grp.ID.Hex(),
@@ -65,7 +65,7 @@ func groupSummary(grp *ansible.Group) {
 	}
 
 	if err := db.Users().FindId(grp.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":  grp.ModifiedByID.Hex(),
 			"Group":    grp.Name,
 			"Group ID": grp.ID.Hex(),
@@ -80,7 +80,7 @@ func groupSummary(grp *ansible.Group) {
 	}
 
 	if err := db.Inventories().FindId(grp.InventoryID).One(&inv); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Inventory ID": grp.InventoryID.Hex(),
 			"Group":        grp.Name,
 			"Group ID":     grp.ID.Hex(),

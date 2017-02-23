@@ -9,7 +9,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -40,7 +40,7 @@ func (ctrl UserController) Middleware(c *gin.Context) {
 	var user common.User
 	if err := db.Users().FindId(bson.ObjectIdHex(objectID)).One(&user); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "User does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"User ID": objectID,
 				"Error": err.Error()},
 		})
@@ -121,7 +121,7 @@ func (ctrl UserController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting users",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -185,7 +185,7 @@ func (ctrl UserController) Create(c *gin.Context) {
 	if err := db.Users().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating user",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -235,7 +235,7 @@ func (ctrl UserController) Update(c *gin.Context) {
 	if err := db.Users().UpdateId(user.ID, user); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating user.",
-			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -255,35 +255,35 @@ func (ctrl UserController) Delete(c *gin.Context) {
 	if _, err := db.Projects().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.Credentials().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.Inventories().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.JobTemplates().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.TerrafromJobTemplates().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -291,7 +291,7 @@ func (ctrl UserController) Delete(c *gin.Context) {
 	if err := db.Users().RemoveId(user.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing user",
-			Log:     log.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"User ID": user.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -312,7 +312,7 @@ func (ctrl UserController) Projects(c *gin.Context) {
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving project data from the db:", err)
+		logrus.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Projects"},
@@ -348,7 +348,7 @@ func (ctrl UserController) Credentials(c *gin.Context) {
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving project data from the db:", err)
+		logrus.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Credentials"},
@@ -383,7 +383,7 @@ func (ctrl UserController) Teams(c *gin.Context) {
 		tms = append(tms, tmpTeam)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving project data from the db:", err)
+		logrus.Errorln("Error while retriving project data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Credentials"},
@@ -417,7 +417,7 @@ func (ctrl UserController) Organizations(c *gin.Context) {
 		orgs = append(orgs, tmpOrganization)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving organization data from the db:", err)
+		logrus.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Organizations"},
@@ -451,7 +451,7 @@ func (ctrl UserController) AdminsOfOrganizations(c *gin.Context) {
 		orgs = append(orgs, tmpOrganization)
 	}
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving organization data from the db:", err)
+		logrus.Errorln("Error while retriving organization data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Organizations"},
@@ -491,7 +491,7 @@ func (ctrl UserController) ActivityStream(c *gin.Context) {
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
+		logrus.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Activities"},
@@ -665,7 +665,7 @@ func (ctrl UserController) AssignRole(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": user.ID.Hex(),
 			"User ID":     user.ID.Hex(),
 			"Error":       err.Error(),

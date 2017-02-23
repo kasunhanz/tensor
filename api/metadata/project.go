@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -53,7 +53,7 @@ func projectSummary(p *common.Project) {
 	var org common.Organization
 
 	if err := db.Users().FindId(p.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":    p.CreatedByID.Hex(),
 			"Project":    p.Name,
 			"Project ID": p.ID.Hex(),
@@ -61,19 +61,19 @@ func projectSummary(p *common.Project) {
 	}
 
 	if err := db.Users().FindId(p.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":    p.ModifiedByID.Hex(),
 			"Project":    p.Name,
 			"Project ID": p.ID.Hex(),
 		}).Errorln("Error while getting modified by User")
 	}
 	if err := db.Organizations().FindId(p.OrganizationID).One(&org); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"SCM Credential ID": p.ScmCredentialID.Hex(),
 			"Project":           p.Name,
 			"Project ID":        p.ID.Hex(),
 		})
-		log.Errorln("Error while getting SCM Credential")
+		logrus.Errorln("Error while getting SCM Credential")
 	}
 
 	summary := gin.H{
@@ -116,7 +116,7 @@ func projectSummary(p *common.Project) {
 
 	if p.ScmCredentialID != nil {
 		if err := db.Credentials().FindId(*p.ScmCredentialID).One(&cred); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Project":       p.Name,
 				"Project ID":    p.ID.Hex(),
 				"Credential ID": p.ScmCredentialID.Hex(),
@@ -136,7 +136,7 @@ func projectSummary(p *common.Project) {
 	if p.Kind == "ansible" {
 		var lastu ansible.Job
 		if err := db.Jobs().Find(bson.M{"job_type": "update_job", "project_id": p.ID}).Sort("-modified").One(&lastu); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Project":    p.Name,
 				"Project ID": p.ID,
 			}).Warnln("Error while getting last update job")
@@ -154,7 +154,7 @@ func projectSummary(p *common.Project) {
 
 		var lastj ansible.Job
 		if err := db.Jobs().Find(bson.M{"job_type": "job", "project_id": p.ID}).Sort("-modified").One(&lastj); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Project":    p.Name,
 				"Project ID": p.ID.Hex(),
 			}).Warnln("Error while getting last job")

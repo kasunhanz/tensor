@@ -4,7 +4,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/models/terraform"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -48,7 +48,7 @@ func (TerraformJobTemplate) Read(user common.User, jtemplate terraform.JobTempla
 	}
 	count, err := db.Teams().Find(query).Count()
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -94,7 +94,7 @@ func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTempl
 	}
 	count, err := db.Teams().Find(query).Count()
 	if err != nil {
-		log.Errorln("Error while checking the user is granted teams' memeber:", err)
+		logrus.Errorln("Error while checking the user is granted teams' memeber:", err)
 	}
 	if count > 0 {
 		return true
@@ -106,7 +106,7 @@ func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTempl
 func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
 	var template terraform.JobTemplate
 	if err := db.TerrafromJobs().FindId(templateID).One(&template); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -117,7 +117,7 @@ func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectI
 func (j TerraformJobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
 	var template terraform.JobTemplate
 	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
 		return false
@@ -129,7 +129,7 @@ func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.Obj
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),
@@ -143,7 +143,7 @@ func (TerraformJobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
 	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
 			"Error":       err.Error(),

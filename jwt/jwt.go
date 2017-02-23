@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -28,7 +28,7 @@ func NewAuthToken(t *LocalToken) error {
 	var admin common.User
 
 	if err := db.Users().Find(bson.M{"username": "admin"}).One(&admin); err != nil {
-		log.Errorln("User not found, Create JWT Token faild")
+		logrus.Errorln("User not found, Create JWT Token faild")
 		return errors.New("User not found, Create JWT Token faild")
 	}
 
@@ -40,7 +40,7 @@ func NewAuthToken(t *LocalToken) error {
 	tokenString, err := token.SignedString(HeaderAuthMiddleware.Key)
 
 	if err != nil {
-		log.Errorln("Create JWT Token faild")
+		logrus.Errorln("Create JWT Token faild")
 		return errors.New("Create JWT Token faild")
 	}
 

@@ -5,7 +5,7 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -24,7 +24,7 @@ func start(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -40,7 +40,7 @@ func status(t types.TerraformJob, s string) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -70,7 +70,7 @@ func jobFail(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -104,7 +104,7 @@ func jobCancel(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -137,7 +137,7 @@ func jobError(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -170,7 +170,7 @@ func jobSuccess(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -189,7 +189,7 @@ func updateProject(t types.TerraformJob) {
 		},
 	}
 	if err := db.Projects().UpdateId(t.Project.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err,
 		}).Errorln("Failed to update project")
 	}
@@ -205,7 +205,7 @@ func updateJobTemplate(t types.TerraformJob) {
 	}
 
 	if err := db.TerrafromJobTemplates().UpdateId(t.Template.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update JobTemplate")
@@ -224,7 +224,7 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype
 	}
 
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err,
 		}).Errorln("Failed to add new Activity")
 	}

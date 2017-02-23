@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -28,7 +28,7 @@ func Sync(j types.SyncJob) {
 	// create job directories
 	createJobDirs(j)
 
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
 	}).Infoln("Started system job")
@@ -40,7 +40,7 @@ func Sync(j types.SyncJob) {
 		if len(j.SCM.SSHKeyUnlock) > 0 {
 			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)), util.CipherDecrypt(j.SCM.SSHKeyUnlock))
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while decrypting Credential")
 				j.Job.JobExplanation = err.Error()
@@ -48,7 +48,7 @@ func Sync(j types.SyncJob) {
 				return
 			}
 			if client.Add(key); err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while adding decrypted Key")
 				j.Job.JobExplanation = err.Error()
@@ -60,7 +60,7 @@ func Sync(j types.SyncJob) {
 		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)))
 
 		if err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while decrypting Credential")
 			j.Job.JobExplanation = err.Error()
@@ -69,7 +69,7 @@ func Sync(j types.SyncJob) {
 		}
 
 		if client.Add(key); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while adding decrypted Key to SSH Agent")
 			j.Job.JobExplanation = err.Error()
@@ -80,7 +80,7 @@ func Sync(j types.SyncJob) {
 	}
 
 	defer func() {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Job ID": j.Job.ID.Hex(),
 			"Name":   j.Job.Name,
 		}).Infoln("Stopped running update system jobs")
@@ -91,7 +91,7 @@ func Sync(j types.SyncJob) {
 	cmd, err := getCmd(&j, socket, pid)
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.JobExplanation = err.Error()
@@ -108,7 +108,7 @@ func Sync(j types.SyncJob) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	if err := cmd.Start(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.ResultStdout = string(b.Bytes())
@@ -119,12 +119,12 @@ func Sync(j types.SyncJob) {
 
 	var timer *time.Timer
 	timer = time.AfterFunc(time.Duration(util.Config.SyncJobTimeOut)*time.Second, func() {
-		log.Println("Killing the process. Execution exceeded threashold value")
+		logrus.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
 
 	if err := cmd.Wait(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Running Project update task failed")
 		j.Job.ResultStdout = string(b.Bytes())
@@ -145,7 +145,7 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 
 	vars, err := json.Marshal(j.Job.ExtraVars)
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Could not marshal extra vars")
 	}
@@ -183,7 +183,7 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 
 func createJobDirs(j types.SyncJob) {
 	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Dir":   util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(),
 			"Error": err.Error(),
 		}).Errorln("Unable to create directory: ")
@@ -232,7 +232,7 @@ func UpdateProject(p common.Project) (*types.SyncJob, error) {
 
 	// Insert new job into jobs collection
 	if err := db.Jobs().Insert(job); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while creating update Job")
 		return nil, errors.New("Error while creating update Job")
@@ -247,7 +247,7 @@ func UpdateProject(p common.Project) (*types.SyncJob, error) {
 	if job.SCMCredentialID != nil {
 		var credential common.Credential
 		if err := db.Credentials().FindId(*job.SCMCredentialID).One(&credential); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while getting SCM Credential")
 			return nil, errors.New("Error while getting SCM Credential")
@@ -259,7 +259,7 @@ func UpdateProject(p common.Project) (*types.SyncJob, error) {
 	jobQueue := queue.OpenAnsibleQueue()
 	jobBytes, err := json.Marshal(runnerJob)
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Unable to marshal Job")
 		return nil, err

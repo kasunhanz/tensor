@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/api/metadata"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
@@ -23,7 +23,7 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 
 	var organization common.Organization
 	if err := db.Organizations().FindId(credential.OrganizationID).One(&organization); err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Access List"},
@@ -161,7 +161,7 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},
@@ -199,7 +199,7 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 	var organization common.Organization
 	err := db.Organizations().FindId(project.OrganizationID).One(&organization)
 	if err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Access List"},
@@ -337,7 +337,7 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},
@@ -373,7 +373,7 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 	var organization common.Organization
 	err := db.Organizations().FindId(team.OrganizationID).One(&organization)
 	if err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Access List"},
@@ -510,7 +510,7 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},
@@ -546,7 +546,7 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 	var organization common.Organization
 	err := db.Organizations().FindId(inventory.OrganizationID).One(&organization)
 	if err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Access List"},
@@ -707,7 +707,7 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},
@@ -744,7 +744,7 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 	var project common.Project
 	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
 	if err != nil {
-		log.Errorln("Error while retriving Project:", err)
+		logrus.Errorln("Error while retriving Project:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting AccessList"},
@@ -755,7 +755,7 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 	var organization common.Organization
 	err = db.Organizations().FindId(project.OrganizationID).One(&organization)
 	if err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting AccessList"},
@@ -893,7 +893,7 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},
@@ -930,7 +930,7 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 	var project common.Project
 	err := db.Projects().Find(bson.M{"project_id": jobTemplate.ProjectID}).One(&project)
 	if err != nil {
-		log.Errorln("Error while retriving Project:", err)
+		logrus.Errorln("Error while retriving Project:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting AccessList"},
@@ -941,7 +941,7 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 	var organization common.Organization
 	err = db.Organizations().FindId(project.OrganizationID).One(&organization)
 	if err != nil {
-		log.Errorln("Error while retriving Organization:", err)
+		logrus.Errorln("Error while retriving Organization:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting AccessList"},
@@ -1079,7 +1079,7 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 		var user common.AccessUser
 		err := db.Users().FindId(k).One(&user)
 		if err != nil {
-			log.Errorln("Error while retriving user data:", err)
+			logrus.Errorln("Error while retriving user data:", err)
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting Access List"},

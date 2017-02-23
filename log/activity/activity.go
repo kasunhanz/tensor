@@ -8,7 +8,7 @@ import (
 
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -29,7 +29,7 @@ func AddOrganizationActivity(action string, user common.User, req ...common.Orga
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -51,7 +51,7 @@ func AddUserActivity(action string, user common.User, req ...common.User) {
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -73,7 +73,7 @@ func AddProjectActivity(action string, user common.User, req ...common.Project) 
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -95,7 +95,7 @@ func AddCredentialActivity(action string, user common.User, req ...common.Creden
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -117,7 +117,7 @@ func AddTeamActivity(action string, user common.User, req ...common.Team) {
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -139,7 +139,7 @@ func AddInventoryActivity(action string, user common.User, req ...ansible.Invent
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -161,7 +161,7 @@ func AddHostActivity(action string, user common.User, req ...ansible.Host) {
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -183,7 +183,7 @@ func AddGroupActivity(action string, user common.User, req ...ansible.Group) {
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -205,7 +205,7 @@ func AddJobTemplateActivity(action string, user common.User, req ...ansible.JobT
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}
@@ -227,7 +227,7 @@ func AddTJobTemplateActivity(action string, user common.User, req ...terraform.J
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Failed to add new Activity")
 	}

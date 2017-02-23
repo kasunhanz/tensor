@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -47,7 +47,7 @@ func hostSummary(host *ansible.Host) {
 	}
 
 	if err := db.Users().FindId(host.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID": host.CreatedByID.Hex(),
 			"Host":    host.Name,
 			"Host ID": host.ID.Hex(),
@@ -62,7 +62,7 @@ func hostSummary(host *ansible.Host) {
 	}
 
 	if err := db.Users().FindId(host.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID": host.ModifiedByID.Hex(),
 			"Host":    host.Name,
 			"Host ID": host.ID.Hex(),
@@ -77,7 +77,7 @@ func hostSummary(host *ansible.Host) {
 	}
 
 	if err := db.Inventories().FindId(host.InventoryID).One(&inv); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Inventory ID": host.InventoryID.Hex(),
 			"Host":         host.Name,
 			"Host ID":      host.ID.Hex(),

@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -42,7 +42,7 @@ func organizationSummary(o *common.Organization) {
 
 	jcount, err := db.JobTemplates().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
 		}).Errorln("Error while getting Job Template count")
@@ -50,7 +50,7 @@ func organizationSummary(o *common.Organization) {
 
 	ucount, err := db.Users().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
 		}).Errorln("Error while getting Users count")
@@ -58,7 +58,7 @@ func organizationSummary(o *common.Organization) {
 
 	tcount, err := db.Teams().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
 		}).Errorln("Error while getting Teams count")
@@ -66,7 +66,7 @@ func organizationSummary(o *common.Organization) {
 
 	icount, err := db.Inventories().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
 		}).Errorln("Error while getting Inventories count")
@@ -74,7 +74,7 @@ func organizationSummary(o *common.Organization) {
 
 	pcount, err := db.Projects().Find(bson.M{"organization_id": o.ID}).Count()
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
 		}).Errorln("Error while getting Projects count")
@@ -113,7 +113,7 @@ func organizationSummary(o *common.Organization) {
 	}
 
 	if err := db.Users().FindId(o.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":         o.CreatedByID.Hex(),
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),
@@ -128,7 +128,7 @@ func organizationSummary(o *common.Organization) {
 	}
 
 	if err := db.Users().FindId(o.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":         o.ModifiedByID.Hex(),
 			"Organization":    o.Name,
 			"Organization ID": o.ID.Hex(),

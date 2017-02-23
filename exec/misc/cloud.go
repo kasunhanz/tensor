@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/util"
 )
@@ -23,12 +23,12 @@ func raxCredFile(c common.Credential) (f *os.File, err error) {
 
 	f, err = ioutil.TempFile("", "tensor_credential_rackspace")
 	if err != nil {
-		log.Errorln("Rackspace credential file creation failed")
+		logrus.Errorln("Rackspace credential file creation failed")
 		return
 	}
 
 	if _, err = f.Write([]byte(content)); err != nil {
-		log.Errorln("Rackspace credential file creation failed")
+		logrus.Errorln("Rackspace credential file creation failed")
 		return
 	}
 	if err = f.Close(); err != nil {
@@ -52,12 +52,12 @@ func raxCredFile(c common.Credential) (f *os.File, err error) {
 func GCECredFile(c common.Credential) (f *os.File, err error) {
 	f, err = ioutil.TempFile("", "tensor_credential_gce")
 	if err != nil {
-		log.Errorln("GCE credential file creation failed")
+		logrus.Errorln("GCE credential file creation failed")
 		return
 	}
 
 	if _, err = f.Write([]byte(util.CipherDecrypt(c.SSHKeyData))); err != nil {
-		log.Errorln("GCE credential file creation failed")
+		logrus.Errorln("GCE credential file creation failed")
 		return
 	}
 	if err = f.Close(); err != nil {

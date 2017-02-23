@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -55,7 +55,7 @@ func teamSummary(tm *common.Team) {
 	}
 
 	if err := db.Users().FindId(tm.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID": tm.CreatedByID.Hex(),
 			"Team":    tm.Name,
 			"Team ID": tm.ID.Hex(),
@@ -70,7 +70,7 @@ func teamSummary(tm *common.Team) {
 	}
 
 	if err := db.Users().FindId(tm.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID": tm.ModifiedByID.Hex(),
 			"Team":    tm.Name,
 			"Team ID": tm.ID.Hex(),
@@ -85,7 +85,7 @@ func teamSummary(tm *common.Team) {
 	}
 
 	if err := db.Organizations().FindId(tm.OrganizationID).One(&org); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Organization ID": tm.OrganizationID.Hex(),
 			"Team":            tm.Name,
 			"Team ID":         tm.ID.Hex(),

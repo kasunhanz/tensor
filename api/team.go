@@ -10,7 +10,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -42,7 +42,7 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 	var team common.Team
 	if err := db.Teams().FindId(bson.ObjectIdHex(objectID)).One(&team); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Team ID": objectID,
 				"Error":  err.Error(),
 			},
@@ -110,7 +110,7 @@ func (ctrl TeamController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting teams",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -172,7 +172,7 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	if err := db.Teams().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating team",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -229,7 +229,7 @@ func (ctrl TeamController) Update(c *gin.Context) {
 	if err := db.Teams().UpdateId(team.ID, team); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating team.",
-			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -249,35 +249,35 @@ func (ctrl TeamController) Delete(c *gin.Context) {
 	if _, err := db.Projects().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.Credentials().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.Inventories().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.JobTemplates().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
 	if _, err := db.TerrafromJobTemplates().UpdateAll(nil, access); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -285,7 +285,7 @@ func (ctrl TeamController) Delete(c *gin.Context) {
 	if err := db.Teams().RemoveId(team.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing team",
-			Log:     log.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Team ID": team.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -305,7 +305,7 @@ func (ctrl TeamController) Users(c *gin.Context) {
 			var user common.User
 			err := db.Users().FindId(v.GranteeID).One(&user)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logrus.WithFields(logrus.Fields{
 					"Team ID": team.ID,
 					"Error":   err.Error(),
 				}).Errorln("Error while getting owner users for credential")
@@ -321,14 +321,14 @@ func (ctrl TeamController) Users(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Page number": pgi.Page(),
 		}).Debugln("User page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Count":    count,
 		"Next":     pgi.NextPage(),
 		"Previous": pgi.PreviousPage(),
@@ -370,7 +370,7 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 		credentials = append(credentials, tmpCred)
 	}
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Credential data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
@@ -384,14 +384,14 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Page number": pgi.Page(),
 		}).Debugln("Credential page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
 		return
 	}
 
-	log.WithFields(log.Fields{
+	logrus.WithFields(logrus.Fields{
 		"Count":    count,
 		"Next":     pgi.NextPage(),
 		"Previous": pgi.PreviousPage(),
@@ -431,7 +431,7 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 		projects = append(projects, tmpProject)
 	}
 	if err := iter.Close(); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		}).Errorln("Error while retriving Projects data from the database")
 		c.JSON(http.StatusInternalServerError, common.Error{
@@ -445,7 +445,7 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 	pgi := util.NewPagination(c, count)
 	//if page is incorrect return 404
 	if pgi.HasPage() {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Page number": pgi.Page(),
 		}).Debugln("Project page does not exist")
 		c.JSON(http.StatusNotFound, gin.H{"detail": "Invalid page " + strconv.Itoa(pgi.Page()) + ": That page contains no results."})
@@ -481,7 +481,7 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 	}
 
 	if err := iter.Close(); err != nil {
-		log.Errorln("Error while retriving Activity data from the db:", err)
+		logrus.Errorln("Error while retriving Activity data from the db:", err)
 		c.JSON(http.StatusInternalServerError, common.Error{
 			Code:   http.StatusInternalServerError,
 			Errors: []string{"Error while getting Activities"},
@@ -591,7 +591,7 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Resource ID": team.ID.Hex(),
 			"User ID":     team.ID.Hex(),
 			"Error":       err.Error(),

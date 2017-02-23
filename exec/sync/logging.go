@@ -5,7 +5,7 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/types"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -24,7 +24,7 @@ func start(t types.SyncJob) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -40,7 +40,7 @@ func status(t types.SyncJob, s string) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -70,7 +70,7 @@ func jobFail(t types.SyncJob) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -103,7 +103,7 @@ func jobCancel(t types.SyncJob) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -135,7 +135,7 @@ func jobError(t types.SyncJob) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -167,7 +167,7 @@ func jobSuccess(t types.SyncJob) {
 	}
 
 	if err := db.Jobs().UpdateId(t.Job.ID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update job status")
@@ -186,7 +186,7 @@ func updateProject(t types.SyncJob) {
 	}
 
 	if err := db.Projects().UpdateId(t.ProjectID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err,
 		}).Errorln("Failed to update project")
 	}
@@ -202,7 +202,7 @@ func updateJobTemplate(t types.SyncJob) {
 	}
 
 	if err := db.JobTemplates().UpdateId(t.JobTemplateID, d); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update JobTemplate")
@@ -221,7 +221,7 @@ func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype
 	}
 
 	if err := db.ActivityStream().Insert(a); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Error": err,
 		}).Errorln("Failed to add new Activity")
 	}

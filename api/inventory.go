@@ -12,7 +12,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -45,7 +45,7 @@ func (ctrl InventoryController) Middleware(c *gin.Context) {
 	var inventory ansible.Inventory
 	if err := db.Inventories().FindId(bson.ObjectIdHex(objectID)).One(&inventory); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Inventory ID": objectID,
 				"Error":  err.Error(),
 			},
@@ -115,7 +115,7 @@ func (ctrl InventoryController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Inventory",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -179,7 +179,7 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	if err := db.Inventories().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating inventory",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -244,7 +244,7 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	if err := db.Inventories().UpdateId(inventory.ID, inventory); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating inventory.",
-			Log:     log.Fields{"Inventory ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Inventory ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -267,7 +267,7 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if _, err := db.Hosts().RemoveAll(bson.M{"inventory_id": inventory.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing inventory hosts",
-			Log:     log.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -275,7 +275,7 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if _, err := db.Groups().RemoveAll(bson.M{"inventory_id": inventory.ID}); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing inventory groups",
-			Log:     log.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -283,7 +283,7 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 	if err := db.Inventories().RemoveId(inventory.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing inventory",
-			Log:     log.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Inventory ID": inventory.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -307,7 +307,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 		if err := db.Hosts().Find(bson.M{"name": qhost}).One(&host); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting vars",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -315,7 +315,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 		if err := json.Unmarshal([]byte(host.Variables), &gv); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 				Message: "Error while getting vars",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -329,7 +329,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 	if err := db.Groups().Find(q).All(&parents); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting hosts",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -341,7 +341,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 		if err := db.Hosts().Find(q).All(&hosts); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting hosts",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -352,7 +352,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 		if err := db.Groups().Find(q).All(&childgroups); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting hosts",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -370,7 +370,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
 				AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 					Message: "Error while getting hosts",
-					Log:     log.Fields{"Error": err.Error()},
+					Log:     logrus.Fields{"Error": err.Error()},
 				})
 				return
 			}
@@ -390,7 +390,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
 				AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 					Message: "Error while getting hosts",
-					Log:     log.Fields{"Error": err.Error()},
+					Log:     logrus.Fields{"Error": err.Error()},
 				})
 				return
 			}
@@ -404,7 +404,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 	if err := db.Hosts().Find(q).All(&nghosts); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting non-grouped hosts",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -416,7 +416,7 @@ func (ctrl InventoryController) Script(c *gin.Context) {
 			if err := json.Unmarshal([]byte(v.Variables), &gv); err != nil {
 				AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 					Message: "Error while getting non-grouped hosts",
-					Log:     log.Fields{"Error": err.Error()},
+					Log:     logrus.Fields{"Error": err.Error()},
 				})
 				return
 			}
@@ -457,7 +457,7 @@ func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting job templates",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -500,7 +500,7 @@ func (ctrl InventoryController) RootGroups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting groups",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -536,7 +536,7 @@ func (ctrl InventoryController) Groups(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting Groups",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -573,7 +573,7 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting hosts",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -614,7 +614,7 @@ func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -666,7 +666,7 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 			if err := iTree.Close(); err != nil {
 				AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 					Message: "Error while getting groups",
-					Log:     log.Fields{"Error": err.Error()},
+					Log:     logrus.Fields{"Error": err.Error()},
 				})
 				return
 			}
@@ -680,7 +680,7 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 		if err := iTwo.Close(); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting groups",
-				Log:     log.Fields{"Error": err.Error()},
+				Log:     logrus.Fields{"Error": err.Error()},
 			})
 			return
 		}
@@ -694,7 +694,7 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 	if err := iOne.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting groups",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -723,7 +723,7 @@ func (ctrl InventoryController) VariableData(c *gin.Context) {
 	if err := json.Unmarshal([]byte(inventory.Variables), &variables); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 			Message: "Error while getting inventory variables",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}

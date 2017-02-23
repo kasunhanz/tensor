@@ -1,7 +1,7 @@
 package terraform
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -62,7 +62,7 @@ func JobSummary(job *terraform.Job) {
 	if len(job.ModifiedByID) == 12 {
 		var modified common.User
 		if err := db.Users().FindId(job.ModifiedByID).One(&modified); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"User ID": job.ModifiedByID.Hex(),
 				"Job":     job.Name,
 				"Job ID":  job.ID.Hex(),
@@ -80,7 +80,7 @@ func JobSummary(job *terraform.Job) {
 	if len(job.CreatedByID) == 12 {
 		var created common.User
 		if err := db.Users().FindId(job.CreatedByID).One(&created); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"User ID": job.CreatedByID.Hex(),
 				"Job":     job.Name,
 				"Job ID":  job.ID.Hex(),
@@ -98,7 +98,7 @@ func JobSummary(job *terraform.Job) {
 	if len(job.JobTemplateID) == 12 {
 		var jtemp ansible.JobTemplate
 		if err := db.TerrafromJobTemplates().FindId(job.JobTemplateID).One(&jtemp); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Job Template ID": job.JobTemplateID.Hex(),
 				"Job":             job.Name,
 				"Job ID":          job.ID.Hex(),
@@ -115,7 +115,7 @@ func JobSummary(job *terraform.Job) {
 	if job.MachineCredentialID != nil {
 		var cred common.Credential
 		if err := db.Credentials().FindId(*job.MachineCredentialID).One(&cred); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Credential ID": job.MachineCredentialID.Hex(),
 				"Job":           job.Name,
 				"Job ID":        job.ID.Hex(),
@@ -132,7 +132,7 @@ func JobSummary(job *terraform.Job) {
 	}
 
 	if err := db.Projects().FindId(job.ProjectID).One(&proj); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Project ID": job.ProjectID.Hex(),
 			"Job":        job.Name,
 			"Job ID":     job.ID.Hex(),

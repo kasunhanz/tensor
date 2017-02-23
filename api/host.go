@@ -12,7 +12,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/log/activity"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
@@ -45,7 +45,7 @@ func (ctrl HostController) Middleware(c *gin.Context) {
 	var host ansible.Host
 	if err := db.Hosts().FindId(bson.ObjectIdHex(objectID)).One(&host); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
-			Log: log.Fields{
+			Log: logrus.Fields{
 				"Host ID": objectID,
 				"Error":  err.Error(),
 			},
@@ -116,7 +116,7 @@ func (ctrl HostController) All(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting hosts",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -192,7 +192,7 @@ func (ctrl HostController) Create(c *gin.Context) {
 	if err := db.Hosts().Insert(req); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while creating host",
-			Log:     log.Fields{"Error": err.Error()},
+			Log:     logrus.Fields{"Error": err.Error()},
 		})
 		return
 	}
@@ -253,7 +253,7 @@ func (ctrl HostController) Update(c *gin.Context) {
 	if err := db.Hosts().UpdateId(host.ID, host); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while updating host.",
-			Log:     log.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": req.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -271,7 +271,7 @@ func (ctrl HostController) Delete(c *gin.Context) {
 	if err := db.Hosts().RemoveId(host.ID); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while removing hosts",
-			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -290,7 +290,7 @@ func (ctrl HostController) VariableData(c *gin.Context) {
 	if err := json.Unmarshal([]byte(host.Variables), &variables); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusInternalServerError,
 			Message: "Error while getting host variables",
-			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}
@@ -308,7 +308,7 @@ func (ctrl HostController) Groups(c *gin.Context) {
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
 			AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 				Message: "Error while getting Groups",
-				Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
+				Log:     logrus.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 			})
 			return
 		}
@@ -330,7 +330,7 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 
 	if host.GroupID != nil {
 		if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-			log.Errorln("Error while getting groups")
+			logrus.Errorln("Error while getting groups")
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
 				Errors: []string{"Error while getting groups"},
@@ -343,7 +343,7 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 		group = ansible.Group{}
 		for group.ParentGroupID != nil {
 			if err := db.Groups().FindId(host.GroupID).One(&group); err != nil {
-				log.Errorln("Error while getting groups")
+				logrus.Errorln("Error while getting groups")
 				c.JSON(http.StatusInternalServerError, common.Error{
 					Code:   http.StatusInternalServerError,
 					Errors: []string{"Error while getting groups"},
@@ -394,7 +394,7 @@ func (ctrl HostController) ActivityStream(c *gin.Context) {
 	if err := iter.Close(); err != nil {
 		AbortWithError(LogFields{Context: c, Status: http.StatusGatewayTimeout,
 			Message: "Error while getting activities",
-			Log:     log.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
+			Log:     logrus.Fields{"Host ID": host.ID.Hex(), "Error": err.Error()},
 		})
 		return
 	}

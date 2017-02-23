@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
@@ -85,7 +85,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 	}
 
 	if err := db.Users().FindId(jt.CreatedByID).One(&created); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":         jt.CreatedByID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
@@ -100,7 +100,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 	}
 
 	if err := db.Users().FindId(jt.ModifiedByID).One(&modified); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"User ID":         jt.ModifiedByID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
@@ -115,7 +115,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 	}
 
 	if err := db.Inventories().FindId(jt.InventoryID).One(&inv); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Inventory ID":    jt.InventoryID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
@@ -138,7 +138,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 
 	if jt.MachineCredentialID != nil {
 		if err := db.Credentials().FindId(*jt.MachineCredentialID).One(&cred); err != nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Credential ID":   (*jt.MachineCredentialID).Hex(),
 				"Job Template":    jt.Name,
 				"Job Template ID": jt.ID.Hex(),
@@ -155,7 +155,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 	}
 
 	if err := db.Projects().FindId(jt.ProjectID).One(&proj); err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Project ID":      jt.ProjectID.Hex(),
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
@@ -171,7 +171,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 
 	if jt.CurrentJobID != nil {
 		if err := db.Jobs().FindId(*jt.CurrentJobID).One(&cjob); err == nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Current Job ID":  (*jt.CurrentJobID).Hex(),
 				"Job Template":    jt.Name,
 				"Job Template ID": jt.ID.Hex(),
@@ -189,7 +189,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 
 	if jt.CurrentUpdateID != nil {
 		if err := db.Jobs().FindId(*jt.CurrentUpdateID).One(&cupdate); err == nil {
-			log.WithFields(log.Fields{
+			logrus.WithFields(logrus.Fields{
 				"Current Update ID": (*jt.CurrentUpdateID).Hex(),
 				"Job Template":      jt.Name,
 				"Job Template ID":   jt.ID.Hex(),
@@ -206,7 +206,7 @@ func jTemplateSummary(jt *ansible.JobTemplate) {
 	}
 
 	if err := db.Jobs().Find(bson.M{"job_template_id": jt.ID}).Sort("-modified").Limit(10).All(&recentJobs); err == nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"Job Template":    jt.Name,
 			"Job Template ID": jt.ID.Hex(),
 		}).Errorln("Error while getting Current Job")
