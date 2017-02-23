@@ -37,3 +37,12 @@ inventory_plugins:
   - tensorrest.py
   - vmware.py
   - windows_azure.py
+
+python_dependencies:
+  - "azure==2.0.0rc5"
+  - pyrax
+  - apache-libcloud
+  - boto
+  - "pywinrm>=0.1.1"
+  - kerberos
+  - requests_kerberos

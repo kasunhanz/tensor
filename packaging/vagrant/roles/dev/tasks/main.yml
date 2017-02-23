@@ -25,11 +25,7 @@
 
 - name: Install cloud dependencies
   pip: "name={{ item }}"
-  with_items:
-    - "azure==2.0.0rc5"
-    - pyrax
-    - apache-libcloud
-    - boto
+  with_items: "{{ python_dependencies }}"
 
 - name: Download the Go tarball
   get_url:

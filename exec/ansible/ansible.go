@@ -42,7 +42,7 @@ func NewConsumer(tag int) *Consumer {
 	}
 }
 
-// Consume will deligate jobs to appropriate runners
+// Consume delegates jobs to appropriate runners
 func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	jb := types.AnsibleJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
