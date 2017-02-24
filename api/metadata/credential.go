@@ -12,7 +12,7 @@ func CredentialMetadata(c *common.Credential) {
 	ID := c.ID.Hex()
 	c.Type = "credential"
 	related := gin.H{
-		"self": "/v1/credentials/" + ID,
+		"self":            "/v1/credentials/" + ID,
 		"created_by":      "/v1/users/" + c.CreatedByID.Hex(),
 		"modified_by":     "/v1/users/" + c.ModifiedByID.Hex(),
 		"owner_teams":     "/v1/credentials/" + ID + "/owner_teams",

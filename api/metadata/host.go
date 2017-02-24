@@ -14,7 +14,7 @@ func HostMetadata(host *ansible.Host) {
 	ID := host.ID.Hex()
 	host.Type = "host"
 	host.Links = gin.H{
-		"self": "/v1/hosts/" + ID,
+		"self":                  "/v1/hosts/" + ID,
 		"created_by":            "/v1/users/" + host.CreatedByID.Hex(),
 		"modified_by":           "/v1/users/" + host.CreatedByID.Hex(),
 		"job_host_summaries":    "/v1/hosts/" + ID + "/job_host_summaries",

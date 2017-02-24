@@ -8,10 +8,10 @@ import (
 
 // Activity constants
 const (
-	Create = "create"
-	Update = "update"
-	Delete = "delete"
-	Associate = "associate"
+	Create       = "create"
+	Update       = "update"
+	Delete       = "delete"
+	Associate    = "associate"
 	Disassociate = "disassociate"
 )
 

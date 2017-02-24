@@ -24,7 +24,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cHost = "host"
+	cHost   = "host"
 	cHostID = "host_id"
 )
 
@@ -47,7 +47,7 @@ func (ctrl HostController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Host does not exist",
 			Log: logrus.Fields{
 				"Host ID": objectID,
-				"Error":  err.Error(),
+				"Error":   err.Error(),
 			},
 		})
 		return
@@ -134,7 +134,7 @@ func (ctrl HostController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  hosts[pgi.Skip():pgi.End()],
+		Data:     hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -166,7 +166,6 @@ func (ctrl HostController) Create(c *gin.Context) {
 		})
 		return
 	}
-
 
 	// if the host exist in the collection it is not unique
 	if !req.IsUnique() {
@@ -233,7 +232,7 @@ func (ctrl HostController) Update(c *gin.Context) {
 	}
 
 	// check whether the group exist or not
-	if req.GroupID != nil &&  !req.GroupExist() {
+	if req.GroupID != nil && !req.GroupExist() {
 		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
 			Message: "Group does not exists.",
 		})
@@ -367,7 +366,7 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 			Count:    nobj,
 			Next:     pgi.NextPage(),
 			Previous: pgi.PreviousPage(),
-			Data:  outobjects[pgi.Limit():pgi.Offset()],
+			Data:     outobjects[pgi.Limit():pgi.Offset()],
 		})
 		return
 	}
@@ -412,6 +411,6 @@ func (ctrl HostController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }

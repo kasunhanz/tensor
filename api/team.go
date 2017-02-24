@@ -22,7 +22,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTeam = "team"
+	cTeam   = "team"
 	cTeamID = "team_id"
 )
 
@@ -44,7 +44,7 @@ func (ctrl TeamController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Team does not exist",
 			Log: logrus.Fields{
 				"Team ID": objectID,
-				"Error":  err.Error(),
+				"Error":   err.Error(),
 			},
 		})
 		return
@@ -128,7 +128,7 @@ func (ctrl TeamController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  teams[pgi.Skip():pgi.End()],
+		Data:     teams[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -179,7 +179,7 @@ func (ctrl TeamController) Create(c *gin.Context) {
 
 	roles := new(rbac.Team)
 	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
-		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin);
+		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin)
 	}
 
 	activity.AddTeamActivity(common.Create, user, req)
@@ -341,7 +341,7 @@ func (ctrl TeamController) Users(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -403,7 +403,7 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  credentials[pgi.Skip():pgi.End()],
+		Data:     credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -456,7 +456,7 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  projects[pgi.Skip():pgi.End()],
+		Data:     projects[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -501,7 +501,7 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
 

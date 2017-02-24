@@ -17,4 +17,5 @@ type TerraformJob struct {
 	User        common.User
 	PreviousJob *SyncJob
 	Token       string
+	Paths       JobPaths
 }

@@ -14,7 +14,7 @@ func InventoryMetadata(i *ansible.Inventory) {
 	ID := i.ID.Hex()
 	i.Type = "inventory"
 	i.Links = gin.H{
-		"self": "/v1/inventories/" + ID,
+		"self":               "/v1/inventories/" + ID,
 		"created_by":         "/v1/users/" + i.CreatedByID.Hex(),
 		"job_templates":      "/v1/inventories/" + ID + "/job_templates",
 		"scan_job_templates": "/v1/inventories/" + ID + "/scan_job_templates",

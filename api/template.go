@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cJobTemplate = "job_template"
+	cJobTemplate   = "job_template"
 	cJobTemplateID = "job_template_id"
 )
 
@@ -155,7 +155,7 @@ func (ctrl JobTemplateController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jobTemplates[pgi.Skip():pgi.End()],
+		Data:     jobTemplates[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -528,7 +528,7 @@ func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -576,7 +576,7 @@ func (ctrl JobTemplateController) Jobs(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jbs[pgi.Skip():pgi.End()],
+		Data:     jbs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -963,7 +963,7 @@ func (ctrl JobTemplateController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  roles[pgi.Skip():pgi.End()],
+		Data:     roles[pgi.Skip():pgi.End()],
 	})
 
 }

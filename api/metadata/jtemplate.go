@@ -15,7 +15,7 @@ func JTemplateMetadata(jt *ansible.JobTemplate) {
 	ID := jt.ID.Hex()
 	jt.Type = "job_template"
 	related := gin.H{
-		"self": "/v1/job_templates/" + ID,
+		"self":                           "/v1/job_templates/" + ID,
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
 		"labels":                         "/v1/terraform_job_templates/" + ID + "/labels",

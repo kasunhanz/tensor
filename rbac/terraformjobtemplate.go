@@ -105,7 +105,7 @@ func (TerraformJobTemplate) Write(user common.User, jtemplate terraform.JobTempl
 
 func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectId) bool {
 	var template terraform.JobTemplate
-	if err := db.TerrafromJobs().FindId(templateID).One(&template); err != nil {
+	if err := db.TerrafromJobTemplates().FindId(templateID).One(&template); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
@@ -116,7 +116,7 @@ func (j TerraformJobTemplate) ReadByID(user common.User, templateID bson.ObjectI
 
 func (j TerraformJobTemplate) WriteByID(user common.User, templateID bson.ObjectId) bool {
 	var template terraform.JobTemplate
-	if err := db.JobTemplates().FindId(templateID).One(&template); err != nil {
+	if err := db.TerrafromJobTemplates().FindId(templateID).One(&template); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
 		})
@@ -128,7 +128,7 @@ func (j TerraformJobTemplate) WriteByID(user common.User, templateID bson.Object
 func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$addToSet": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
-	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
+	if err = db.TerrafromJobTemplates().UpdateId(resourceID, access); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,
@@ -142,7 +142,7 @@ func (TerraformJobTemplate) Associate(resourceID bson.ObjectId, grantee bson.Obj
 func (TerraformJobTemplate) Disassociate(resourceID bson.ObjectId, grantee bson.ObjectId, roleType string, role string) (err error) {
 	access := bson.M{"$pull": bson.M{"roles": common.AccessControl{Type: roleType, GranteeID: grantee, Role: role}}}
 
-	if err = db.JobTemplates().UpdateId(resourceID, access); err != nil {
+	if err = db.TerrafromJobTemplates().UpdateId(resourceID, access); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Resource ID": resourceID,
 			"Role Type":   roleType,

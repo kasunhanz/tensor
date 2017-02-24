@@ -18,7 +18,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cJob = "job"
+	cJob   = "job"
 	cJobID = "job_id"
 )
 
@@ -130,7 +130,7 @@ func (ctrl JobController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jobs[pgi.Skip():pgi.End()],
+		Data:     jobs[pgi.Skip():pgi.End()],
 	})
 }
 

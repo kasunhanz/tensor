@@ -23,7 +23,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cOrganization = "organization"
+	cOrganization   = "organization"
 	cOrganizationID = "organization_id"
 )
 
@@ -46,7 +46,7 @@ func (ctrl OrganizationController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Organization does not exist",
 			Log: logrus.Fields{
 				"Organization ID": objectID,
-				"Error":  err.Error(),
+				"Error":           err.Error(),
 			},
 		})
 		return
@@ -130,7 +130,7 @@ func (ctrl OrganizationController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  organizations[pgi.Skip():pgi.End()],
+		Data:     organizations[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -388,7 +388,7 @@ func (ctrl OrganizationController) GetUsers(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  users[pgi.Skip():pgi.End()],
+		Data:     users[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -450,7 +450,7 @@ func (ctrl OrganizationController) GetAdmins(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  users[pgi.Skip():pgi.End()],
+		Data:     users[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -482,7 +482,7 @@ func (ctrl OrganizationController) GetTeams(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  teams[pgi.Skip():pgi.End()],
+		Data:     teams[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -514,7 +514,7 @@ func (ctrl OrganizationController) GetProjects(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  projects[pgi.Skip():pgi.End()],
+		Data:     projects[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -546,7 +546,7 @@ func (ctrl OrganizationController) GetInventories(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  inventories[pgi.Skip():pgi.End()],
+		Data:     inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -582,7 +582,7 @@ func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  credentials[pgi.Skip():pgi.End()],
+		Data:     credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -621,10 +621,9 @@ func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
-
 
 // ObjectRoles is a Gin handler function
 // This returns available roles can be associated with a Organization model
@@ -638,11 +637,11 @@ func (ctrl OrganizationController) ObjectRoles(c *gin.Context) {
 				"organization": "/v1/organizations/" + organization.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": organization.Name,
-				"resource_type": "organization",
+				"resource_name":              organization.Name,
+				"resource_type":              "organization",
 				"resource_type_display_name": "Organization",
 			},
-			"name": "member",
+			"name":        "member",
 			"description": "User is a member of the organization",
 		},
 		{
@@ -651,11 +650,11 @@ func (ctrl OrganizationController) ObjectRoles(c *gin.Context) {
 				"organization": "/v1/organizations/" + organization.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": organization.Name,
-				"resource_type": "organization",
+				"resource_name":              organization.Name,
+				"resource_type":              "organization",
 				"resource_type_display_name": "Organization",
 			},
-			"name": "admin",
+			"name":        "admin",
 			"description": "Can manage all aspects of the organization",
 		},
 		{
@@ -664,11 +663,11 @@ func (ctrl OrganizationController) ObjectRoles(c *gin.Context) {
 				"organization": "/v1/organizations/" + organization.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": organization.Name,
-				"resource_type": "organization",
+				"resource_name":              organization.Name,
+				"resource_type":              "organization",
 				"resource_type_display_name": "Organization",
 			},
-			"name": "auditor",
+			"name":        "auditor",
 			"description": "Can view all settings for the organization",
 		},
 	}
@@ -686,7 +685,7 @@ func (ctrl OrganizationController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  roles[pgi.Skip():pgi.End()],
+		Data:     roles[pgi.Skip():pgi.End()],
 	})
 
 }

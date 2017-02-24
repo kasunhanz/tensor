@@ -11,7 +11,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 )
 
-func start(t types.TerraformJob) {
+func start(t *types.TerraformJob) {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -31,7 +31,7 @@ func start(t types.TerraformJob) {
 	}
 }
 
-func status(t types.TerraformJob, s string) {
+func status(t *types.TerraformJob, s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -47,7 +47,7 @@ func status(t types.TerraformJob, s string) {
 	}
 }
 
-func jobFail(t types.TerraformJob) {
+func jobFail(t *types.TerraformJob) {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -80,7 +80,7 @@ func jobFail(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobCancel(t types.TerraformJob) {
+func jobCancel(t *types.TerraformJob) {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -114,7 +114,7 @@ func jobCancel(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobError(t types.TerraformJob) {
+func jobError(t *types.TerraformJob) {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -147,7 +147,7 @@ func jobError(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func jobSuccess(t types.TerraformJob) {
+func jobSuccess(t *types.TerraformJob) {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -180,7 +180,7 @@ func jobSuccess(t types.TerraformJob) {
 	updateJobTemplate(t)
 }
 
-func updateProject(t types.TerraformJob) {
+func updateProject(t *types.TerraformJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -195,7 +195,7 @@ func updateProject(t types.TerraformJob) {
 	}
 }
 
-func updateJobTemplate(t types.TerraformJob) {
+func updateJobTemplate(t *types.TerraformJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,

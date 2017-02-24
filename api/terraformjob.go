@@ -18,7 +18,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTerraformJob = "terraform_job"
+	cTerraformJob   = "terraform_job"
 	cTerraformJobID = "terraform_job_id"
 )
 
@@ -41,7 +41,7 @@ func (ctrl TerraformJobController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Job does not exist",
 			Log: logrus.Fields{
 				"Job ID": objectID,
-				"Error":           err.Error(),
+				"Error":  err.Error(),
 			},
 		})
 		return
@@ -128,7 +128,7 @@ func (ctrl TerraformJobController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jobs[pgi.Skip():pgi.End()],
+		Data:     jobs[pgi.Skip():pgi.End()],
 	})
 }
 

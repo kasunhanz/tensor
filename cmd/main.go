@@ -23,10 +23,10 @@ func main() {
 }
 
 func doSetup() int {
-	log.Info("Checking database connectivity.. Please be patient.")
+	logrus.Info("Checking database connectivity.. Please be patient.")
 
 	if err := db.Connect(); err != nil {
-		log.Fatal("\n Cannot connect to database!\n" + err.Error())
+		logrus.Fatal("\n Cannot connect to database!\n" + err.Error())
 	}
 
 	stdin := bufio.NewReader(os.Stdin)
@@ -53,26 +53,26 @@ func doSetup() int {
 	} else {
 		user.Email = readNewline("\n > Email: ", stdin)
 		if user.Email == "" {
-			log.Fatal("\n Email is required\n")
+			logrus.Fatal("\n Email is required\n")
 			return 1
 		}
 		user.Email = strings.ToLower(user.Email)
 
 		user.FirstName = readNewline(" > First Name: ", stdin)
 		if user.FirstName == "" {
-			log.Fatal("\n First Name is required\n")
+			logrus.Fatal("\n First Name is required\n")
 			return 1
 		}
 
 		user.LastName = readNewline(" > Last Name: ", stdin)
 		if user.LastName == "" {
-			log.Fatal("\n First Lasti is required\n")
+			logrus.Fatal("\n First Lasti is required\n")
 			return 1
 		}
 
 		user.Password = readNewline(" > Password: ", stdin)
 		if user.Password == "" {
-			log.Fatal("\n Password is required\n")
+			logrus.Fatal("\n Password is required\n")
 			return 1
 		}
 

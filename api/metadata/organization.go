@@ -14,7 +14,7 @@ func OrganizationMetadata(o *common.Organization) {
 	ID := o.ID.Hex()
 	o.Type = "organization"
 	o.Links = gin.H{
-		"self": "/v1/organizations/" + ID,
+		"self":                           "/v1/organizations/" + ID,
 		"created_by":                     "/v1/users/" + o.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + o.ModifiedByID.Hex(),
 		"notification_templates_error":   "/v1/organizations/" + ID + "/notification_templates_error",

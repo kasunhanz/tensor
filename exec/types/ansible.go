@@ -18,4 +18,18 @@ type AnsibleJob struct {
 	User        common.User
 	PreviousJob *SyncJob
 	Token       string
+	Paths       JobPaths
+}
+
+type JobPaths struct {
+	Etc             string
+	Tmp             string
+	VarLib          string
+	VarLibJobStatus string
+	VarLibProjects  string
+	VarLog          string
+	TmpRand         string
+	ProjectRoot     string
+	AnsiblePath     string
+	CredentialPath  string
 }

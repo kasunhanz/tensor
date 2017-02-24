@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	OrganizationAdmin = "admin"
+	OrganizationAdmin   = "admin"
 	OrganizationAuditor = "auditor"
-	OrganizationMember = "member"
+	OrganizationMember  = "member"
 )
 
 type Organization struct{}

@@ -21,5 +21,13 @@ tensor_packages_dependencies:
   - cdbs
   - ansible
   - pbuilder
+  - proot
+  - python-dev
+  - libkrb5-dev
+  - python-pip
+  - libssl-dev
+  - libffi-dev
+  - python-dev
+  - krb5-user
 
 docker_daemon: docker

@@ -9,5 +9,6 @@ tensor_packages_dependencies:
   - docker
   - make
   - rpm-build
+  - proot
 
 docker_daemon: docker

@@ -19,6 +19,9 @@
     state: present
   when: not epel_repofile_result.stat.exists
 
+- name: "Copy proot repo"
+  template: src=cedric-vincent.repo.j2 dest=/etc/yum.repos.d/cedric-vincent.repo
+
 - name: Install dependencies packages
   package: name={{ item }} state=present
   with_items: "{{ tensor_packages_dependencies }}"

@@ -29,8 +29,8 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTerraformJobTemplate = "job_template"
-	cTerraformJobTemplateID = "job_template_id"
+	cTerraformJobTemplate   = "terraform_job_template"
+	cTerraformJobTemplateID = "terraform_job_template_id"
 )
 
 type TJobTmplController struct{}
@@ -153,7 +153,7 @@ func (ctrl TJobTmplController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jobTemplates[pgi.Skip():pgi.End()],
+		Data:     jobTemplates[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -223,7 +223,7 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	}
 
 	// if the JobTemplate exist in the collection it is not unique
-	if req.IsUnique() {
+	if !req.IsUnique() {
 		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
 			Message: "Job Template with this Name already exists.",
 		})
@@ -498,7 +498,7 @@ func (ctrl TJobTmplController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -547,7 +547,7 @@ func (ctrl TJobTmplController) Jobs(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jbs[pgi.Skip():pgi.End()],
+		Data:     jbs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -851,7 +851,7 @@ func (ctrl TJobTmplController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  roles[pgi.Skip():pgi.End()],
+		Data:     roles[pgi.Skip():pgi.End()],
 	})
 
 }

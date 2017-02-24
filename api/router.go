@@ -133,7 +133,7 @@ func Route(r *gin.Engine) {
 					credential.GET("/owner_users", ctrl.OwnerUsers)
 					credential.GET("/activity_stream", ctrl.ActivityStream)
 					credential.GET("/object_roles", ctrl.ObjectRoles)
-					credential.GET("/access_list", notImplemented)  //TODO: implement
+					credential.GET("/access_list", notImplemented) //TODO: implement
 				}
 			}
 
@@ -176,7 +176,7 @@ func Route(r *gin.Engine) {
 					inventory.GET("/groups", ctrl.Groups)
 					inventory.GET("/activity_stream", ctrl.ActivityStream)
 					inventory.GET("/object_roles", ctrl.ObjectRoles)
-					inventory.GET("/tree", ctrl.Tree)          //TODO: implement
+					inventory.GET("/tree", ctrl.Tree)                   //TODO: implement
 					inventory.GET("/inventory_sources", notImplemented) //TODO: implement
 				}
 			}
@@ -252,8 +252,8 @@ func Route(r *gin.Engine) {
 				job := ansibleJobs.Group("/:job_id", ctrl.Middleware)
 				{
 					job.GET("", ctrl.One)
-					job.GET("/cancel", ctrl.CancelInfo)         //TODO: implement
-					job.POST("/cancel", ctrl.Cancel)            //TODO: implement
+					job.GET("/cancel", ctrl.CancelInfo) //TODO: implement
+					job.POST("/cancel", ctrl.Cancel)    //TODO: implement
 					job.GET("/stdout", ctrl.StdOut)
 					job.GET("/job_tasks", notImplemented)       //TODO: implement
 					job.GET("/job_plays", notImplemented)       //TODO: implement
@@ -270,7 +270,7 @@ func Route(r *gin.Engine) {
 				ctrl := new(TJobTmplController)
 				terraformTemplate.GET("", ctrl.All)
 				terraformTemplate.POST("", ctrl.Create)
-				template := terraformTemplate.Group("/:job_template_id", ctrl.Middleware)
+				template := terraformTemplate.Group("/:terraform_job_template_id", ctrl.Middleware)
 				{
 					template.GET("", ctrl.One)
 					template.PUT("", ctrl.Update)
@@ -292,7 +292,7 @@ func Route(r *gin.Engine) {
 			{
 				ctrl := new(TerraformJobController)
 				terraformJobs.GET("", ctrl.All)
-				job := terraformJobs.Group("/:job_id", ctrl.Middleware)
+				job := terraformJobs.Group("/:terraform_job_id", ctrl.Middleware)
 				{
 					job.GET("", ctrl.One)
 					job.GET("/cancel", ctrl.CancelInfo)

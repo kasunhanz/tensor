@@ -17,9 +17,12 @@ import (
 	"github.com/pearsonappeng/tensor/exec/misc"
 	"github.com/pearsonappeng/tensor/exec/types"
 
+	"github.com/adjust/uniuri"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
+	"path/filepath"
+	"github.com/rodaine/hclencoder"
 )
 
 // Consumer is implementation of rmq.Consumer interface
@@ -38,14 +41,14 @@ func NewConsumer(tag int) *Consumer {
 	}
 }
 
-// Consume will deligate jobs to appropriate runners
+// Consume will delegate jobs to appropriate runners
 func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 	jb := types.TerraformJob{}
 	if err := json.Unmarshal([]byte(delivery.Payload()), &jb); err != nil {
 		// handle error
 		logrus.Warningln("TerraformJob delivery rejected")
 		delivery.Reject()
-		jobFail(jb)
+		jobFail(&jb)
 		return
 	}
 
@@ -56,25 +59,25 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		"Name":   jb.Job.Name,
 	}).Infoln("TerraformJob successfuly received")
 
-	status(jb, "pending")
+	status(&jb, "pending")
 
 	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": jb.Job.ID.Hex(),
 		"Name":             jb.Job.Name,
 	}).Infoln("Terraform Job changed status to pending")
 
-	terraformRun(jb)
+	terraformRun(&jb)
 }
 
 // Run starts consuming jobs into a channel of size prefetchLimit
 func Run() {
 	q := queue.OpenTerraformQueue()
 
-	q.StartConsuming(1, 500*time.Millisecond)
+	q.StartConsuming(1, 500 * time.Millisecond)
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func terraformRun(j types.TerraformJob) {
+func terraformRun(j *types.TerraformJob) {
 	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
@@ -120,24 +123,14 @@ func terraformRun(j types.TerraformJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" is running", j.Job.JobType)
+	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
 	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
 	}).Infoln("Terraform Job started")
 
 	// Start SSH agent
-	client, socket, pid, cleanup := ssh.StartAgent()
-
-	defer func() {
-		logrus.WithFields(logrus.Fields{
-			"Terrraform Job ID": j.Job.ID.Hex(),
-			"Name":              j.Job.Name,
-			"Status":            j.Job.Status,
-		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
-		cleanup()
-	}()
+	client, socket, pid, sshcleanup := ssh.StartAgent()
 
 	if len(j.Machine.SSHKeyData) > 0 {
 		if len(j.Machine.SSHKeyUnlock) > 0 {
@@ -223,7 +216,7 @@ func terraformRun(j types.TerraformJob) {
 
 	}
 
-	cmd, cleanup, err := getCmd(&j, socket, pid)
+	cmd, cleanup, err := getCmd(j, socket, pid)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -233,18 +226,23 @@ func terraformRun(j types.TerraformJob) {
 		jobFail(j)
 		return
 	}
-
 	// cleanup credential files
-	defer cleanup()
-
+	defer func() {
+		logrus.WithFields(logrus.Fields{
+			"Terrraform Job ID": j.Job.ID.Hex(),
+			"Name":              j.Job.Name,
+			"Status":            j.Job.Status,
+		}).Infoln("Stopped running Job")
+		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
+		sshcleanup()
+		cleanup()
+	}()
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
-
 	// Set setsid to create a new session, The new process group has no controlling
 	// terminal which disables the stdin & will skip prompts
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
 	if err := cmd.Start(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -254,13 +252,11 @@ func terraformRun(j types.TerraformJob) {
 		jobFail(j)
 		return
 	}
-
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.TerraformJobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.TerraformJobTimeOut) * time.Second, func() {
 		logrus.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
-
 	if err := cmd.Wait(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -270,7 +266,6 @@ func terraformRun(j types.TerraformJob) {
 		jobFail(j)
 		return
 	}
-
 	timer.Stop()
 	// set stdout
 	j.Job.ResultStdout = string(b.Bytes())
@@ -280,23 +275,46 @@ func terraformRun(j types.TerraformJob) {
 
 // runPlaybook runs a Job using ansible-playbook command
 func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, cleanup func(), err error) {
-
-	pargs := []string{}
-	pargs = buildParams(*j, pargs)
-
+	// Generate directory paths and create directories
+	tmp := "/tmp/tensor_proot_" + uniuri.New() + "/"
+	j.Paths = types.JobPaths{
+		Etc:             filepath.Join(tmp, uniuri.New()),
+		Tmp:             filepath.Join(tmp, uniuri.New()),
+		VarLib:          filepath.Join(tmp, uniuri.New()),
+		VarLibJobStatus: filepath.Join(tmp, uniuri.New()),
+		VarLibProjects:  filepath.Join(tmp, uniuri.New()),
+		VarLog:          filepath.Join(tmp, uniuri.New()),
+		TmpRand:         "/tmp/tensor__" + uniuri.New(),
+		ProjectRoot:     filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		CredentialPath:  "/tmp/tensor_" + uniuri.New(),
+	}
+	// create job directories
+	createTmpDirs(j)
+	// add proot and ansible parameters
+	pargs := []string{"-v", "0", "-r", "/",
+		"-b", j.Paths.Etc + ":/etc/tensor",
+		"-b", j.Paths.Tmp + ":/tmp",
+		"-b", j.Paths.VarLib + ":/var/lib/tensor",
+		"-b", j.Paths.VarLibProjects + ":" + util.Config.ProjectsHome,
+		"-b", j.Paths.VarLog + ":/var/log",
+		"-b", j.Paths.TmpRand + ":" + j.Paths.TmpRand,
+		"-b", filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()) + ":" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"-b", "/var/lib/tensor:/var/lib/tensor",
+		"-w", filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+	}
+	pTerraform := []string{"terraform"}
+	pTerraform = buildParams(j, pTerraform)
+	pargs = append(pargs, pTerraform...)
 	j.Job.JobARGS = pargs
-
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ")}
-
 	logrus.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
-
-	cmd = exec.Command("terraform", pargs...)
-	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
-	env := []string{
+	cmd = exec.Command("proot", pargs...)
+	cmd.Dir = filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex())
+	cmd.Env = []string{
 		"TERM=xterm",
-		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
-		"HOME_PATH=" + util.Config.ProjectsHome + "/",
-		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
+		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"HOME_PATH=" + util.Config.ProjectsHome,
+		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 		"SHLVL=1",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
@@ -312,21 +330,35 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 		"SSH_AUTH_SOCK=" + socket,
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
-
 	// Assign job env here to ensure that sensitive information will
 	// not be exposed
-	j.Job.JobENV = env
+	j.Job.JobENV = []string{
+		"TERM=xterm",
+		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"HOME_PATH=" + util.Config.ProjectsHome,
+		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"SHLVL=1",
+		"HOME=" + os.Getenv("HOME"),
+		"_=/usr/bin/tensord",
+		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"REST_API_TOKEN=" + strings.Repeat("*", len(j.Token)),
+		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
+		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
+		"ANSIBLE_HOST_KEY_CHECKING=False",
+		"JOB_ID=" + j.Job.ID.Hex(),
+		"ANSIBLE_FORCE_COLOR=True",
+		"REST_API_URL=http://localhost" + util.Config.Port,
+		"INVENTORY_HOSTVARS=True",
+		"SSH_AUTH_SOCK=" + socket,
+		"SSH_AGENT_PID=" + strconv.Itoa(pid),
+	}
 	var f *os.File
-
 	if j.Cloud.Cloud {
-		env, f, err = misc.GetCloudCredential(env, j.Cloud)
+		cmd.Env, f, err = misc.GetCloudCredential(cmd.Env, j.Cloud)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-
-	cmd.Env = env
-
 	logrus.WithFields(logrus.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
@@ -334,14 +366,23 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 
 	return cmd, func() {
 		if f != nil {
-			if err := os.Remove(f.Name()); err != nil {
+			if err := os.RemoveAll(f.Name()); err != nil {
 				logrus.Errorln("Unable to remove cloud credential")
 			}
+		}
+		if err := os.RemoveAll(tmp); err != nil {
+			logrus.Errorln("Unable to remove tmp directories")
+		}
+		if err := os.RemoveAll(j.Paths.TmpRand); err != nil {
+			logrus.Errorln("Unable to remove tmp random tmp dir")
+		}
+		if err := os.RemoveAll(j.Paths.CredentialPath); err != nil {
+			logrus.Errorln("Unable to remove credential directories")
 		}
 	}, nil
 }
 
-func buildParams(j types.TerraformJob, params []string) []string {
+func buildParams(j *types.TerraformJob, params []string) []string {
 	if j.Job.JobType == "apply" {
 		params = append(params, "apply", "-input=false")
 	} else if j.Job.JobType == "plan" {
@@ -349,13 +390,43 @@ func buildParams(j types.TerraformJob, params []string) []string {
 	}
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
 	if len(j.Job.Vars) > 0 {
-		vars, err := json.Marshal(j.Job.Vars)
+		vars, err := hclencoder.Encode(j.Job.Vars)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err,
 			}).Errorln("Could not marshal extra vars")
 		}
-		params = append(params, "-v", string(vars))
+
+		params = append(params, "-var", string(vars))
 	}
 	return params
+}
+
+func createTmpDirs(j *types.TerraformJob) (err error) {
+	// create credential paths
+	if err = os.MkdirAll(j.Paths.Etc, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.Etc)
+	}
+	if err = os.MkdirAll(j.Paths.CredentialPath, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.CredentialPath)
+	}
+	if err = os.MkdirAll(j.Paths.Tmp, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.Tmp)
+	}
+	if err = os.MkdirAll(j.Paths.TmpRand, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.TmpRand)
+	}
+	if err = os.MkdirAll(j.Paths.VarLib, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLib)
+	}
+	if err = os.MkdirAll(j.Paths.VarLibJobStatus, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLibJobStatus)
+	}
+	if err = os.MkdirAll(j.Paths.VarLibProjects, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLibProjects)
+	}
+	if err = os.MkdirAll(j.Paths.VarLog, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLog)
+	}
+	return
 }

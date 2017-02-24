@@ -11,7 +11,7 @@ func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
 	ID := ao.ID.Hex()
 	ao.Type = "activity"
 	ao.Links = gin.H{
-		"self":  "/v1/organizations/" + ID + "/activity_stream",
+		"self": "/v1/organizations/" + ID + "/activity_stream",
 	}
 	ao.Meta = gin.H{}
 }

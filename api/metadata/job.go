@@ -12,7 +12,7 @@ func JobMetadata(job *ansible.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
 	related := gin.H{
-		"self":"/v1/jobs/" + ID,
+		"self":               "/v1/jobs/" + ID,
 		"labels":             "/v1/jobs/" + ID + "/labels",
 		"project":            "/v1/projects/" + job.ProjectID.Hex(),
 		"stdout":             "/v1/jobs/" + ID + "/stdout",

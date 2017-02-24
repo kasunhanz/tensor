@@ -21,9 +21,11 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 
+	"github.com/adjust/uniuri"
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
+	"path/filepath"
 )
 
 // Consumer is implementation of rmq.Consumer interface
@@ -49,7 +51,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		// handle error
 		logrus.Warningln("Job delivery rejected")
 		delivery.Reject()
-		jobFail(jb)
+		jobFail(&jb)
 		return
 	}
 
@@ -60,7 +62,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		"Name":   jb.Job.Name,
 	}).Infoln("Job successfuly received")
 
-	status(jb, "pending")
+	status(&jb, "pending")
 
 	logrus.WithFields(logrus.Fields{
 		"Job ID": jb.Job.ID.Hex(),
@@ -78,7 +80,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		})
 		return
 	}
-	ansibleRun(jb)
+	ansibleRun(&jb)
 }
 
 // Run starts consuming jobs into a channel of size prefetchLimit
@@ -89,7 +91,7 @@ func Run() {
 	q.AddConsumer(util.UniqueNew(), NewConsumer(1))
 }
 
-func ansibleRun(j types.AnsibleJob) {
+func ansibleRun(j *types.AnsibleJob) {
 	logrus.WithFields(logrus.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -142,17 +144,7 @@ func ansibleRun(j types.AnsibleJob) {
 	}).Infoln("Job started")
 
 	// Start SSH agent
-	client, socket, pid, cleanup := ssh.StartAgent()
-
-	defer func() {
-		logrus.WithFields(logrus.Fields{
-			"Job ID": j.Job.ID.Hex(),
-			"Name":   j.Job.Name,
-			"Status": j.Job.Status,
-		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
-		cleanup()
-	}()
+	client, socket, pid, sshcleanup := ssh.StartAgent()
 
 	if len(j.Machine.SSHKeyData) > 0 {
 		if len(j.Machine.SSHKeyUnlock) > 0 {
@@ -238,7 +230,7 @@ func ansibleRun(j types.AnsibleJob) {
 
 	}
 
-	cmd, cleanup, err := getCmd(&j, socket, pid)
+	cmd, cleanup, err := getCmd(j, socket, pid)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -250,7 +242,16 @@ func ansibleRun(j types.AnsibleJob) {
 	}
 
 	// cleanup credential files
-	defer cleanup()
+	defer func() {
+		logrus.WithFields(logrus.Fields{
+			"Job ID": j.Job.ID.Hex(),
+			"Name":   j.Job.Name,
+			"Status": j.Job.Status,
+		}).Infoln("Stopped running Job")
+		addActivity(j.Job.ID, j.User.ID, "Job "+j.Job.ID.Hex()+" finished", j.Job.JobType)
+		sshcleanup()
+		cleanup()
+	}()
 
 	var b bytes.Buffer
 	cmd.Stdout = &b
@@ -295,31 +296,39 @@ func ansibleRun(j types.AnsibleJob) {
 
 // runPlaybook runs a Job using ansible-playbook command
 func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup func(), err error) {
-
+	// Generate directory paths and create directories
+	tmp := "/tmp/tensor_proot_" + uniuri.New() + "/"
+	j.Paths = types.JobPaths{
+		Etc:             filepath.Join(tmp, uniuri.New()),
+		Tmp:             filepath.Join(tmp, uniuri.New()),
+		VarLib:          filepath.Join(tmp, uniuri.New()),
+		VarLibJobStatus: filepath.Join(tmp, uniuri.New()),
+		VarLibProjects:  filepath.Join(tmp, uniuri.New()),
+		VarLog:          filepath.Join(tmp, uniuri.New()),
+		TmpRand:         "/tmp/tensor__" + uniuri.New(),
+		ProjectRoot:     filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		CredentialPath:  "/tmp/tensor_" + uniuri.New(),
+	}
+	// create job directories
+	createTmpDirs(j)
 	// ansible-playbook parameters
 	pPlaybook := []string{
-		"-i", "/var/lib/tensor/plugins/inventory/tensorrest.py",
+		"ansible-playbook", "-i", "/var/lib/tensor/plugins/inventory/tensorrest.py",
 	}
 	pPlaybook = buildParams(*j, pPlaybook)
-
 	// parameters that are hidden from output
 	pSecure := []string{}
-
 	// check whether the username not empty
 	if len(j.Machine.Username) > 0 {
 		uname := j.Machine.Username
-
 		// append domain if exist
 		if len(j.Machine.Domain) > 0 {
 			uname = j.Machine.Username + "@" + j.Machine.Domain
 		}
-
 		pPlaybook = append(pPlaybook, "-u", uname)
-
 		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindSSH {
 			pSecure = append(pSecure, "-e", "ansible_ssh_pass="+util.CipherDecrypt(j.Machine.Password)+"")
 		}
-
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
 		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindWIN {
 			kinit(*j)
@@ -328,45 +337,48 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 
 	if j.Job.BecomeEnabled {
 		pPlaybook = append(pPlaybook, "-b")
-
 		// default become method is sudo
 		if len(j.Machine.BecomeMethod) > 0 {
 			pPlaybook = append(pPlaybook, "--become-method="+j.Machine.BecomeMethod)
 		}
-
 		// default become user is root
 		if len(j.Machine.BecomeUsername) > 0 {
 			pPlaybook = append(pPlaybook, "--become-user="+j.Machine.BecomeUsername)
 		}
-
 		// for now this is more convenient than --ask-become-pass with sshpass
 		if len(j.Machine.BecomePassword) > 0 {
 			pSecure = append(pSecure, "-e", "'ansible_become_pass="+util.CipherDecrypt(j.Machine.BecomePassword)+"'")
 		}
 	}
-
-	pargs := []string{}
-	// add proot and ansible paramters
+	// add proot and ansible parameters
+	pargs := []string{"-v", "0", "-r", "/",
+		"-b", j.Paths.Etc + ":/etc/tensor",
+		"-b", j.Paths.Tmp + ":/tmp",
+		"-b", j.Paths.VarLib + ":/var/lib/tensor",
+		"-b", j.Paths.VarLibJobStatus + ":/var/lib/tensor/job_status",
+		"-b", j.Paths.VarLibProjects + ":" + util.Config.ProjectsHome,
+		"-b", j.Paths.VarLog + ":/var/log",
+		"-b", j.Paths.TmpRand + ":" + j.Paths.TmpRand,
+		"-b", filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()) + ":" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"-b", "/var/lib/tensor:/var/lib/tensor",
+		"-w", filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+	}
 	pargs = append(pargs, pPlaybook...)
 	j.Job.JobARGS = pargs
 	// should not included in any output
 	pargs = append(pargs, pSecure...)
-
 	// set job arguments, exclude unencrypted passwords etc.
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ") + " " + j.Job.Playbook + "'"}
-
 	pargs = append(pargs, j.Job.Playbook)
 	logrus.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
-
-	cmd = exec.Command("ansible-playbook", pargs...)
-	cmd.Dir = util.Config.ProjectsHome + "/" + j.Project.ID.Hex()
-
-	env := []string{
+	cmd = exec.Command("proot", pargs...)
+	cmd.Dir = filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex())
+	cmd.Env = []string{
 		"TERM=xterm",
-		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
-		"HOME_PATH=" + util.Config.ProjectsHome + "/",
-		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
-		"SHLVL=1",
+		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"HOME_PATH=" + util.Config.ProjectsHome,
+		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -382,51 +394,70 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 		"SSH_AUTH_SOCK=" + socket,
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
-
 	// Assign job env here to ensure that sensitive information will
 	// not be exposed
-	j.Job.JobENV = env
+	j.Job.JobENV = []string{
+		"TERM=xterm",
+		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"HOME_PATH=" + util.Config.ProjectsHome,
+		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"SHLVL=0",
+		"HOME=" + os.Getenv("HOME"),
+		"_=/usr/bin/tensord",
+		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"REST_API_TOKEN=" + strings.Repeat("*", len(j.Token)),
+		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
+		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
+		"ANSIBLE_HOST_KEY_CHECKING=False",
+		"JOB_ID=" + j.Job.ID.Hex(),
+		"ANSIBLE_FORCE_COLOR=True",
+		"REST_API_URL=http://localhost" + util.Config.Port,
+		"INVENTORY_HOSTVARS=True",
+		"INVENTORY_ID=" + j.Inventory.ID.Hex(),
+		"SSH_AUTH_SOCK=" + socket,
+		"SSH_AGENT_PID=" + strconv.Itoa(pid),
+	}
 	var f *os.File
-
 	if j.Cloud.Cloud {
-		env, f, err = misc.GetCloudCredential(env, j.Cloud)
+		cmd.Env, f, err = misc.GetCloudCredential(cmd.Env, j.Cloud)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-
-	cmd.Env = env
-
 	logrus.WithFields(logrus.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
 	}).Infoln("Job Directory and Environment")
-
 	return cmd, func() {
 		if f != nil {
-			if err := os.Remove(f.Name()); err != nil {
+			if err := os.RemoveAll(f.Name()); err != nil {
 				logrus.Errorln("Unable to remove cloud credential")
 			}
+		}
+		if err := os.RemoveAll(tmp); err != nil {
+			logrus.Errorln("Unable to remove tmp directories")
+		}
+		if err := os.RemoveAll(j.Paths.TmpRand); err != nil {
+			logrus.Errorln("Unable to remove tmp random tmp dir")
+		}
+		if err := os.RemoveAll(j.Paths.CredentialPath); err != nil {
+			logrus.Errorln("Unable to remove credential directories")
 		}
 	}, nil
 }
 
 func buildParams(j types.AnsibleJob, params []string) []string {
-
 	if j.Job.JobType == "check" {
 		params = append(params, "--check")
 	}
-
 	// forks -f NUM, --forks=NUM
 	if j.Job.Forks != 0 {
 		params = append(params, "-f", string(j.Job.Forks))
 	}
-
 	// limit  -l SUBSET, --limit=SUBSET
 	if j.Job.Limit != "" {
 		params = append(params, "-l", j.Job.Limit)
 	}
-
 	// verbosity  -v, --verbose
 	switch j.Job.Verbosity {
 	case 1:
@@ -444,7 +475,6 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 	case 5:
 		params = append(params, "-vvvv")
 	}
-
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
 	if len(j.Job.ExtraVars) > 0 {
 		vars, err := json.Marshal(j.Job.ExtraVars)
@@ -455,26 +485,21 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 		}
 		params = append(params, "-e", string(vars))
 	}
-
 	// -t, TAGS, --tags=TAGS
 	if len(j.Job.JobTags) > 0 {
 		params = append(params, "-t", j.Job.JobTags)
 	}
-
 	// --skip-tags=SKIP_TAGS
 	if len(j.Job.SkipTags) > 0 {
 		params = append(params, "--skip-tags="+j.Job.SkipTags)
 	}
-
 	// --force-handlers
 	if j.Job.ForceHandlers {
 		params = append(params, "--force-handlers")
 	}
-
 	if len(j.Job.StartAtTask) > 0 {
 		params = append(params, "--start-at-task="+j.Job.StartAtTask)
 	}
-
 	extras := map[string]interface{}{
 		"tensor_job_template_name": j.Template.Name,
 		"tensor_job_id":            j.Job.ID.Hex(),
@@ -485,72 +510,85 @@ func buildParams(j types.AnsibleJob, params []string) []string {
 	}
 	// Parameters required by the system
 	rp, err := json.Marshal(extras)
-
 	if err != nil {
 		logrus.Errorln("Error while marshalling parameters")
 	}
 	params = append(params, "-e", string(rp))
-
 	return params
 }
 
 func kinit(j types.AnsibleJob) error {
-
 	// Create two command structs for echo and kinit
 	echo := exec.Command("echo", "-n", util.CipherDecrypt(j.Machine.Password))
-
 	uname := j.Machine.Username
-
 	// if credential domain specified
 	if len(j.Machine.Domain) > 0 {
 		uname = j.Machine.Username + "@" + j.Machine.Domain
 	}
-
 	kinit := exec.Command("kinit", uname)
 	kinit.Env = os.Environ()
-
 	// Create asynchronous in memory pipe
 	r, w := io.Pipe()
-
 	// set pipe writer to echo std out
 	echo.Stdout = w
 	// set pip reader to kinit std in
 	kinit.Stdin = r
-
 	// initialize new buffer
 	var buffer bytes.Buffer
 	kinit.Stdout = &buffer
-
 	// start two commands
 	if err := echo.Start(); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	if err := kinit.Start(); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	if err := echo.Wait(); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	if err := w.Close(); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	if err := kinit.Wait(); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	if _, err := io.Copy(os.Stdout, &buffer); err != nil {
 		logrus.Errorln(err.Error())
 		return err
 	}
-
 	return nil
+}
+
+func createTmpDirs(j *types.AnsibleJob) (err error) {
+	// create credential paths
+	if err = os.MkdirAll(j.Paths.Etc, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.Etc)
+	}
+	if err = os.MkdirAll(j.Paths.CredentialPath, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.CredentialPath)
+	}
+	if err = os.MkdirAll(j.Paths.Tmp, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.Tmp)
+	}
+	if err = os.MkdirAll(j.Paths.TmpRand, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.TmpRand)
+	}
+	if err = os.MkdirAll(j.Paths.VarLib, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLib)
+	}
+	if err = os.MkdirAll(j.Paths.VarLibJobStatus, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLibJobStatus)
+	}
+	if err = os.MkdirAll(j.Paths.VarLibProjects, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLibProjects)
+	}
+	if err = os.MkdirAll(j.Paths.VarLog, 0770); err != nil {
+		logrus.Errorln("Unable to create directory: ", j.Paths.VarLog)
+	}
+	return
 }

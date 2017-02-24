@@ -14,7 +14,7 @@ func GroupMetadata(grp *ansible.Group) {
 	ID := grp.ID.Hex()
 	grp.Type = "group"
 	grp.Links = gin.H{
-		"self": "/v1/groups/" + ID,
+		"self":               "/v1/groups/" + ID,
 		"created_by":         "/v1/users/" + grp.CreatedByID.Hex(),
 		"job_host_summaries": "/v1/groups/" + ID + "job_host_summaries",
 		"variable_data":      "/v1/groups/" + ID + "/variable_data",

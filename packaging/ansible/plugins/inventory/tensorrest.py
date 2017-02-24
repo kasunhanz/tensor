@@ -66,7 +66,7 @@ class InventoryScript(object):
         url = urlparse.urlunsplit([parts.scheme,
                                    '%s:%d' % (parts.hostname, port),
                                    parts.path, parts.query, parts.fragment])
-        url_path = '/v1/inventories/%s/script/' % self.inventory_id
+        url_path = '/v1/inventories/%s/script' % self.inventory_id
         q = {}
         if self.show_all:
             q['all'] = 1

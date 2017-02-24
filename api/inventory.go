@@ -24,7 +24,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cInventory = "inventory"
+	cInventory   = "inventory"
 	cInventoryID = "inventory_id"
 )
 
@@ -47,7 +47,7 @@ func (ctrl InventoryController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Inventory does not exist",
 			Log: logrus.Fields{
 				"Inventory ID": objectID,
-				"Error":  err.Error(),
+				"Error":        err.Error(),
 			},
 		})
 		return
@@ -132,7 +132,7 @@ func (ctrl InventoryController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  inventories[pgi.Skip():pgi.End()],
+		Data:     inventories[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -475,7 +475,7 @@ func (ctrl InventoryController) JobTemplates(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  jobTemplate[pgi.Skip():pgi.End()],
+		Data:     jobTemplate[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -518,7 +518,7 @@ func (ctrl InventoryController) RootGroups(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  groups[pgi.Skip():pgi.End()],
+		Data:     groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -554,7 +554,7 @@ func (ctrl InventoryController) Groups(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  groups[pgi.Skip():pgi.End()],
+		Data:     groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -591,7 +591,7 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  hosts[pgi.Skip():pgi.End()],
+		Data:     hosts[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -632,7 +632,7 @@ func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -712,7 +712,7 @@ func (ctrl InventoryController) Tree(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  groups[pgi.Skip():pgi.End()],
+		Data:     groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -742,11 +742,11 @@ func (ctrl InventoryController) ObjectRoles(c *gin.Context) {
 				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": inventory.Name,
-				"resource_type": "inventory",
+				"resource_name":              inventory.Name,
+				"resource_type":              "inventory",
 				"resource_type_display_name": "Inventory",
 			},
-			"name": "admin",
+			"name":        "admin",
 			"description": "Can manage all aspects of the inventory",
 		},
 		{
@@ -755,11 +755,11 @@ func (ctrl InventoryController) ObjectRoles(c *gin.Context) {
 				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": inventory.Name,
-				"resource_type": "inventory",
+				"resource_name":              inventory.Name,
+				"resource_type":              "inventory",
 				"resource_type_display_name": "Inventory",
 			},
-			"name": "use",
+			"name":        "use",
 			"description": "Can use the inventory in a job template",
 		},
 		{
@@ -768,11 +768,11 @@ func (ctrl InventoryController) ObjectRoles(c *gin.Context) {
 				"inventory": "/v1/inventories/" + inventory.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": inventory.Name,
-				"resource_type": "inventory",
+				"resource_name":              inventory.Name,
+				"resource_type":              "inventory",
 				"resource_type_display_name": "Inventory",
 			},
-			"name": "update",
+			"name":        "update",
 			"description": "May update project or inventory or group using the configured source update system",
 		},
 	}
@@ -790,6 +790,6 @@ func (ctrl InventoryController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  roles[pgi.Skip():pgi.End()],
+		Data:     roles[pgi.Skip():pgi.End()],
 	})
 }

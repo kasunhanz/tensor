@@ -14,7 +14,7 @@ func ProjectMetadata(p *common.Project) {
 	ID := p.ID.Hex()
 	p.Type = "project"
 	related := gin.H{
-		"self": "/v1/projects/" + ID,
+		"self":                           "/v1/projects/" + ID,
 		"created_by":                     "/v1/users/" + p.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + p.ModifiedByID.Hex(),
 		"notification_templates_error":   "/v1/projects/" + ID + "/notification_templates_error",

@@ -9,26 +9,26 @@ import (
 )
 
 const (
-	CredentialKindSSH = "ssh"
-	CredentialKindNET = "net"
-	CredentialKindWIN = "windows"
-	CredentialKindSCM = "scm"
-	CredentialKindAWS = "aws"
-	CredentialKindRAX = "rax"
-	CredentialKindVMWARE = "vmware"
+	CredentialKindSSH        = "ssh"
+	CredentialKindNET        = "net"
+	CredentialKindWIN        = "windows"
+	CredentialKindSCM        = "scm"
+	CredentialKindAWS        = "aws"
+	CredentialKindRAX        = "rax"
+	CredentialKindVMWARE     = "vmware"
 	CredentialKindSATELLITE6 = "satellite6"
 	CredentialKindCLOUDFORMS = "cloudforms"
-	CredentialKindGCE = "gce"
-	CredentialKindAZURE = "azure"
-	CredentialKindOPENSTACK = "openstack"
+	CredentialKindGCE        = "gce"
+	CredentialKindAZURE      = "azure"
+	CredentialKindOPENSTACK  = "openstack"
 )
 
 // Credential is the model for Credential collection
 type Credential struct {
-	ID                bson.ObjectId `bson:"_id" json:"id"`
+	ID bson.ObjectId `bson:"_id" json:"id"`
 	// required fields
-	Name              string `bson:"name" json:"name" binding:"required,min=1,max=500"`
-	Kind              string `bson:"kind" json:"kind" binding:"required,credential_kind"`
+	Name string `bson:"name" json:"name" binding:"required,min=1,max=500"`
+	Kind string `bson:"kind" json:"kind" binding:"required,credential_kind"`
 
 	//optional fields
 	Cloud             bool           `bson:"cloud,omitempty" json:"cloud"`
@@ -54,17 +54,17 @@ type Credential struct {
 	AuthorizePassword string         `bson:"authorize_password,omitempty" json:"authorize_password"`
 	OrganizationID    *bson.ObjectId `bson:"organization_id,omitempty" json:"organization"`
 
-	Created           time.Time `bson:"created" json:"created"`
-	Modified          time.Time `bson:"modified" json:"modified"`
+	Created  time.Time `bson:"created" json:"created"`
+	Modified time.Time `bson:"modified" json:"modified"`
 
-	CreatedByID       bson.ObjectId `bson:"created_by_id" json:"-"`
-	ModifiedByID      bson.ObjectId `bson:"modified_by_id" json:"-"`
+	CreatedByID  bson.ObjectId `bson:"created_by_id" json:"-"`
+	ModifiedByID bson.ObjectId `bson:"modified_by_id" json:"-"`
 
-	Type              string `bson:"-" json:"type"`
-	Links             gin.H  `bson:"-" json:"links"`
-	Meta              gin.H  `bson:"-" json:"meta"`
+	Type  string `bson:"-" json:"type"`
+	Links gin.H  `bson:"-" json:"links"`
+	Meta  gin.H  `bson:"-" json:"meta"`
 
-	Roles             []AccessControl `bson:"roles" json:"-"`
+	Roles []AccessControl `bson:"roles" json:"-"`
 }
 
 func (Credential) GetType() string {

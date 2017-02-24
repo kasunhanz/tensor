@@ -21,7 +21,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cCredential = "credential"
+	cCredential   = "credential"
 	cCredentialID = "credential_id"
 )
 
@@ -44,7 +44,7 @@ func (ctrl CredentialController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Credential does not exist",
 			Log: logrus.Fields{
 				"Credential": objectID,
-				"Error":  err.Error(),
+				"Error":      err.Error(),
 			},
 		})
 		return
@@ -135,7 +135,7 @@ func (ctrl CredentialController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  credentials[pgi.Skip():pgi.End()],
+		Data:     credentials[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -184,6 +184,7 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	req.BecomePassword = util.CipherEncrypt(req.BecomePassword)
 	req.VaultPassword = util.CipherEncrypt(req.VaultPassword)
 	req.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
+	req.Secret = util.CipherEncrypt(req.Secret)
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()
@@ -264,7 +265,6 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	credential.BecomeUsername = req.BecomeUsername
 	credential.Subscription = req.Subscription
 	credential.Tenant = req.Tenant
-	credential.Secret = req.Secret
 	credential.Client = req.Client
 	credential.Authorize = req.Authorize
 	credential.OrganizationID = req.OrganizationID
@@ -288,6 +288,9 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	}
 	if req.AuthorizePassword != "$encrypted$" {
 		credential.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
+	}
+	if req.Secret != "$encrypted$" {
+		credential.Secret = util.CipherEncrypt(req.Secret)
 	}
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {
@@ -369,7 +372,7 @@ func (ctrl CredentialController) OwnerTeams(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  tms[pgi.Skip():pgi.End()],
+		Data:     tms[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -410,7 +413,7 @@ func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -457,10 +460,9 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
-
 
 // ObjectRoles is a Gin handler function
 // This returns available roles can be associated with a Credential model
@@ -474,11 +476,11 @@ func (ctrl CredentialController) ObjectRoles(c *gin.Context) {
 				"credential": "/v1/credentials/" + credential.ID.Hex(),
 			},
 			"summary_fields": gin.H{
-				"resource_name": credential.Name,
-				"resource_type": "credential",
+				"resource_name":              credential.Name,
+				"resource_type":              "credential",
 				"resource_type_display_name": "Credential",
 			},
-			"name": "admin",
+			"name":        "admin",
 			"description": "Can manage all aspects of the credential",
 		},
 		{
@@ -487,11 +489,11 @@ func (ctrl CredentialController) ObjectRoles(c *gin.Context) {
 				"credential": "/v1/credentials/" + credential.ID.Hex(),
 			},
 			"meta": gin.H{
-				"resource_name": credential.Name,
-				"resource_type": "credential",
+				"resource_name":              credential.Name,
+				"resource_type":              "credential",
 				"resource_type_display_name": "Credential",
 			},
-			"name": "use",
+			"name":        "use",
 			"description": "Can use the credential in a job template",
 		},
 	}
@@ -509,6 +511,6 @@ func (ctrl CredentialController) ObjectRoles(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  roles[pgi.Skip():pgi.End()],
+		Data:     roles[pgi.Skip():pgi.End()],
 	})
 }

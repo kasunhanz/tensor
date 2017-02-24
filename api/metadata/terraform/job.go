@@ -13,7 +13,7 @@ func JobMetadata(job *terraform.Job) {
 	ID := job.ID.Hex()
 	job.Type = job.JobType
 	related := gin.H{
-		"self": "/v1/terraform_jobs/" + ID,
+		"self":            "/v1/terraform_jobs/" + ID,
 		"labels":          "/v1/terraform_jobs/" + ID + "/labels",
 		"project":         "/v1/projects/" + job.ProjectID.Hex(),
 		"stdout":          "/v1/terraform_jobs/" + ID + "/stdout",
@@ -25,19 +25,19 @@ func JobMetadata(job *terraform.Job) {
 	}
 
 	if len(job.CreatedByID) == 12 {
-		related["created_by"] = "/v1/terraform/users/" + job.CreatedByID.Hex()
+		related["created_by"] = "/v1/users/" + job.CreatedByID.Hex()
 	}
 
 	if len(job.ModifiedByID) == 12 {
-		related["modified_by"] = "/v1/terraform/users/" + job.ModifiedByID.Hex()
+		related["modified_by"] = "/v1/users/" + job.ModifiedByID.Hex()
 	}
 
 	if job.MachineCredentialID != nil {
-		related["credential"] = "/v1/terraform/credentials/" + (*job.MachineCredentialID).Hex()
+		related["credential"] = "/v1/credentials/" + (*job.MachineCredentialID).Hex()
 	}
 
 	if len(job.JobTemplateID) == 12 {
-		related["job_template"] = "/v1/terraform/job_templates/" + job.JobTemplateID.Hex()
+		related["job_template"] = "/v1/terraform_job_templates/" + job.JobTemplateID.Hex()
 	}
 
 	job.Links = related

@@ -14,10 +14,10 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 	ID := jt.ID.Hex()
 	jt.Type = "job_template"
 	related := gin.H{
-		"self":"/v1/terraform/job_templates/" + ID,
+		"self":                           "/v1/terraform_job_templates/" + ID,
 		"created_by":                     "/v1/users/" + jt.CreatedByID.Hex(),
 		"modified_by":                    "/v1/users/" + jt.ModifiedByID.Hex(),
-		"labels":                         "/v1/terraform/job_templates/" + ID + "/labels",
+		"labels":                         "/v1/terraform_job_templates/" + ID + "/labels",
 		"project":                        "/v1/projects/" + jt.ProjectID.Hex(),
 		"notification_templates_error":   "/v1/terraform_job_templates/" + ID + "/notification_templates_error",
 		"notification_templates_success": "/v1/terraform_job_templates/" + ID + "/notification_templates_success",
@@ -31,7 +31,7 @@ func JTemplateMetadata(jt *terraform.JobTemplate) {
 	}
 
 	if jt.CurrentJobID != nil {
-		related["current_job"] = "/v1/terraform/jobs/" + jt.CurrentJobID.Hex()
+		related["current_job"] = "/v1/terraform_jobs/" + jt.CurrentJobID.Hex()
 	}
 
 	if jt.MachineCredentialID != nil {

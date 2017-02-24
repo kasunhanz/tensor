@@ -12,7 +12,7 @@ func TeamMetadata(tm *common.Team) {
 
 	tm.Type = "team"
 	tm.Links = gin.H{
-		"self": "/v1/teams/" + tm.ID.Hex(),
+		"self":            "/v1/teams/" + tm.ID.Hex(),
 		"created_by":      "/v1/users/" + tm.CreatedByID.Hex(),
 		"modified_by":     "/v1/users/" + tm.ModifiedByID.Hex(),
 		"users":           "/v1/teams/" + tm.ID.Hex() + "/users",

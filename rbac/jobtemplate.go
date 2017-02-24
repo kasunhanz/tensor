@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	JobTemplateAdmin = "admin"
+	JobTemplateAdmin   = "admin"
 	JobTemplateExecute = "execute"
 )
 

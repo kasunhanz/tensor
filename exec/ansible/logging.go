@@ -11,7 +11,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 )
 
-func start(t types.AnsibleJob) {
+func start(t *types.AnsibleJob) {
 	t.Job.Status = "running"
 	t.Job.Started = time.Now()
 
@@ -31,7 +31,7 @@ func start(t types.AnsibleJob) {
 	}
 }
 
-func status(t types.AnsibleJob, s string) {
+func status(t *types.AnsibleJob, s string) {
 	t.Job.Status = s
 	d := bson.M{
 		"$set": bson.M{
@@ -47,7 +47,7 @@ func status(t types.AnsibleJob, s string) {
 	}
 }
 
-func jobFail(t types.AnsibleJob) {
+func jobFail(t *types.AnsibleJob) {
 	t.Job.Status = "failed"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -80,7 +80,7 @@ func jobFail(t types.AnsibleJob) {
 	updateJobTemplate(t)
 }
 
-func jobCancel(t types.AnsibleJob) {
+func jobCancel(t *types.AnsibleJob) {
 	t.Job.Status = "canceled"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -114,7 +114,7 @@ func jobCancel(t types.AnsibleJob) {
 	updateJobTemplate(t)
 }
 
-func jobError(t types.AnsibleJob) {
+func jobError(t *types.AnsibleJob) {
 	t.Job.Status = "error"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = true
@@ -147,7 +147,7 @@ func jobError(t types.AnsibleJob) {
 	updateJobTemplate(t)
 }
 
-func jobSuccess(t types.AnsibleJob) {
+func jobSuccess(t *types.AnsibleJob) {
 	t.Job.Status = "successful"
 	t.Job.Finished = time.Now()
 	t.Job.Failed = false
@@ -180,7 +180,7 @@ func jobSuccess(t types.AnsibleJob) {
 	updateJobTemplate(t)
 }
 
-func updateProject(t types.AnsibleJob) {
+func updateProject(t *types.AnsibleJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,
@@ -195,7 +195,7 @@ func updateProject(t types.AnsibleJob) {
 	}
 }
 
-func updateJobTemplate(t types.AnsibleJob) {
+func updateJobTemplate(t *types.AnsibleJob) {
 	d := bson.M{
 		"$set": bson.M{
 			"last_job_run":    t.Job.Started,

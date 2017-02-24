@@ -186,7 +186,7 @@ func (ctrl CredentialController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }
@@ -362,7 +362,7 @@ func (ctrl ProjectController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }
@@ -535,7 +535,7 @@ func (ctrl TeamController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }
@@ -732,7 +732,7 @@ func (ctrl InventoryController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }
@@ -918,7 +918,7 @@ func (ctrl JobTemplateController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }
@@ -1104,7 +1104,7 @@ func (ctrl TJobTmplController) AccessList(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  usrs[pgi.Skip():pgi.End()],
+		Data:     usrs[pgi.Skip():pgi.End()],
 	})
 
 }

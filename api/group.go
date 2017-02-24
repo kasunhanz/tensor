@@ -24,7 +24,7 @@ import (
 
 // Keys for group related items stored in the Gin Context
 const (
-	cGroup = "group"
+	cGroup   = "group"
 	cGroupID = "group_id"
 )
 
@@ -48,7 +48,7 @@ func (ctrl GroupController) Middleware(c *gin.Context) {
 		AbortWithError(LogFields{Context: c, Status: http.StatusNotFound, Message: "Group does not exist",
 			Log: logrus.Fields{
 				"Group ID": objectID,
-				"Error":  err.Error(),
+				"Error":    err.Error(),
 			},
 		})
 		return
@@ -134,7 +134,7 @@ func (ctrl GroupController) All(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  groups[pgi.Skip():pgi.End()],
+		Data:     groups[pgi.Skip():pgi.End()],
 	})
 }
 
@@ -240,7 +240,7 @@ func (ctrl GroupController) Update(c *gin.Context) {
 		return
 	}
 
-	if req.Name != group.Name  && !req.IsUnique() {
+	if req.Name != group.Name && !req.IsUnique() {
 		AbortWithError(LogFields{Context: c, Status: http.StatusBadRequest,
 			Message: "Group with this name and inventory already exists.",
 		})
@@ -369,6 +369,6 @@ func (ctrl GroupController) ActivityStream(c *gin.Context) {
 		Count:    count,
 		Next:     pgi.NextPage(),
 		Previous: pgi.PreviousPage(),
-		Data:  activities[pgi.Skip():pgi.End()],
+		Data:     activities[pgi.Skip():pgi.End()],
 	})
 }
