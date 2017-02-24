@@ -91,6 +91,7 @@ func (ctrl UserController) One(c *gin.Context) {
 	} else {
 		user = c.MustGet("user").(common.User)
 	}
+	user.Password = "$encrypted$"
 	metadata.UserMetadata(&user)
 	c.JSON(http.StatusOK, user)
 }
