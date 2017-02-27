@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	JobTemplateAdmin   = "admin"
+	JobTemplateAdmin = "admin"
 	JobTemplateExecute = "execute"
 )
 
@@ -20,6 +20,26 @@ func (JobTemplate) Read(user common.User, jtemplate ansible.JobTemplate) bool {
 	// Allow access if the user is super user or
 	// a system auditor
 	if HasGlobalRead(user) {
+		return true
+	}
+
+	if jtemplate.MachineCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.MachineCredentialID)
+	}
+
+	if jtemplate.CloudCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.CloudCredentialID)
+	}
+
+	if jtemplate.NetworkCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.NetworkCredentialID)
+	}
+
+	if new(Inventory).ReadByID(jtemplate.InventoryID) {
+		return true
+	}
+
+	if new(Project).ReadByID(jtemplate.ProjectID) {
 		return true
 	}
 

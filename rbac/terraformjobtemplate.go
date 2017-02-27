@@ -18,6 +18,22 @@ func (TerraformJobTemplate) Read(user common.User, jtemplate terraform.JobTempla
 		return true
 	}
 
+	if jtemplate.MachineCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.MachineCredentialID)
+	}
+
+	if jtemplate.CloudCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.CloudCredentialID)
+	}
+
+	if jtemplate.NetworkCredentialID != nil {
+		return new(Credential).ReadByID(jtemplate.NetworkCredentialID)
+	}
+
+	if new(Project).ReadByID(jtemplate.ProjectID) {
+		return true
+	}
+
 	if orgID, err := jtemplate.GetOrganizationID(); err != nil {
 		// check whether the user is an member of the objects' organization
 		// since this is write permission it is must user need to be an admin
