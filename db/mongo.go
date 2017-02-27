@@ -31,7 +31,7 @@ const (
 	CProjects              = "projects"
 	CTeams                 = "teams"
 	CUsers                 = "users"
-	CActivityStream        = "ativity_stream"
+	CActivityStream        = "activity_stream"
 )
 
 // Connect will create a session to Mongodb database given in the Config file or env
