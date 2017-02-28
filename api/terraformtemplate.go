@@ -296,7 +296,7 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 		return
 	}
 
-	rolesjob := new(rbac.JobTemplate)
+	rolesjob := new(rbac.TerraformJobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
@@ -415,7 +415,7 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 		return
 	}
 
-	rolesjob := new(rbac.JobTemplate)
+	rolesjob := new(rbac.TerraformJobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
