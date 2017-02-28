@@ -1,0 +1,39 @@
+language: go
+dist: trusty
+sudo: required
+go:
+  - 1.8
+install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y rpm build-essential devscripts pbuilder dh-make cdbs
+env:
+  global:
+    - TENSOR_DB_USER=tensor
+    - TENSOR_DB_PASSWORD=tensor
+    - TENSOR_DB_NAME=tensordb
+    - TENSOR_DB_REPLICA=""
+    - TENSOR_DB_HOSTS="localhost:27017"
+    - TENSOR_REDIS_HOST="localhost:6379"
+
+before_script:
+  - sleep 15
+  - make mongo
+script:
+  - make travis
+services:
+  - mongodb
+  - redis-server
+addons:
+  artifacts:
+    branch:
+      - master
+      - develop
+      - travis
+    s3_region: "us-west-2"
+  apt:
+    sources:
+      - mongodb-upstart
+      - mongodb-3.4-trusty
+    packages:
+      - mongodb-org-server
+      - mongodb-org-shell

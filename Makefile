@@ -1,8 +1,8 @@
 #!/usr/bin/make
 
 NAME = tensor
-OS = $(shell uname -s)
--DEB_OS = $(shell lsb_release -si)
+OS ?= $(shell uname -s)
+-DEB_OS ?= $(shell lsb_release -si)
 
 # VERSION file provides one place to update the software version
 VERSION := $(shell cat VERSION | cut -f1 -d' ')
@@ -35,21 +35,21 @@ endif
 # DEB build parameters
 DEBUILD_BIN ?= debuild
 DEBUILD_OPTS = --source-option="-I"
-DPUT_BIN ?= dput
-DPUT_OPTS ?=
 DEB_DATE := $(shell LC_TIME=C date +"%a, %d %b %Y %T %z")
 ifeq ($(OFFICIAL),yes)
 DEB_RELEASE = $(RELEASE)ppa
-# Sign OFFICIAL builds using 'DEBSIGN_KEYID'
-# DEBSIGN_KEYID is required when signing
-ifneq ($(DEBSIGN_KEYID),)
-DEBUILD_OPTS += -k$(DEBSIGN_KEYID)
-endif
 else
 DEB_RELEASE = 0.git$(DATE)$(GITINFO)
 # Do not sign unofficial builds
 DEBUILD_OPTS += -uc -us
-DPUT_OPTS += -u
+endif
+# Sign OFFICIAL builds using 'DEBSIGN_KEYID'
+# DEBSIGN_KEYID is required when signing
+ifdef ($(DEBSIGN_KEYID))
+DEBUILD_OPTS += -k$(DEBSIGN_KEYID)
+else
+# Do not sign unofficial builds
+DEBUILD_OPTS += -uc -us
 endif
 DEBUILD = $(DEBUILD_BIN) $(DEBUILD_OPTS)
 DEB_PPA ?= ppa
@@ -65,40 +65,40 @@ PBUILDER_OPTS ?= --debootstrapopts --variant=buildd --architecture $(PBUILDER_AR
 # RPM build parameters
 RPMSPECDIR= packaging/rpm
 RPMSPEC = $(RPMSPECDIR)/tensor.spec
-RPMDIST = $(shell rpm --eval '%{?dist}')
 RPMRELEASE = $(RELEASE)
 ifneq ($(OFFICIAL),yes)
 RPMRELEASE = 100.git$(DATE)$(GITINFO)
 endif
-RPMNVR = "$(NAME)-$(VERSION)-$(RPMRELEASE)$(RPMDIST)"
+RPMNVR = "$(NAME)-$(VERSION)-$(RPMRELEASE)"
 
 sdist: vet
-	mkdir -p build/dist/$(NAME)-$(VERSION)/bin/
-	mkdir -p build/dist/$(NAME)-$(VERSION)/systemd/
-	mkdir -p build/dist/$(NAME)-$(VERSION)/etc/
-	mkdir -p build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory
-	mkdir -p build/dist/$(NAME)-$(VERSION)/lib/playbooks
-	cp packaging/config/tensor.conf build/dist/$(NAME)-$(VERSION)/etc/
-	cp packaging/systemd/tensord.service build/dist/$(NAME)-$(VERSION)/systemd/
-	cp -a docs build/dist/$(NAME)-$(VERSION)/
-	go build -v -o build/dist/$(NAME)-$(VERSION)/bin/tensord ./tensord/...
-	go build -v -o build/dist/$(NAME)-$(VERSION)/bin/tensor ./cmd/...
-	cp -a packaging/ansible/playbooks/* build/dist/$(NAME)-$(VERSION)/lib/playbooks/
-	cp -a packaging/ansible/playbooks/* build/dist/$(NAME)-$(VERSION)/lib/playbooks/
-	cp -a packaging/ansible/plugins/inventory/* build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory/
-	chmod 774 build/dist/$(NAME)-$(VERSION)/lib/plugins/inventory/*
-	cd build/dist/ && env GZIP=-9 tar -cvzf $(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)
+	mkdir -p build/$(NAME)-$(VERSION)/bin/
+	mkdir -p build/$(NAME)-$(VERSION)/systemd/
+	mkdir -p build/$(NAME)-$(VERSION)/etc/
+	mkdir -p build/$(NAME)-$(VERSION)/lib/plugins/inventory
+	mkdir -p build/$(NAME)-$(VERSION)/lib/playbooks
+	cp packaging/config/tensor.conf build/$(NAME)-$(VERSION)/etc/
+	cp packaging/systemd/tensord.service build/$(NAME)-$(VERSION)/systemd/
+	cp -a docs build/$(NAME)-$(VERSION)/
+	go build -v -o build/$(NAME)-$(VERSION)/bin/tensord ./tensord/...
+	go build -v -o build/$(NAME)-$(VERSION)/bin/tensor ./cmd/...
+	cp -a packaging/ansible/playbooks/* build/$(NAME)-$(VERSION)/lib/playbooks/
+	cp -a packaging/ansible/playbooks/* build/$(NAME)-$(VERSION)/lib/playbooks/
+	cp -a packaging/ansible/plugins/inventory/* build/$(NAME)-$(VERSION)/lib/plugins/inventory/
+	chmod 774 build/$(NAME)-$(VERSION)/lib/plugins/inventory/*
+	cd build/ && env GZIP=-9 tar -cJf $(NAME)-$(VERSION).tar.xz $(NAME)-$(VERSION)
+	cd build/ && env GZIP=-9 tar -cvf $(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)
+	rm -rf build/$(NAME)-$(VERSION)/
 
 clean:
 	@echo "Cleaning up distutils stuff"
 	rm -rf build
-	rm -f packaging/docker/tensor/tensor.deb
 
 debian:	sdist
 	@echo "Creating distribution specific build directories"
 	@for DIST in $(DEB_DIST) ; do \
 		mkdir -p build/deb-build/$${DIST} ; \
-		tar -C build/deb-build/$${DIST} -xvf build/dist/$(NAME)-$(VERSION).tar.gz ; \
+		tar -C build/deb-build/$${DIST} -xvf build/$(NAME)-$(VERSION).tar.xz ; \
 		mkdir -p build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/ ; \
 		cp -a packaging/debian/* build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/ ; \
 		sed -ie "s|%VERSION%|$(VERSION)|g;s|%RELEASE%|$(DEB_RELEASE)|;s|%DIST%|$${DIST}|g;s|%DATE%|$(DEB_DATE)|g" build/deb-build/$${DIST}/$(NAME)-$(VERSION)/debian/changelog ; \
@@ -122,6 +122,7 @@ deb: deb-src
 deb-src: debian
 	@for DIST in $(DEB_DIST) ; do \
 		(cd build/deb-build/$${DIST}/$(NAME)-$(VERSION)/ && $(DEBUILD) -S) ; \
+		rm -rf build/deb-build/$${DIST}/$(NAME)-$(VERSION)/ ; \
 	done
 	@echo "#############################################"
 	@echo "Tensor DEB artifacts:"
@@ -144,7 +145,7 @@ local_deb: debian
 
 rpmcommon: sdist
 	@mkdir -p build/rpm-build
-	@cp build/dist/*.gz build/rpm-build/
+	@cp build/*.tar.gz build/rpm-build/
 	@sed -e 's#^Version:.*#Version: $(VERSION)#' -e 's#^Release:.*#Release: $(RPMRELEASE)%{?dist}#' $(RPMSPEC) > build/rpm-build/$(NAME).spec
 
 srpm: rpmcommon
@@ -175,6 +176,19 @@ rpm: rpmcommon
 	@echo "Tensor RPM is built:"
 	@echo "    build/rpm-build/$(RPMNVR).noarch.rpm"
 	@echo "#############################################"
+
+mongo:
+	mongo tensordb --eval 'db.createUser({user:"tensor",pwd:"tensor",roles:["readWrite","dbAdmin" ] });'
+	mongo tensordb --eval 'db.users.insert({"_id":new ObjectId(),"username":"admin","first_name":"Gamunu",'\
+	'"last_name":"Balagalla","email":"gamunu.balagalla@outlook.com","is_superuser" : true,"is_system_auditor":false});'
+
+travis:
+	go get -v ./...
+	go get -v github.com/stretchr/testify
+	$(MAKE) test
+	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
+	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
+	$(MAKE) srpm
 
 # Build tensor docker image and tag with current version
 docker-build:

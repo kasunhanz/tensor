@@ -19,18 +19,18 @@ func (TerraformJobTemplate) Read(user common.User, jtemplate terraform.JobTempla
 	}
 
 	if jtemplate.MachineCredentialID != nil {
-		return new(Credential).ReadByID(jtemplate.MachineCredentialID)
+		return new(Credential).ReadByID(user, *jtemplate.MachineCredentialID)
 	}
 
 	if jtemplate.CloudCredentialID != nil {
-		return new(Credential).ReadByID(jtemplate.CloudCredentialID)
+		return new(Credential).ReadByID(user, *jtemplate.CloudCredentialID)
 	}
 
 	if jtemplate.NetworkCredentialID != nil {
-		return new(Credential).ReadByID(jtemplate.NetworkCredentialID)
+		return new(Credential).ReadByID(user, *jtemplate.NetworkCredentialID)
 	}
 
-	if new(Project).ReadByID(jtemplate.ProjectID) {
+	if new(Project).ReadByID(user, jtemplate.ProjectID) {
 		return true
 	}
 
