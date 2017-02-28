@@ -314,7 +314,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 
 	roles := new(rbac.Project)
 	if !(rbac.HasGlobalWrite(user) && rbac.IsOrganizationAdmin(project.OrganizationID, user.ID)) {
-		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.ProjectAdmin)
+		roles.Associate(project.ID, user.ID, rbac.RoleTypeUser, rbac.ProjectAdmin)
 	}
 
 	// before set metadata update the project

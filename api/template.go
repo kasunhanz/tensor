@@ -454,9 +454,9 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 
 	rolesjob := new(rbac.JobTemplate)
 	if !rbac.HasGlobalWrite(user) {
-		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
-		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
 	}
 
 	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)

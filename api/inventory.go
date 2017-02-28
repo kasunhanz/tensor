@@ -251,7 +251,7 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 
 	roles := new(rbac.Inventory)
 	if !(rbac.HasGlobalWrite(user) || rbac.IsOrganizationAdmin(req.OrganizationID, user.ID)) {
-		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
+		roles.Associate(inventory.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
 	}
 
 	activity.AddInventoryActivity(common.Update, user, tmpInventory, inventory)
