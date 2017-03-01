@@ -189,6 +189,7 @@ travis:
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
 	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
 	$(MAKE) srpm
+	go test -race -coverprofile=coverage.txt -covermode=atomic
 
 # Build tensor docker image and tag with current version
 docker-build:

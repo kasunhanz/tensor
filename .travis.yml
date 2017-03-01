@@ -20,6 +20,8 @@ before_script:
   - make mongo
 script:
   - make travis
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 services:
   - mongodb
   - redis-server
