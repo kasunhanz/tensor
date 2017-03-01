@@ -183,9 +183,15 @@ mongo:
 	'"last_name":"Balagalla","email":"gamunu.balagalla@outlook.com","is_superuser" : true,"is_system_auditor":false});'
 
 travis:
-	go get -v ./...
-	go get -v github.com/stretchr/testify
 	$(MAKE) test
+	@echo "" > coverage.txt
+	@for d in $$(go list ./...) ; do \
+		go test -race -coverprofile=profile.out -covermode=atomic $$d; \
+		if [ -f profile.out ]; then \
+			cat profile.out >> coverage.txt; \
+			rm profile.out; \
+		fi; \
+	done
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
 	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
 	$(MAKE) srpm
@@ -236,5 +242,4 @@ runsetup:
 
 # run test suite
 test:
-	go test ./... -race -coverprofile=coverage.txt -covermode=atomic
-
+	go test -v ./...

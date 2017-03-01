@@ -6,6 +6,8 @@ go:
 install:
   - sudo apt-get -qq update
   - sudo apt-get install -y rpm build-essential devscripts pbuilder dh-make cdbs
+  - go get -v ./...
+  - go get -v github.com/stretchr/testify
 env:
   global:
     - TENSOR_DB_USER=tensor
@@ -30,7 +32,6 @@ addons:
     branch:
       - master
       - develop
-      - travis
     s3_region: "us-west-2"
   apt:
     sources:
