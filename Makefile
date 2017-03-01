@@ -193,8 +193,12 @@ travis:
 		fi; \
 	done
 	@if [ "$$OFFICIAL" = 'yes' ]; then \
-		openssl aes-256-cbc -K $$encrypted_194e3b0fc15f_key -iv $$encrypted_194e3b0fc15f_iv -in codesigning.asc.enc -out codesigning.asc -d \
+		openssl aes-256-cbc -K $$encrypted_194e3b0fc15f_key -iv $$encrypted_194e3b0fc15f_iv -in codesigning.asc.enc -out codesigning.asc -d; \
 		gpg --fast-import codesigning.asc; \
+		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$$(NAME)-$$(VERSION).tar.xz; \
+		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$$(NAME)-$$(VERSION).tar.gz; \
+		sha512 build/$$(NAME)-$$(VERSION).tar.xz > build/$$(NAME)-$$(VERSION).tar.xz.sha512; \
+		sha512 build/$$(NAME)-$$(VERSION).tar.gz > build/$$(NAME)-$$(VERSION).tar.gz.sha512; \
 	fi;
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
 	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
