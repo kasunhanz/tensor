@@ -6,7 +6,7 @@
   <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/release/pearsonappeng/tensor.svg" alt="Releases"></a>
   <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/issues/pearsonappeng/tensor.svg" alt="Issues"></a>
 </p>
-<p align="center">Centralized infrastructure management platform, provides role-based access control, job scheduling, inventory management supports the REST API supports ansible & terraform.</p>
+<p align="center">Centralized infrastructure management platform, provides role-based access control, job scheduling, inventory management. The REST API supports ansible & terraform.</p>
 
 Use Cases
 ------------
@@ -21,6 +21,7 @@ Use Cases
 Documentation
 --------------
 
+- [API Documentation](https://pearsonappeng.github.io/tensor-doc)
 - [Installation](https://github.com/pearsonappeng/tensor/wiki/Installation)
 - Database
  1. [MongoDB Installtion (Ubuntu 16.04)](https://github.com/pearsonappeng/tensor/wiki/MongoDB-Ubuntu-16.04-Installtion)
