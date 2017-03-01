@@ -197,8 +197,6 @@ travis:
 		gpg --fast-import codesigning.asc; \
 		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$$(NAME)-$$(VERSION).tar.xz; \
 		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$$(NAME)-$$(VERSION).tar.gz; \
-		sha512 build/$$(NAME)-$$(VERSION).tar.xz > build/$$(NAME)-$$(VERSION).tar.xz.sha512; \
-		sha512 build/$$(NAME)-$$(VERSION).tar.gz > build/$$(NAME)-$$(VERSION).tar.gz.sha512; \
 	fi;
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
 	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
