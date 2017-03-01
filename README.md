@@ -1,12 +1,15 @@
-Tensor: Comprehensive web-based automation framework and Centralized infrastructure management platform
----
-[![Release](https://img.shields.io/github/release/pearsonappeng/tensor.svg)](https://github.com/pearsonappeng/tensor/releases/latest) | 
-[![Issues](https://img.shields.io/github/issues/pearsonappeng/tensor.svg)](https://github.com/pearsonappeng/tensor/releases/latest)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pearsonappeng/img/master/logo-tensor.png" alt="Tensor: An Automation Platform" width="226">
+  <br>
+  <a href="https://travis-ci.com/pearsonappeng/tensor"><img src="https://travis-ci.com/pearsonappeng/tensor.svg?token=dGxXpuzeysEVsPzyCZzk&branch=master" alt="Build Status"></a>
+  <a href="https://codecov.io/gh/pearsonappeng/tensor"><img src="https://codecov.io/gh/pearsonappeng/tensor/branch/master/graph/badge.svg?token=EaMChWx6yl" alt="Codecov"></a>
+  <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/release/pearsonappeng/tensor.svg" alt="Releases"></a>
+  <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/issues/pearsonappeng/tensor.svg" alt="Issues"></a>
+</p>
+<p align="center">Centralized infrastructure management platform, provides role-based access control, job scheduling, inventory management supports the REST API supports ansible & terraform.</p>
 
-Centralized infrastructure management REST API, based on ansible, provides role-based access control, job scheduling, inventory management.
-Currently, the REST API supports the only ansible. Our expectation is to support other CI-CD automation tools like Chef,Puppet in the near future.
-
-**Use Cases**
+Use Cases
+------------
 
 - Configuration Management
 - Provisioning
@@ -15,8 +18,8 @@ Currently, the REST API supports the only ansible. Our expectation is to support
 - Security & Compliance
 - Orchestration
 
----
-**Documentation**
+Documentation
+--------------
 
 - [Installation](https://github.com/pearsonappeng/tensor/wiki/Installation)
 - Database
@@ -25,8 +28,9 @@ Currently, the REST API supports the only ansible. Our expectation is to support
  3. [Configuring MongoDB Installation](https://github.com/pearsonappeng/tensor/wiki/Configuring-MongoDB-Installation)
 - [Packaging](https://github.com/pearsonappeng/tensor/wiki/Packaging)
 
----
-**Legal**
+
+Legal
+------
 
 *Brought to you courtesy of our legal counsel. For more context,
 please see the [NOTICE](https://github.com/pearsonappeng/tensor/blob/master/NOTICE) document in this repo.*
@@ -39,9 +43,11 @@ violate applicable laws.
 
 For more information, please see https://www.bis.doc.gov
 
----
-**Licensing**
+Licensing
+---------
 
 Tensor is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/pearsonappeng/tensor/blob/master/LICENSE) for the full
 license text.
+
+Copyright Pearson. All rights reserved for the files under packaging/img; the rest of the code is released under the [Apache] license.
