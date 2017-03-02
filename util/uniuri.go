@@ -47,6 +47,7 @@ func UniqueNewLen(length int) string {
 	return UniqueNewLenChars(length, StdChars)
 }
 
+
 // NewLenChars returns a new random string of the provided length, consisting
 // of the provided byte slice of allowed characters (maximum 256).
 func UniqueNewLenChars(length int, chars []byte) string {
