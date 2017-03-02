@@ -201,6 +201,7 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	if !(rbac.HasGlobalWrite(user) ||
 		!(req.OrganizationID != nil || rbac.IsOrganizationAdmin(*req.OrganizationID, user.ID))) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
+		activity.AddCredentialAssociationActivity(user, req)
 	}
 
 	activity.AddCredentialActivity(common.Create, user, req)
@@ -304,8 +305,10 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	roles := new(rbac.Credential)
 	if !rbac.HasGlobalWrite(user) {
 		roles.Associate(credential.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
+		activity.AddCredentialAssociationActivity(user, credential)
 	} else if credential.OrganizationID != nil && !rbac.IsOrganizationAdmin(*credential.OrganizationID, user.ID) {
 		roles.Associate(credential.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
+		activity.AddCredentialAssociationActivity(user, credential)
 	}
 
 	// add new activity to activity stream

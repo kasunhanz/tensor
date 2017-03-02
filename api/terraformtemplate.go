@@ -299,8 +299,10 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	rolesjob := new(rbac.TerraformJobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddJobTemplateAssociationActivity(user, req)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddJobTemplateAssociationActivity(user, req)
 	}
 
 	activity.AddTJobTemplateActivity(common.Create, user, req)

@@ -1,9 +1,10 @@
 package common
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
-	"time"
 )
 
 // Activity constants
@@ -88,4 +89,15 @@ type ActivityTeam struct {
 	Operation string        `bson:"operation" json:"operation"`
 	Object1   Team          `bson:"object1" json:"object1"`
 	Object2   *Team         `bson:"object2" json:"object2"`
+}
+
+// ActivityAssociation is the model for Association collection
+type ActivityAssociation struct {
+	ID        bson.ObjectId `bson:"_id" json:"id"`
+	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	Links     gin.H         `bson:"-" json:"links"`
+	Meta      gin.H         `bson:"-" json:"meta"`
+	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
+	Operation string        `bson:"operation" json:"operation"`
+	Object    RoleObj       `bson:"object" json:"object"`
 }

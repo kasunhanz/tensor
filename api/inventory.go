@@ -185,6 +185,7 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	}
 
 	roles := new(rbac.Inventory)
+	activity.AddInventoryAssociationActivity(user, req)
 	if !(rbac.HasGlobalWrite(user) || rbac.IsOrganizationAdmin(req.OrganizationID, user.ID)) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
 	}

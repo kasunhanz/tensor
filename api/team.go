@@ -180,6 +180,7 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	roles := new(rbac.Team)
 	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin)
+		activity.AddTeamAssociationActivity(user, req)
 	}
 
 	activity.AddTeamActivity(common.Create, user, req)
@@ -507,6 +508,7 @@ func (ctrl TeamController) ActivityStream(c *gin.Context) {
 
 func (ctrl TeamController) AssignRole(c *gin.Context) {
 	team := c.MustGet(cTeam).(common.Team)
+	user := c.MustGet(cUser).(common.User)
 
 	var req common.RoleObj
 	err := binding.JSON.Bind(c.Request, &req)
@@ -602,6 +604,7 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 		})
 		return
 	}
+	activity.AddRBACActivity(user, req)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }

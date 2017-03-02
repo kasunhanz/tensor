@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/pearsonappeng/tensor/rbac"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -224,6 +225,148 @@ func AddTJobTemplateActivity(action string, user common.User, req ...terraform.J
 	// Set Object2 for PUT and PATCH requests
 	if len(req) > 1 {
 		activity.Object2 = &req[1]
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddRBACActivity is responsible for creating new activity stream
+//for RBAC related Activity
+func AddRBACActivity(user common.User, req common.RoleObj) {
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    req,
+		Operation: common.Associate,
+	}
+
+	if req.Disassociate {
+		activity.Operation = common.Disassociate
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddProjectAssociationActivity is responsible for creating new activity stream
+//for project association related Activity
+func AddProjectAssociationActivity(user common.User, req common.Project) {
+	role := common.RoleObj{
+		Disassociate: false,
+		ResourceID:   req.ID,
+		ResourceType: "project",
+		Role:         rbac.ProjectAdmin,
+	}
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    role,
+		Operation: common.Associate,
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddCredentialAssociationActivity is responsible for creating new activity stream
+//for credential association related Activity
+func AddCredentialAssociationActivity(user common.User, req common.Credential) {
+	role := common.RoleObj{
+		Disassociate: false,
+		ResourceID:   req.ID,
+		ResourceType: "credential",
+		Role:         rbac.ProjectAdmin,
+	}
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    role,
+		Operation: common.Associate,
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddTeamAssociationActivity is responsible for creating new activity stream
+//for team association related Activity
+func AddTeamAssociationActivity(user common.User, req common.Team) {
+	role := common.RoleObj{
+		Disassociate: false,
+		ResourceID:   req.ID,
+		ResourceType: "team",
+		Role:         rbac.ProjectAdmin,
+	}
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    role,
+		Operation: common.Associate,
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddInventoryAssociationActivity is responsible for creating new activity stream
+//for Inventory association related Activity
+func AddInventoryAssociationActivity(user common.User, req ansible.Inventory) {
+	role := common.RoleObj{
+		Disassociate: false,
+		ResourceID:   req.ID,
+		ResourceType: "inventory",
+		Role:         rbac.ProjectAdmin,
+	}
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    role,
+		Operation: common.Associate,
+	}
+
+	if err := db.ActivityStream().Insert(activity); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Failed to add new Activity")
+	}
+}
+
+//AddJobTemplateAssociationActivity is responsible for creating new activity stream
+//for JobTemplate association related Activity
+func AddJobTemplateAssociationActivity(user common.User, req terraform.JobTemplate) {
+	role := common.RoleObj{
+		Disassociate: false,
+		ResourceID:   req.ID,
+		ResourceType: "jobTemplate",
+		Role:         rbac.ProjectAdmin,
+	}
+	activity := common.ActivityAssociation{
+		ID:        bson.NewObjectId(),
+		Timestamp: time.Now(),
+		ActorID:   user.ID,
+		Object:    role,
+		Operation: common.Associate,
 	}
 
 	if err := db.ActivityStream().Insert(activity); err != nil {

@@ -677,6 +677,7 @@ func (ctrl UserController) AssignRole(c *gin.Context) {
 		})
 		return
 	}
+	activity.AddRBACActivity(user, req)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }
