@@ -28,7 +28,7 @@ import (
 
 // Keys for project related items stored in the Gin Context
 const (
-	cProject   = "project"
+	cProject = "project"
 	cProjectID = "project_id"
 )
 
@@ -219,7 +219,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	roles := new(rbac.Project)
 	if !(rbac.HasGlobalWrite(user) && rbac.IsOrganizationAdmin(req.OrganizationID, user.ID)) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.ProjectAdmin)
-		activity.AddProjectAssociationActivity(user, req)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
 	// before set metadata update the project
@@ -230,7 +230,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 		}).Errorln("Error while scm update")
 	}
 
-	activity.AddProjectActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.ProjectMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -316,7 +316,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 	roles := new(rbac.Project)
 	if !(rbac.HasGlobalWrite(user) && rbac.IsOrganizationAdmin(project.OrganizationID, user.ID)) {
 		roles.Associate(project.ID, user.ID, rbac.RoleTypeUser, rbac.ProjectAdmin)
-		activity.AddProjectAssociationActivity(user, project)
+		activity.AddActivity(activity.Associate, user.ID, project, user)
 	}
 
 	// before set metadata update the project
@@ -327,7 +327,7 @@ func (ctrl ProjectController) Update(c *gin.Context) {
 		}).Errorln("Error while scm update")
 	}
 
-	activity.AddProjectActivity(common.Update, user, tmpProject, project)
+	activity.AddActivity(activity.Update, user.ID, tmpProject, project)
 	metadata.ProjectMetadata(&project)
 	c.JSON(http.StatusOK, project)
 }
@@ -370,7 +370,7 @@ func (ctrl ProjectController) Delete(c *gin.Context) {
 		}
 	}()
 
-	activity.AddProjectActivity(common.Delete, user, project)
+	activity.AddActivity(activity.Delete, user.ID, project, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -397,7 +397,7 @@ func (ctrl ProjectController) Playbooks(c *gin.Context) {
 		if !f.IsDir() {
 			r, err := regexp.MatchString(".yml|.yaml|.json", f.Name())
 			if err == nil && r {
-				files = append(files, strings.TrimPrefix(path, project.LocalPath+"/"))
+				files = append(files, strings.TrimPrefix(path, project.LocalPath + "/"))
 			}
 		}
 		return nil
@@ -457,15 +457,11 @@ func (ctrl ProjectController) OwnerTeams(c *gin.Context) {
 func (ctrl ProjectController) ActivityStream(c *gin.Context) {
 	project := c.MustGet(cProject).(common.Project)
 
-	var activities []common.ActivityProject
-	var act common.ActivityProject
-	iter := db.ActivityStream().Find(bson.M{"object1._id": project.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": project.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityProjectMetadata(&act)
-		metadata.ProjectMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.ProjectMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 

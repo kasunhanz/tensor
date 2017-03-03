@@ -24,7 +24,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cHost   = "host"
+	cHost = "host"
 	cHostID = "host_id"
 )
 
@@ -196,7 +196,7 @@ func (ctrl HostController) Create(c *gin.Context) {
 		return
 	}
 
-	activity.AddHostActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.HostMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -257,7 +257,7 @@ func (ctrl HostController) Update(c *gin.Context) {
 		return
 	}
 
-	activity.AddHostActivity(common.Update, user, tmpHost, host)
+	activity.AddActivity(activity.Update, user.ID, tmpHost, host)
 	metadata.HostMetadata(&host)
 	c.JSON(http.StatusOK, host)
 }
@@ -275,7 +275,7 @@ func (ctrl HostController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddHostActivity(common.Delete, user, host)
+	activity.AddActivity(activity.Delete, user.ID, host, nil)
 	c.AbortWithStatus(204)
 }
 
@@ -378,15 +378,11 @@ func (ctrl HostController) AllGroups(c *gin.Context) {
 // ActivityStream returns the activities of the user on Hosts
 func (ctrl HostController) ActivityStream(c *gin.Context) {
 	host := c.MustGet(cHost).(ansible.Host)
-	var activities []ansible.ActivityHost
-	var act ansible.ActivityHost
-	iter := db.ActivityStream().Find(bson.M{"object1._id": host.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": host.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityHostMetadata(&act)
-		metadata.HostMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.HostMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 

@@ -18,12 +18,14 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/terraform"
 )
 
 const (
-	cUserA  = "_user"
+	cUserA = "_user"
 	cUserID = "user_id"
-	cUser   = "user"
+	cUser = "user"
 )
 
 type UserController struct{}
@@ -191,7 +193,7 @@ func (ctrl UserController) Create(c *gin.Context) {
 		return
 	}
 
-	activity.AddUserActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	req.Password = "$encrypted$"
 	metadata.UserMetadata(&req)
 	c.JSON(http.StatusCreated, req)
@@ -228,6 +230,7 @@ func (ctrl UserController) Update(c *gin.Context) {
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
 	user.Email = req.Email
+
 	if req.Password != "$encrypted$" {
 		pwdHash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 11)
 		user.Password = string(pwdHash)
@@ -241,7 +244,7 @@ func (ctrl UserController) Update(c *gin.Context) {
 		return
 	}
 
-	activity.AddUserActivity(common.Update, actor, tmpUser, user)
+	activity.AddActivity(activity.Update, actor.ID, tmpUser, user)
 	user.Password = "$encrypted$"
 	metadata.UserMetadata(&user)
 	c.JSON(http.StatusOK, user)
@@ -297,7 +300,7 @@ func (ctrl UserController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddUserActivity(common.Delete, loginUser, user)
+	activity.AddActivity(activity.Delete, loginUser.ID, user, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -479,15 +482,11 @@ func (ctrl UserController) AdminsOfOrganizations(c *gin.Context) {
 func (ctrl UserController) ActivityStream(c *gin.Context) {
 	user := c.MustGet(cUserA).(common.User)
 
-	var activities []common.ActivityUser
-	var act common.ActivityUser
-	iter := db.ActivityStream().Find(bson.M{"object1._id": user.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": user.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityUserMetadata(&act)
-		metadata.UserMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.UserMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 
@@ -518,6 +517,7 @@ func (ctrl UserController) ActivityStream(c *gin.Context) {
 
 func (ctrl UserController) AssignRole(c *gin.Context) {
 	user := c.MustGet(cUserA).(common.User)
+	actor := c.MustGet(cUser).(common.User)
 
 	var req common.RoleObj
 	err := binding.JSON.Bind(c.Request, &req)
@@ -533,38 +533,42 @@ func (ctrl UserController) AssignRole(c *gin.Context) {
 	case "credential":
 		{
 			roles := new(rbac.Credential)
-
-			if count, _ := db.Credentials().FindId(req.ResourceID).Count(); count <= 0 {
+			var credential common.Credential
+			if err := db.Credentials().FindId(req.ResourceID).One(&credential); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, credential, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, credential, user)
 			}
 		}
 
 	case "organization":
 		{
 			roles := new(rbac.Organization)
-
-			if count, _ := db.Organizations().FindId(req.ResourceID).Count(); count <= 0 {
+			var organization common.Organization
+			if err := db.Organizations().FindId(req.ResourceID).One(&organization); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, organization, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, organization, user)
 			}
 
 		}
@@ -572,95 +576,105 @@ func (ctrl UserController) AssignRole(c *gin.Context) {
 	case "team":
 		{
 			roles := new(rbac.Team)
-
-			if count, _ := db.Teams().FindId(req.ResourceID).Count(); count <= 0 {
+			var team common.Team
+			if err := db.Teams().FindId(req.ResourceID).One(&team); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, team, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, team, user)
 			}
 		}
 
 	case "project":
 		{
 			roles := new(rbac.Project)
-
-			if count, _ := db.Projects().FindId(req.ResourceID).Count(); count <= 0 {
+			var project common.Project
+			if err := db.Projects().FindId(req.ResourceID).One(&project); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, project, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, project, user)
 			}
 		}
 
 	case "job_template":
 		{
 			roles := new(rbac.JobTemplate)
-
-			if count, _ := db.JobTemplates().FindId(req.ResourceID).Count(); count <= 0 {
+			var jobtemplate ansible.JobTemplate
+			if err := db.JobTemplates().FindId(req.ResourceID).One(&jobtemplate); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, jobtemplate, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, jobtemplate, user)
 			}
 		}
 
 	case "terraform_job_template":
 		{
 			roles := new(rbac.TerraformJobTemplate)
-
-			if count, _ := db.TerrafromJobTemplates().FindId(req.ResourceID).Count(); count <= 0 {
+			var jobtemplate terraform.JobTemplate
+			if err := db.TerrafromJobTemplates().FindId(req.ResourceID).One(&jobtemplate); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, jobtemplate, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, jobtemplate, user)
 			}
 		}
 
 	case "inventory":
 		{
 			roles := new(rbac.Inventory)
-
-			if count, _ := db.Inventories().FindId(req.ResourceID).Count(); count <= 0 {
+			var inventory ansible.Inventory
+			if err := db.Inventories().FindId(req.ResourceID).One(&inventory); err != nil {
 				c.JSON(http.StatusBadRequest, common.Error{
 					Code:   http.StatusBadRequest,
-					Errors: []string{"Coud not find resource"},
+					Errors: []string{"Could not find resource"},
 				})
 				return
 			}
 
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Disassociate, actor.ID, inventory, user)
 			} else {
 				err = roles.Associate(req.ResourceID, user.ID, rbac.RoleTypeUser, req.Role)
+				activity.AddActivity(activity.Associate, actor.ID, inventory, user)
 			}
 		}
 	}
@@ -677,7 +691,6 @@ func (ctrl UserController) AssignRole(c *gin.Context) {
 		})
 		return
 	}
-	activity.AddRBACActivity(user, req)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }

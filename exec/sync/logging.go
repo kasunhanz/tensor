@@ -8,7 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/types"
-	"github.com/pearsonappeng/tensor/models/common"
 )
 
 func start(t types.SyncJob) {
@@ -189,40 +188,5 @@ func updateProject(t types.SyncJob) {
 		logrus.WithFields(logrus.Fields{
 			"Error": err,
 		}).Errorln("Failed to update project")
-	}
-}
-
-func updateJobTemplate(t types.SyncJob) {
-	d := bson.M{
-		"$set": bson.M{
-			"last_job_run":    t.Job.Started,
-			"last_job_failed": t.Job.Failed,
-			"status":          t.Job.Status,
-		},
-	}
-
-	if err := db.JobTemplates().UpdateId(t.JobTemplateID, d); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"Status": t.Job.Status,
-			"Error":  err,
-		}).Errorln("Failed to update JobTemplate")
-	}
-}
-
-func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype string) {
-
-	a := common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     userID,
-		Type:        jobtype,
-		ObjectID:    crdID,
-		Description: desc,
-		Created:     time.Now(),
-	}
-
-	if err := db.ActivityStream().Insert(a); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"Error": err,
-		}).Errorln("Failed to add new Activity")
 	}
 }

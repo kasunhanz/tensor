@@ -24,7 +24,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cInventory   = "inventory"
+	cInventory = "inventory"
 	cInventoryID = "inventory_id"
 )
 
@@ -185,12 +185,12 @@ func (ctrl InventoryController) Create(c *gin.Context) {
 	}
 
 	roles := new(rbac.Inventory)
-	activity.AddInventoryAssociationActivity(user, req)
 	if !(rbac.HasGlobalWrite(user) || rbac.IsOrganizationAdmin(req.OrganizationID, user.ID)) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
-	activity.AddInventoryActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.InventoryMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -253,9 +253,10 @@ func (ctrl InventoryController) Update(c *gin.Context) {
 	roles := new(rbac.Inventory)
 	if !(rbac.HasGlobalWrite(user) || rbac.IsOrganizationAdmin(req.OrganizationID, user.ID)) {
 		roles.Associate(inventory.ID, user.ID, rbac.RoleTypeUser, rbac.InventoryAdmin)
+		activity.AddActivity(activity.Associate, user.ID, inventory, user)
 	}
 
-	activity.AddInventoryActivity(common.Update, user, tmpInventory, inventory)
+	activity.AddActivity(activity.Update, user.ID, tmpInventory, inventory)
 	metadata.InventoryMetadata(&inventory)
 	c.JSON(http.StatusOK, inventory)
 }
@@ -289,7 +290,7 @@ func (ctrl InventoryController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddInventoryActivity(common.Delete, user, inventory)
+	activity.AddActivity(activity.Delete, user.ID, inventory, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -600,15 +601,11 @@ func (ctrl InventoryController) Hosts(c *gin.Context) {
 func (ctrl InventoryController) ActivityStream(c *gin.Context) {
 	inventory := c.MustGet(cInventory).(ansible.Inventory)
 
-	var activities []ansible.ActivityInventory
-	var act ansible.ActivityInventory
-	iter := db.ActivityStream().Find(bson.M{"object1._id": inventory.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": inventory.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityInventoryMetadata(&act)
-		metadata.InventoryMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.InventoryMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 

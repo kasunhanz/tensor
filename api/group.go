@@ -211,7 +211,7 @@ func (ctrl GroupController) Create(c *gin.Context) {
 		return
 	}
 
-	activity.AddGroupActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.GroupMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -270,7 +270,7 @@ func (ctrl GroupController) Update(c *gin.Context) {
 		return
 	}
 
-	activity.AddGroupActivity(common.Update, user, tmpGroup, group)
+	activity.AddActivity(activity.Update, user.ID, tmpGroup, group)
 	metadata.GroupMetadata(&group)
 	c.JSON(http.StatusOK, group)
 }
@@ -317,7 +317,7 @@ func (ctrl GroupController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddGroupActivity(common.Delete, user, group)
+	activity.AddActivity(activity.Delete, user.ID, group, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -338,15 +338,11 @@ func (ctrl GroupController) VariableData(c *gin.Context) {
 // ActivityStream returns the activities of the user on Groups
 func (ctrl GroupController) ActivityStream(c *gin.Context) {
 	group := c.MustGet(cGroup).(ansible.Group)
-	var activities []ansible.ActivityGroup
-	var act ansible.ActivityGroup
+	var activities []common.Activity
+	var act common.Activity
 	iter := db.ActivityStream().Find(bson.M{"object1._id": group.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityGroupMetadata(&act)
-		metadata.GroupMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.GroupMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 	if err := iter.Close(); err != nil {

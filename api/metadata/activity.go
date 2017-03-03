@@ -2,12 +2,11 @@ package metadata
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 )
 
 // ActivityOrganizationMetadata attach metadata to ActivityOrganization
-func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
+func ActivityOrganizationMetadata(ao *common.Activity) {
 	ID := ao.ID.Hex()
 	ao.Type = "activity"
 	ao.Links = gin.H{
@@ -17,7 +16,7 @@ func ActivityOrganizationMetadata(ao *common.ActivityOrganization) {
 }
 
 // ActivityUserMetadata attach metadata to ActivityUser
-func ActivityUserMetadata(au *common.ActivityUser) {
+func ActivityUserMetadata(au *common.Activity) {
 	ID := au.ID.Hex()
 	au.Type = "activity"
 	au.Links = gin.H{
@@ -27,7 +26,7 @@ func ActivityUserMetadata(au *common.ActivityUser) {
 }
 
 // ActivityProjectMetadata attach metadata to ActivityProject
-func ActivityProjectMetadata(ap *common.ActivityProject) {
+func ActivityProjectMetadata(ap *common.Activity) {
 	ID := ap.ID.Hex()
 	ap.Type = "activity"
 	ap.Links = gin.H{
@@ -37,7 +36,7 @@ func ActivityProjectMetadata(ap *common.ActivityProject) {
 }
 
 // ActivityCredentialMetadata attach metadata to ActivityCredential
-func ActivityCredentialMetadata(ac *common.ActivityCredential) {
+func ActivityCredentialMetadata(ac *common.Activity) {
 	ID := ac.ID.Hex()
 	ac.Type = "activity"
 	ac.Links = gin.H{
@@ -48,7 +47,7 @@ func ActivityCredentialMetadata(ac *common.ActivityCredential) {
 }
 
 // ActivityTeamMetadata attach metadata to ActivityTeam
-func ActivityTeamMetadata(at *common.ActivityTeam) {
+func ActivityTeamMetadata(at *common.Activity) {
 	ID := at.ID.Hex()
 	at.Type = "activity"
 	at.Links = gin.H{
@@ -59,7 +58,7 @@ func ActivityTeamMetadata(at *common.ActivityTeam) {
 }
 
 // ActivityInventoryMetadata attach metadata to ActivityInventory
-func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
+func ActivityInventoryMetadata(ai *common.Activity) {
 	ID := ai.ID.Hex()
 	ai.Type = "activity"
 	ai.Links = gin.H{
@@ -70,7 +69,7 @@ func ActivityInventoryMetadata(ai *ansible.ActivityInventory) {
 }
 
 // ActivityHostMetadata attach metadata to ActivityHost
-func ActivityHostMetadata(ah *ansible.ActivityHost) {
+func ActivityHostMetadata(ah *common.Activity) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity"
 	ah.Links = gin.H{
@@ -81,7 +80,7 @@ func ActivityHostMetadata(ah *ansible.ActivityHost) {
 }
 
 // ActivityGroupMetadata attach metadata to ActivityGroup
-func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
+func ActivityGroupMetadata(ah *common.Activity) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity"
 	ah.Links = gin.H{
@@ -92,7 +91,7 @@ func ActivityGroupMetadata(ah *ansible.ActivityGroup) {
 }
 
 // ActivityJobTemplateMetadata attach metadata to ActivityJobTemplate
-func ActivityJobTemplateMetadata(ah *ansible.ActivityJobTemplate) {
+func ActivityJobTemplateMetadata(ah *common.Activity) {
 	ID := ah.ID.Hex()
 	ah.Type = "activity"
 	ah.Links = gin.H{

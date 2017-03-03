@@ -10,5 +10,5 @@ func TestDecrypt(t *testing.T) {
 	cryptvalue := Cipher(expected)
 	actual := Decipher(cryptvalue)
 
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, expected, string(actual))
 }

@@ -7,97 +7,19 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Activity constants
-const (
-	Create       = "create"
-	Update       = "update"
-	Delete       = "delete"
-	Associate    = "associate"
-	Disassociate = "disassociate"
-)
-
 // Activity is the model for Activity collection
 type Activity struct {
-	ID          bson.ObjectId `bson:"_id" json:"id"`
-	ObjectID    bson.ObjectId `bson:"object_id" json:"object_id"`
-	ActorID     bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Type        string        `bson:"type" json:"type"`
-	Description string        `bson:"description" json:"description"`
-	Created     time.Time     `bson:"created" json:"created"`
-}
-
-// ActivityOrganization is the model for Organization collection
-type ActivityOrganization struct {
 	ID        bson.ObjectId `bson:"_id" json:"id"`
 	Type      string        `bson:"-" json:"type"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
+	URL       string        `bson:"-" json:"url"`
+	ActorID   bson.ObjectId `bson:"actor_id"`
+	Object1ID bson.ObjectId `bson:"object1_id"`
+	Object2ID bson.ObjectId   `bson:"object2_id,omitempty"`
 	Links     gin.H         `bson:"-" json:"links"`
 	Meta      gin.H         `bson:"-" json:"meta"`
 	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
 	Operation string        `bson:"operation" json:"operation"`
-	Object1   Organization  `bson:"object1" json:"object1"`
-	Object2   *Organization `bson:"object2" json:"object2"`
-}
-
-// ActivityUser is the model for User collection
-type ActivityUser struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	Type      string        `bson:"-" json:"type"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Links     gin.H         `bson:"-" json:"links"`
-	Meta      gin.H         `bson:"-" json:"meta"`
-	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
-	Operation string        `bson:"operation" json:"operation"`
-	Object1   User          `bson:"object1" json:"object1"`
-	Object2   *User         `bson:"object2" json:"object2"`
-}
-
-// ActivityProject is the model for Project collection
-type ActivityProject struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	Type      string        `bson:"-" json:"type"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Links     gin.H         `bson:"-" json:"links"`
-	Meta      gin.H         `bson:"-" json:"meta"`
-	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
-	Operation string        `bson:"operation" json:"operation"`
-	Object1   Project       `bson:"object1" json:"object1"`
-	Object2   *Project      `bson:"object2" json:"object2"`
-}
-
-// ActivityCredential is the model for Credential collection
-type ActivityCredential struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	Type      string        `bson:"-" json:"type"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Links     gin.H         `bson:"-" json:"links"`
-	Meta      gin.H         `bson:"-" json:"meta"`
-	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
-	Operation string        `bson:"operation" json:"operation"`
-	Object1   Credential    `bson:"object1" json:"object1"`
-	Object2   *Credential   `bson:"object2" json:"object2"`
-}
-
-// ActivityTeam is the model for Team collection
-type ActivityTeam struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	Type      string        `bson:"-" json:"type"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Links     gin.H         `bson:"-" json:"links"`
-	Meta      gin.H         `bson:"-" json:"meta"`
-	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
-	Operation string        `bson:"operation" json:"operation"`
-	Object1   Team          `bson:"object1" json:"object1"`
-	Object2   *Team         `bson:"object2" json:"object2"`
-}
-
-// ActivityAssociation is the model for Association collection
-type ActivityAssociation struct {
-	ID        bson.ObjectId `bson:"_id" json:"id"`
-	ActorID   bson.ObjectId `bson:"actor_id" json:"actor_id"`
-	Links     gin.H         `bson:"-" json:"links"`
-	Meta      gin.H         `bson:"-" json:"meta"`
-	Timestamp time.Time     `bson:"timestamp" json:"timestamp"`
-	Operation string        `bson:"operation" json:"operation"`
-	Object    RoleObj       `bson:"object" json:"object"`
+	Changes   map[string]interface{}   `bson:"changes" json:"changes"`
+	Object1   string   `bson:"object1" json:"object1"`
+	Object2   string   `bson:"object2,omitempty" json:"object2"`
 }

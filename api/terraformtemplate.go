@@ -299,13 +299,13 @@ func (ctrl TJobTmplController) Create(c *gin.Context) {
 	rolesjob := new(rbac.TerraformJobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
-		activity.AddJobTemplateAssociationActivity(user, req)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
-		activity.AddJobTemplateAssociationActivity(user, req)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
-	activity.AddTJobTemplateActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.JTemplateMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -420,11 +420,13 @@ func (ctrl TJobTmplController) Update(c *gin.Context) {
 	rolesjob := new(rbac.TerraformJobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, jobTemplate, user)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, jobTemplate, user)
 	}
 
-	activity.AddTJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
+	activity.AddActivity(activity.Update, user.ID, tmpJobTemplate, jobTemplate)
 	metadata.JTemplateMetadata(&jobTemplate)
 	c.JSON(http.StatusOK, jobTemplate)
 }
@@ -452,7 +454,7 @@ func (ctrl TJobTmplController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddTJobTemplateActivity(common.Delete, user, jobTemplate)
+	activity.AddActivity(activity.Delete, user.ID, jobTemplate, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 

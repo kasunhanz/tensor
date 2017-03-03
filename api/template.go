@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cJobTemplate   = "job_template"
+	cJobTemplate = "job_template"
 	cJobTemplateID = "job_template_id"
 )
 
@@ -315,11 +315,13 @@ func (ctrl JobTemplateController) Create(c *gin.Context) {
 	rolesjob := new(rbac.JobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
-	activity.AddJobTemplateActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.JTemplateMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -455,11 +457,13 @@ func (ctrl JobTemplateController) Update(c *gin.Context) {
 	rolesjob := new(rbac.JobTemplate)
 	if !rbac.HasGlobalWrite(user) {
 		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, jobTemplate, user)
 	} else if orgId, err := req.GetOrganizationID(); err != nil && !rbac.IsOrganizationAdmin(orgId, user.ID) {
 		rolesjob.Associate(jobTemplate.ID, user.ID, rbac.RoleTypeUser, rbac.JobTemplateAdmin)
+		activity.AddActivity(activity.Associate, user.ID, jobTemplate, user)
 	}
 
-	activity.AddJobTemplateActivity(common.Update, user, tmpJobTemplate, jobTemplate)
+	activity.AddActivity(activity.Update, user.ID, tmpJobTemplate, jobTemplate)
 	metadata.JTemplateMetadata(&jobTemplate)
 	c.JSON(http.StatusOK, jobTemplate)
 }
@@ -487,7 +491,7 @@ func (ctrl JobTemplateController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddJobTemplateActivity(common.Delete, user, jobTemplate)
+	activity.AddActivity(activity.Delete, user.ID, jobTemplate, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -495,15 +499,11 @@ func (ctrl JobTemplateController) Delete(c *gin.Context) {
 func (ctrl JobTemplateController) ActivityStream(c *gin.Context) {
 	jtemplate := c.MustGet(cJobTemplate).(ansible.JobTemplate)
 
-	var activities []ansible.ActivityJobTemplate
-	var act ansible.ActivityJobTemplate
-	iter := db.ActivityStream().Find(bson.M{"object1._id": jtemplate.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": jtemplate.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityJobTemplateMetadata(&act)
-		metadata.JTemplateMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.JTemplateMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 

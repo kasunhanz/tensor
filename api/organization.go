@@ -23,7 +23,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cOrganization   = "organization"
+	cOrganization = "organization"
 	cOrganizationID = "organization_id"
 )
 
@@ -178,7 +178,7 @@ func (ctrl OrganizationController) Create(c *gin.Context) {
 		return
 	}
 
-	activity.AddOrganizationActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.OrganizationMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -309,7 +309,7 @@ func (ctrl OrganizationController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddOrganizationActivity(common.Delete, user, organization)
+	activity.AddActivity(activity.Delete, user.ID, organization, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -351,7 +351,7 @@ func (ctrl OrganizationController) Update(c *gin.Context) {
 		return
 	}
 
-	activity.AddOrganizationActivity(common.Update, user, tmpOrg, organization)
+	activity.AddActivity(activity.Update, user.ID, tmpOrg, organization)
 	metadata.OrganizationMetadata(&organization)
 	c.JSON(http.StatusOK, organization)
 }
@@ -555,11 +555,11 @@ func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 	organization := c.MustGet(cOrganization).(common.Organization)
 
 	iter := db.Credentials().Find(bson.M{"organization_id": organization.ID}).Iter()
-	var credentials []*common.Credential
-	var credential *common.Credential
+	var credentials []common.Credential
+	var credential common.Credential
 	for iter.Next(credential) {
-		hideEncrypted(credential)
-		metadata.CredentialMetadata(credential)
+		hideEncrypted(&credential)
+		metadata.CredentialMetadata(&credential)
 		credentials = append(credentials, credential)
 	}
 	if err := iter.Close(); err != nil {
@@ -590,15 +590,11 @@ func (ctrl OrganizationController) GetCredentials(c *gin.Context) {
 func (ctrl OrganizationController) ActivityStream(c *gin.Context) {
 	organization := c.MustGet(cOrganization).(common.Organization)
 
-	var activities []common.ActivityOrganization
-	var act common.ActivityOrganization
-	iter := db.ActivityStream().Find(bson.M{"object1._id": organization.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": organization.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityOrganizationMetadata(&act)
-		metadata.OrganizationMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.OrganizationMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 	if err := iter.Close(); err != nil {

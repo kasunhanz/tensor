@@ -8,7 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/exec/types"
-	"github.com/pearsonappeng/tensor/models/common"
 )
 
 func start(t *types.AnsibleJob) {
@@ -209,23 +208,5 @@ func updateJobTemplate(t *types.AnsibleJob) {
 			"Status": t.Job.Status,
 			"Error":  err,
 		}).Errorln("Failed to update JobTemplate")
-	}
-}
-
-func addActivity(crdID bson.ObjectId, userID bson.ObjectId, desc string, jobtype string) {
-
-	a := common.Activity{
-		ID:          bson.NewObjectId(),
-		ActorID:     userID,
-		Type:        jobtype,
-		ObjectID:    crdID,
-		Description: desc,
-		Created:     time.Now(),
-	}
-
-	if err := db.ActivityStream().Insert(a); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"Error": err,
-		}).Errorln("Failed to add new Activity")
 	}
 }

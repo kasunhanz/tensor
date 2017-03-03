@@ -18,11 +18,13 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/pearsonappeng/tensor/models/ansible"
+	"github.com/pearsonappeng/tensor/models/terraform"
 )
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTeam   = "team"
+	cTeam = "team"
 	cTeamID = "team_id"
 )
 
@@ -180,10 +182,10 @@ func (ctrl TeamController) Create(c *gin.Context) {
 	roles := new(rbac.Team)
 	if !rbac.HasGlobalWrite(user) && !rbac.IsOrganizationAdmin(req.OrganizationID, user.ID) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.TeamAdmin)
-		activity.AddTeamAssociationActivity(user, req)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
-	activity.AddTeamActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	metadata.TeamMetadata(&req)
 	c.JSON(http.StatusCreated, req)
 }
@@ -235,7 +237,7 @@ func (ctrl TeamController) Update(c *gin.Context) {
 		return
 	}
 
-	activity.AddTeamActivity(common.Update, user, tmpTeam, team)
+	activity.AddActivity(activity.Update, user.ID, team, tmpTeam)
 	metadata.TeamMetadata(&team)
 	c.JSON(http.StatusOK, team)
 }
@@ -291,7 +293,7 @@ func (ctrl TeamController) Delete(c *gin.Context) {
 		return
 	}
 
-	activity.AddTeamActivity(common.Delete, user, team)
+	activity.AddActivity(activity.Delete, user.ID, team, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -329,15 +331,6 @@ func (ctrl TeamController) Users(c *gin.Context) {
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-	// send response with JSON rendered data
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -392,14 +385,6 @@ func (ctrl TeamController) Credentials(c *gin.Context) {
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"Count":    count,
-		"Next":     pgi.NextPage(),
-		"Previous": pgi.PreviousPage(),
-		"Skip":     pgi.Skip(),
-		"Limit":    pgi.Limit(),
-	}).Debugln("Response info")
-	// send response with JSON rendered data
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
@@ -465,19 +450,13 @@ func (ctrl TeamController) Projects(c *gin.Context) {
 func (ctrl TeamController) ActivityStream(c *gin.Context) {
 	team := c.MustGet(cTeam).(common.Team)
 
-	var activities []common.ActivityTeam
-	var act common.ActivityTeam
+	var activities []common.Activity
+	var act common.Activity
 	// new mongodb iterator
-	iter := db.ActivityStream().Find(bson.M{"object1._id": team.ID}).Iter()
+	iter := db.ActivityStream().Find(bson.M{"object1_id": team.ID}).Iter()
 	// iterate over all and only get valid objects
 	for iter.Next(&act) {
 		metadata.ActivityTeamMetadata(&act)
-		metadata.TeamMetadata(&act.Object1)
-		//apply metadata only when Object2 is available
-		if act.Object2 != nil {
-			metadata.TeamMetadata(act.Object2)
-		}
-		//add to activities list
 		activities = append(activities, act)
 	}
 
@@ -525,10 +504,21 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 	case "credential":
 		{
 			roles := new(rbac.Credential)
+			var credential common.Credential
+			if err := db.Credentials().FindId(req.ResourceID).One(&credential); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
+
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, credential, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, credential, team)
 			}
 		}
 
@@ -536,7 +526,7 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 		{
 			c.JSON(http.StatusInternalServerError, common.Error{
 				Code:   http.StatusInternalServerError,
-				Errors: []string{"You cannot assign an Organization role as a child role for a Team."},
+				Errors: []string{"You cannot assign an organization role as a child role for a team."},
 			})
 			return
 		}
@@ -544,50 +534,101 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 	case "team":
 		{
 			roles := new(rbac.Team)
+			var rteam common.Team
+			if err := db.Teams().FindId(req.ResourceID).One(&team); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, rteam, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, rteam, team)
 			}
 		}
 
 	case "project":
 		{
 			roles := new(rbac.Project)
+			var project common.Project
+			if err := db.Projects().FindId(req.ResourceID).One(&project); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, project, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, project, team)
 			}
 		}
 
 	case "job_template":
 		{
 			roles := new(rbac.JobTemplate)
+			var jobtemplate ansible.JobTemplate
+			if err := db.JobTemplates().FindId(req.ResourceID).One(&jobtemplate); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, jobtemplate, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, jobtemplate, team)
 			}
 		}
 
 	case "terraform_job_template":
 		{
 			roles := new(rbac.TerraformJobTemplate)
+			var jobtemplate terraform.JobTemplate
+			if err := db.TerrafromJobTemplates().FindId(req.ResourceID).One(&jobtemplate); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
+
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, jobtemplate, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, jobtemplate, team)
 			}
 		}
 
 	case "inventory":
 		{
 			roles := new(rbac.Inventory)
+			var inventory ansible.Inventory
+			if err := db.Inventories().FindId(req.ResourceID).One(&inventory); err != nil {
+				c.JSON(http.StatusBadRequest, common.Error{
+					Code:   http.StatusBadRequest,
+					Errors: []string{"Could not find resource"},
+				})
+				return
+			}
 			if req.Disassociate {
 				err = roles.Disassociate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Disassociate, user.ID, inventory, team)
 			} else {
 				err = roles.Associate(req.ResourceID, team.ID, rbac.RoleTypeTeam, req.Role)
+				activity.AddActivity(activity.Associate, user.ID, inventory, team)
 			}
 		}
 	}
@@ -604,7 +645,6 @@ func (ctrl TeamController) AssignRole(c *gin.Context) {
 		})
 		return
 	}
-	activity.AddRBACActivity(user, req)
 
 	c.AbortWithStatus(http.StatusNoContent)
 }

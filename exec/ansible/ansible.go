@@ -137,7 +137,6 @@ func ansibleRun(j *types.AnsibleJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
 	logrus.WithFields(logrus.Fields{
 		"Job ID": j.Job.ID.Hex(),
 		"Name":   j.Job.Name,
@@ -248,7 +247,6 @@ func ansibleRun(j *types.AnsibleJob) {
 			"Name":   j.Job.Name,
 			"Status": j.Job.Status,
 		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
 		sshcleanup()
 		cleanup()
 	}()

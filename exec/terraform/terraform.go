@@ -123,7 +123,6 @@ func terraformRun(j *types.TerraformJob) {
 
 	start(j)
 
-	addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " is running", j.Job.JobType)
 	logrus.WithFields(logrus.Fields{
 		"Terraform Job ID": j.Job.ID.Hex(),
 		"Name":             j.Job.Name,
@@ -234,7 +233,6 @@ func terraformRun(j *types.TerraformJob) {
 			"Name":              j.Job.Name,
 			"Status":            j.Job.Status,
 		}).Infoln("Stopped running Job")
-		addActivity(j.Job.ID, j.User.ID, "Job " + j.Job.ID.Hex() + " finished", j.Job.JobType)
 		sshcleanup()
 		cleanup()
 	}()

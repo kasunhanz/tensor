@@ -21,7 +21,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cCredential   = "credential"
+	cCredential = "credential"
 	cCredentialID = "credential_id"
 )
 
@@ -201,10 +201,10 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	if !(rbac.HasGlobalWrite(user) ||
 		!(req.OrganizationID != nil || rbac.IsOrganizationAdmin(*req.OrganizationID, user.ID))) {
 		roles.Associate(req.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
-		activity.AddCredentialAssociationActivity(user, req)
+		activity.AddActivity(activity.Associate, user.ID, req, user)
 	}
 
-	activity.AddCredentialActivity(common.Create, user, req)
+	activity.AddActivity(activity.Create, user.ID, req, nil)
 	hideEncrypted(&req)
 	metadata.CredentialMetadata(&req)
 	c.JSON(http.StatusCreated, req)
@@ -305,14 +305,14 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	roles := new(rbac.Credential)
 	if !rbac.HasGlobalWrite(user) {
 		roles.Associate(credential.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
-		activity.AddCredentialAssociationActivity(user, credential)
+		activity.AddActivity(activity.Associate, user.ID, credential, user)
 	} else if credential.OrganizationID != nil && !rbac.IsOrganizationAdmin(*credential.OrganizationID, user.ID) {
 		roles.Associate(credential.ID, user.ID, rbac.RoleTypeUser, rbac.CredentialAdmin)
-		activity.AddCredentialAssociationActivity(user, credential)
+		activity.AddActivity(activity.Associate, user.ID, credential, user)
 	}
 
 	// add new activity to activity stream
-	activity.AddCredentialActivity(common.Update, user, tmpCredential, credential)
+	activity.AddActivity(activity.Update, user.ID, tmpCredential, credential)
 	hideEncrypted(&credential)
 	metadata.CredentialMetadata(&credential)
 	c.JSON(http.StatusOK, credential)
@@ -332,8 +332,7 @@ func (ctrl CredentialController) Delete(c *gin.Context) {
 	}
 
 	// add new activity to activity stream
-	activity.AddCredentialActivity(common.Delete, user, credential)
-
+	activity.AddActivity(activity.Delete, user.ID, credential, nil)
 	c.AbortWithStatus(http.StatusNoContent)
 }
 
@@ -423,22 +422,11 @@ func (ctrl CredentialController) OwnerUsers(c *gin.Context) {
 // ActivityStream returns the activities of the user on Credentials
 func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 	credential := c.MustGet(cCredential).(common.Credential)
-
-	var activities []common.ActivityCredential
-	var act common.ActivityCredential
-	// new mongodb iterator
-	iter := db.ActivityStream().Find(bson.M{"object1._id": credential.ID}).Iter()
-	// iterate over all and only get valid objects
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": credential.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityCredentialMetadata(&act)
-		metadata.CredentialMetadata(&act.Object1)
-		hideEncrypted(&act.Object1)
-		//apply metadata only when Object2 is available
-		if act.Object2 != nil {
-			metadata.CredentialMetadata(act.Object2)
-			hideEncrypted(act.Object2)
-		}
-		//add to activities list
 		activities = append(activities, act)
 	}
 
@@ -449,7 +437,6 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 		})
 		return
 	}
-
 	count := len(activities)
 	pgi := util.NewPagination(c, count)
 	if pgi.HasPage() {
@@ -458,7 +445,6 @@ func (ctrl CredentialController) ActivityStream(c *gin.Context) {
 		})
 		return
 	}
-
 	c.JSON(http.StatusOK, common.Response{
 		Count:    count,
 		Next:     pgi.NextPage(),
