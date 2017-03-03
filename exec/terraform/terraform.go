@@ -134,7 +134,8 @@ func terraformRun(j *types.TerraformJob) {
 
 	if len(j.Machine.SSHKeyData) > 0 {
 		if len(j.Machine.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Machine.SSHKeyUnlock))
+			key, err := ssh.GetKey([]byte(util.Decipher(j.Machine.SSHKeyData)),
+				util.Decipher(j.Machine.SSHKeyUnlock))
 			if err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
@@ -153,7 +154,7 @@ func terraformRun(j *types.TerraformJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
+		key, err := ssh.GetKey([]byte(util.Decipher(j.Machine.SSHKeyData)), nil)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
@@ -176,7 +177,7 @@ func terraformRun(j *types.TerraformJob) {
 
 	if len(j.Network.SSHKeyData) > 0 {
 		if len(j.Network.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Network.SSHKeyUnlock))
+			key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), util.Decipher(j.Network.SSHKeyUnlock))
 			if err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
@@ -195,7 +196,7 @@ func terraformRun(j *types.TerraformJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
+		key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), nil)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),

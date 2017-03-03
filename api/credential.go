@@ -178,13 +178,13 @@ func (ctrl CredentialController) Create(c *gin.Context) {
 	req.ID = bson.NewObjectId()
 	req.Name = strings.Trim(req.Name, " ")
 	req.Description = strings.Trim(req.Description, " ")
-	req.Password = util.CipherEncrypt(req.Password)
-	req.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
-	req.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
-	req.BecomePassword = util.CipherEncrypt(req.BecomePassword)
-	req.VaultPassword = util.CipherEncrypt(req.VaultPassword)
-	req.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
-	req.Secret = util.CipherEncrypt(req.Secret)
+	req.Password = util.Cipher(req.Password)
+	req.SSHKeyData = util.Cipher(req.SSHKeyData)
+	req.SSHKeyUnlock = util.Cipher(req.SSHKeyUnlock)
+	req.BecomePassword = util.Cipher(req.BecomePassword)
+	req.VaultPassword = util.Cipher(req.VaultPassword)
+	req.AuthorizePassword = util.Cipher(req.AuthorizePassword)
+	req.Secret = util.Cipher(req.Secret)
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()
@@ -272,26 +272,26 @@ func (ctrl CredentialController) Update(c *gin.Context) {
 	credential.ModifiedByID = user.ID
 	credential.Modified = time.Now()
 	if req.Password != "$encrypted$" {
-		credential.Password = util.CipherEncrypt(req.Password)
+		credential.Password = util.Cipher(req.Password)
 	}
 	if req.SSHKeyData != "$encrypted$" {
-		credential.SSHKeyData = util.CipherEncrypt(req.SSHKeyData)
+		credential.SSHKeyData = util.Cipher(req.SSHKeyData)
 
 		if req.SSHKeyUnlock != "$encrypted$" {
-			credential.SSHKeyUnlock = util.CipherEncrypt(req.SSHKeyUnlock)
+			credential.SSHKeyUnlock = util.Cipher(req.SSHKeyUnlock)
 		}
 	}
 	if req.BecomePassword != "$encrypted$" {
-		credential.BecomePassword = util.CipherEncrypt(req.BecomePassword)
+		credential.BecomePassword = util.Cipher(req.BecomePassword)
 	}
 	if req.VaultPassword != "$encrypted$" {
-		credential.VaultPassword = util.CipherEncrypt(req.VaultPassword)
+		credential.VaultPassword = util.Cipher(req.VaultPassword)
 	}
 	if req.AuthorizePassword != "$encrypted$" {
-		credential.AuthorizePassword = util.CipherEncrypt(req.AuthorizePassword)
+		credential.AuthorizePassword = util.Cipher(req.AuthorizePassword)
 	}
 	if req.Secret != "$encrypted$" {
-		credential.Secret = util.CipherEncrypt(req.Secret)
+		credential.Secret = util.Cipher(req.Secret)
 	}
 
 	if err := db.Credentials().UpdateId(credential.ID, credential); err != nil {

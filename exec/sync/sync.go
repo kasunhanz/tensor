@@ -34,11 +34,11 @@ func Sync(j types.SyncJob) {
 	}).Infoln("Started system job")
 
 	// Start SSH agent
-	client, socket, pid, cleanup := ssh.StartAgent()
+	agent, socket, pid, cleanup := ssh.StartAgent()
 
 	if len(j.SCM.SSHKeyData) > 0 {
 		if len(j.SCM.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)), util.CipherDecrypt(j.SCM.SSHKeyUnlock))
+			key, err := ssh.GetKey(util.Decipher(j.SCM.SSHKeyData), util.Decipher(j.SCM.SSHKeyUnlock))
 			if err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
@@ -47,7 +47,7 @@ func Sync(j types.SyncJob) {
 				jobFail(j)
 				return
 			}
-			if client.Add(key); err != nil {
+			if agent.Add(key); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
 				}).Errorln("Error while adding decrypted Key")
@@ -57,7 +57,7 @@ func Sync(j types.SyncJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.SCM.SSHKeyData)))
+		key, err := ssh.GetKey(util.Decipher(j.SCM.SSHKeyData), nil)
 
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
@@ -68,7 +68,7 @@ func Sync(j types.SyncJob) {
 			return
 		}
 
-		if client.Add(key); err != nil {
+		if agent.Add(key); err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
 			}).Errorln("Error while adding decrypted Key to SSH Agent")
@@ -118,7 +118,7 @@ func Sync(j types.SyncJob) {
 	}
 
 	var timer *time.Timer
-	timer = time.AfterFunc(time.Duration(util.Config.SyncJobTimeOut)*time.Second, func() {
+	timer = time.AfterFunc(time.Duration(util.Config.SyncJobTimeOut) * time.Second, func() {
 		logrus.Println("Killing the process. Execution exceeded threashold value")
 		cmd.Process.Kill()
 	})
@@ -182,7 +182,7 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 }
 
 func createJobDirs(j types.SyncJob) {
-	if err := os.MkdirAll(util.Config.ProjectsHome+"/"+j.Job.ProjectID.Hex(), 0770); err != nil {
+	if err := os.MkdirAll(util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(), 0770); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Dir":   util.Config.ProjectsHome + "/" + j.Job.ProjectID.Hex(),
 			"Error": err.Error(),

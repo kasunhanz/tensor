@@ -36,7 +36,7 @@ func TestGCECredFile(t *testing.T) {
 	assert := assert.New(t)
 	c := common.Credential{
 		Username:   "test",
-		SSHKeyData: util.CipherEncrypt("test"),
+		SSHKeyData: util.Cipher("test"),
 	}
 
 	f, _ := GCECredFile(c)
@@ -52,7 +52,7 @@ func TestGetCloudCredential(t *testing.T) {
 
 	// Test AWS credential environment variables
 	c := common.Credential{
-		Secret: util.CipherEncrypt("test"),
+		Secret: util.Cipher("test"),
 		Client: "test",
 		Kind:   common.CredentialKindAWS,
 	}
@@ -63,7 +63,7 @@ func TestGetCloudCredential(t *testing.T) {
 
 	// Test Rackspace credentials
 	c = common.Credential{
-		Secret:   util.CipherEncrypt("test"),
+		Secret:   util.Cipher("test"),
 		Username: "test",
 		Kind:     common.CredentialKindRAX,
 	}
@@ -76,7 +76,7 @@ func TestGetCloudCredential(t *testing.T) {
 
 	// Test GCE credentials
 	c = common.Credential{
-		SSHKeyData: util.CipherEncrypt("test"),
+		SSHKeyData: util.Cipher("test"),
 		Email:      "test",
 		Project:    "test",
 		Kind:       common.CredentialKindGCE,
@@ -92,7 +92,7 @@ func TestGetCloudCredential(t *testing.T) {
 	// Test Azure Active directory
 	c = common.Credential{
 		Username:     "test",
-		Password:     util.CipherEncrypt("test"),
+		Password:     util.Cipher("test"),
 		Subscription: "test",
 		Kind:         common.CredentialKindAZURE,
 	}
@@ -104,7 +104,7 @@ func TestGetCloudCredential(t *testing.T) {
 	// Test Azure service principle
 	c = common.Credential{
 		Client:       "test",
-		Secret:       util.CipherEncrypt("test"),
+		Secret:       util.Cipher("test"),
 		Subscription: "test",
 		Tenant:       "test",
 		Kind:         common.CredentialKindAZURE,

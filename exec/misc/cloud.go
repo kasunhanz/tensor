@@ -56,7 +56,7 @@ func GCECredFile(c common.Credential) (f *os.File, err error) {
 		return
 	}
 
-	if _, err = f.Write([]byte(util.CipherDecrypt(c.SSHKeyData))); err != nil {
+	if _, err = f.Write([]byte(util.Decipher(c.SSHKeyData))); err != nil {
 		logrus.Errorln("GCE credential file creation failed")
 		return
 	}
@@ -77,7 +77,7 @@ func GetCloudCredential(env []string, c common.Credential) (menv []string, f *os
 	case common.CredentialKindAWS:
 		{
 			// add environment variables for aws
-			menv = append(env, "AWS_SECRET_ACCESS_KEY="+util.CipherDecrypt(c.Secret),
+			menv = append(env, "AWS_SECRET_ACCESS_KEY="+string(util.Decipher(c.Secret)),
 				"AWS_ACCESS_KEY_ID="+c.Client)
 		}
 	case common.CredentialKindRAX:
@@ -107,12 +107,12 @@ func GetCloudCredential(env []string, c common.Credential) (menv []string, f *os
 			if len(c.Username) > 0 {
 				// add environment variables for Azure active directory credential
 				menv = append(env, "AZURE_AD_USER="+c.Username,
-					"AZURE_PASSWORD="+util.CipherDecrypt(c.Password),
+					"AZURE_PASSWORD="+string(util.Decipher(c.Password)),
 					"AZURE_SUBSCRIPTION_ID="+c.Subscription)
 			} else {
 				// add environment variables for Azure service principle credential
 				menv = append(env, "AZURE_CLIENT_ID="+c.Client,
-					"AZURE_SECRET="+util.CipherDecrypt(c.Secret),
+					"AZURE_SECRET="+string(util.Decipher(c.Secret)),
 					"AZURE_SUBSCRIPTION_ID="+c.Subscription,
 					"AZURE_TENANT="+c.Tenant)
 			}

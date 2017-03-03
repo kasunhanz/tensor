@@ -148,7 +148,7 @@ func ansibleRun(j *types.AnsibleJob) {
 
 	if len(j.Machine.SSHKeyData) > 0 {
 		if len(j.Machine.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Machine.SSHKeyUnlock))
+			key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), util.Decipher(j.Machine.SSHKeyUnlock))
 			if err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
@@ -167,7 +167,7 @@ func ansibleRun(j *types.AnsibleJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
+		key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), nil)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
@@ -190,7 +190,7 @@ func ansibleRun(j *types.AnsibleJob) {
 
 	if len(j.Network.SSHKeyData) > 0 {
 		if len(j.Network.SSHKeyUnlock) > 0 {
-			key, err := ssh.GetEncryptedKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)), util.CipherDecrypt(j.Network.SSHKeyUnlock))
+			key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), util.Decipher(j.Network.SSHKeyUnlock))
 			if err != nil {
 				logrus.WithFields(logrus.Fields{
 					"Error": err.Error(),
@@ -209,7 +209,7 @@ func ansibleRun(j *types.AnsibleJob) {
 			}
 		}
 
-		key, err := ssh.GetKey([]byte(util.CipherDecrypt(j.Machine.SSHKeyData)))
+		key, err := ssh.GetKey(util.Decipher(j.Machine.SSHKeyData), nil)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"Error": err.Error(),
@@ -327,7 +327,7 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 		}
 		pPlaybook = append(pPlaybook, "-u", uname)
 		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindSSH {
-			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + util.CipherDecrypt(j.Machine.Password) + "")
+			pSecure = append(pSecure, "-e", "ansible_ssh_pass=" + string(util.Decipher(j.Machine.Password)) + "")
 		}
 		// if credential type is windows the issue a kinit to acquire a kerberos ticket
 		if len(j.Machine.Password) > 0 && j.Machine.Kind == common.CredentialKindWIN {
@@ -347,7 +347,7 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 		}
 		// for now this is more convenient than --ask-become-pass with sshpass
 		if len(j.Machine.BecomePassword) > 0 {
-			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + util.CipherDecrypt(j.Machine.BecomePassword) + "'")
+			pSecure = append(pSecure, "-e", "'ansible_become_pass=" + string(util.Decipher(j.Machine.BecomePassword)) + "'")
 		}
 	}
 	// add proot and ansible parameters
@@ -539,7 +539,7 @@ func kinit(j types.AnsibleJob) error {
 	}
 	go func() {
 		defer stdin.Close()
-		io.WriteString(stdin, util.CipherDecrypt(j.Machine.Password))
+		io.WriteString(stdin, string(util.Decipher(j.Machine.Password)))
 	}()
 
 	if err := kinit.Start(); err != nil {

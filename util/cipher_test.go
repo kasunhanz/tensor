@@ -6,8 +6,8 @@ import (
 
 func TestDecrypt(t *testing.T) {
 	expected := "Hello World"
-	cryptvalue := CipherEncrypt(expected)
-	actual := CipherDecrypt(cryptvalue)
+	cryptvalue := Cipher(expected)
+	actual := Decipher(cryptvalue)
 
 	if actual != expected {
 		t.Errorf("Decrypt(%s): expected %s, actual %s", expected, expected, actual)

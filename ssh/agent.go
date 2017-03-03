@@ -2,12 +2,6 @@ package ssh
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/agent"
 	"net"
@@ -15,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"github.com/ScaleFT/sshkeys"
 )
 
 // startAgent executes ssh-agent, and returns a Agent interface to it.
@@ -71,75 +66,8 @@ func StartAgent() (client agent.Agent, socket string, pid int, cleanup func()) {
 	return
 }
 
-// Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
-// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
-// OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
-func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
-		return key, nil
-	} else {
-		logrus.Errorln(err)
-	}
-
-	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey:
-			return key, nil
-		default:
-			return nil, errors.New("ssh/agent: found unknown private key type in PKCS#8 wrapping")
-		}
-	} else {
-		logrus.Errorln(err)
-	}
-
-	if key, err := x509.ParseECPrivateKey(der); err == nil {
-		return key, nil
-	} else {
-		logrus.Errorln(err)
-	}
-
-	return nil, errors.New("ssh/agent: failed to parse private key")
-}
-
-func GetKey(data []byte) (key agent.AddedKey, err error) {
-	block, _ := pem.Decode(data)
-	key.PrivateKey, err = parsePrivateKey(block.Bytes)
-	if err != nil {
-		return
-	}
-
-	key.Comment = "Credential"
-	key.ConfirmBeforeUse = false
-
+func GetKey(key []byte, secret []byte) (addedkey agent.AddedKey, err error) {
+	addedkey = agent.AddedKey{}
+	addedkey.PrivateKey, err = sshkeys.ParseEncryptedRawPrivateKey(key, secret)
 	return
-}
-
-func GetEncryptedKey(data []byte, password string) (agent.AddedKey, error) {
-	block, _ := pem.Decode(data)
-
-	key := agent.AddedKey{}
-	if block == nil {
-		return key, errors.New("Error while decoding key")
-	}
-
-	if !x509.IsEncryptedPEMBlock(block) {
-		return key, errors.New("Key is not PEM Encrypted")
-	}
-
-	// encrypted key, unencrypted using password
-	der, err := x509.DecryptPEMBlock(block, []byte(password))
-	if err != nil {
-		logrus.Errorln("Error while decrypting key")
-		return key, err
-	}
-
-	key.PrivateKey, err = parsePrivateKey(der)
-	if err != nil {
-		return key, err
-	}
-
-	key.Comment = "Credential"
-	key.ConfirmBeforeUse = false
-
-	return key, nil
 }
