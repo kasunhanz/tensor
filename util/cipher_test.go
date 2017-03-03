@@ -2,6 +2,7 @@ package util
 
 import (
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDecrypt(t *testing.T) {
@@ -9,7 +10,5 @@ func TestDecrypt(t *testing.T) {
 	cryptvalue := Cipher(expected)
 	actual := Decipher(cryptvalue)
 
-	if actual != expected {
-		t.Errorf("Decrypt(%s): expected %s, actual %s", expected, expected, actual)
-	}
+	assert.Equal(t, expected, actual)
 }
