@@ -13,14 +13,6 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 BuildArch: x86_64
 
-# RHEL <=5
-%if 0%{?rhel} && 0%{?rhel} <= 5
-Requires: ansible
-Requires: git
-Requires: subversion
-Requires: mercurial
-%endif
-
 # RHEL > 5
 %if 0%{?rhel} && 0%{?rhel} > 5
 Requires: ansible

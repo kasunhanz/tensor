@@ -36,6 +36,7 @@ endif
 DEBUILD_BIN ?= debuild
 DEBUILD_OPTS = --source-option="-I"
 DEB_DATE := $(shell LC_TIME=C date +"%a, %d %b %Y %T %z")
+
 ifeq ($(OFFICIAL),yes)
 DEB_RELEASE = $(RELEASE)ppa
 else
@@ -47,12 +48,8 @@ endif
 # DEBSIGN_KEYID is required when signing
 ifdef ($(DEBSIGN_KEYID))
 DEBUILD_OPTS += -k$(DEBSIGN_KEYID)
-else
-# Do not sign unofficial builds
-DEBUILD_OPTS += -uc -us
 endif
 DEBUILD = $(DEBUILD_BIN) $(DEBUILD_OPTS)
-DEB_PPA ?= ppa
 # Choose the desired Ubuntu release: trusty xenial yakkety
 DEB_DIST ?= unstable
 
@@ -131,18 +128,6 @@ deb-src: debian
 	done
 	@echo "#############################################"
 
-# Build package outside of pbuilder, with locally installed dependencies.
-# Install BuildRequires as noted in packaging/debian/control.
-local_deb: debian
-	@for DIST in $(DEB_DIST) ; do \
-	    (cd build/deb-build/$${DIST}/$(NAME)-$(VERSION)/ && $(DEBUILD) -b) ; \
-	done
-	@echo "#############################################"
-	@echo "Ansible DEB artifacts:"
-	@for DIST in $(DEB_DIST) ; do \
-	    echo build/deb-build/$${DIST}/$(NAME)_$(VERSION)-$(DEB_RELEASE)~$${DIST}_amd64.changes ; \
-	done
-
 rpmcommon: sdist
 	@mkdir -p build/rpm-build
 	@cp build/*.tar.gz build/rpm-build/
@@ -192,17 +177,20 @@ travis:
 			rm profile.out; \
 		fi; \
 	done
-	@if [ "$OFFICIAL" = 'yes' ]; then \
-		openssl aes-256-cbc -K $encrypted_194e3b0fc15f_key -iv $encrypted_194e3b0fc15f_iv -in codesigning.asc.enc -out codesigning.asc -d; \
+	@if [ "$$OFFICIAL" = 'yes' ]; then \
+		openssl aes-256-cbc -K $$encrypted_194e3b0fc15f_key -iv $$encrypted_194e3b0fc15f_iv -in codesigning.asc.enc -out codesigning.asc -d; \
 		gpg --fast-import codesigning.asc; \
-		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$(NAME)-$(VERSION).tar.xz; \
-		gpg --sign --armor -r gamunu.balagalla@outlook.com build/$(NAME)-$(VERSION).tar.gz; \
-		sha512 build/$(NAME)-$(VERSION).tar.xz > build/$(NAME)-$(VERSION).tar.xz.sha512; \
-		sha512 build/$(NAME)-$(VERSION).tar.gz > build/$(NAME)-$(VERSION).tar.gz.sha512; \
 	fi;
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
 	$(MAKE) DEB_OS='Debian' DEB_DIST='jessie' deb-src
 	$(MAKE) srpm
+	@if [ "$$OFFICIAL" = 'yes' ]; then \
+		gpg --sign --armor build/$(NAME)-$(VERSION).tar.xz; \
+		gpg --sign --armor build/$(NAME)-$(VERSION).tar.gz; \
+		openssl dgst -sha512 build/$(NAME)-$(VERSION).tar.xz > build/$(NAME)-$(VERSION).tar.xz.sha512; \
+		openssl dgst -sha512 build/$(NAME)-$(VERSION).tar.gz > build/$(NAME)-$(VERSION).tar.gz.sha512; \
+	fi;
+	@rm -f codesigning.asc
 
 # Build tensor docker image and tag with current version
 docker-build:

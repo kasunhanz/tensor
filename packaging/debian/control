@@ -1,12 +1,12 @@
 Source: tensor
 Section: admin
 Priority: optional
-Standards-Version: 0.4.0
+Standards-Version: 3.9.4
 Maintainer: Gamunu Balagalla <gamunu.balagalla@outlook.com>
 Homepage: https://pearsonappeng.github.io
 Vcs-Git: git://github.com/pearsonappeng/tensor.git
 Vcs-Browser: https://github.com/pearsonappeng/tensor.git
-Build-Depends: cdbs, debhelper (>= 5.0.0)
+Build-Depends: cdbs, debhelper (>= 9)
 
 Package: tensor
 Architecture: amd64
