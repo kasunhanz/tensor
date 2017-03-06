@@ -44,14 +44,25 @@ func AddActivity(operation string, userID bson.ObjectId, object1, object2 interf
 			if v1.Type() == v2.Type() && v1.Kind() == reflect.Struct {
 				for i, n := 0, v1.NumField(); i < n; i++ {
 					if !reflect.DeepEqual(v1.Field(i).Interface(), v2.Field(i).Interface()) {
-						changes[v1.Type().Field(i).Name] = v2.Field(i).Interface()
+						tag := v1.Type().Field(i).Tag.Get("json")
+						if len(tag) > 0 && tag != "-" {
+							switch v1.Type().Field(i).Name {
+							case "SSHKeyData", "SSHKeyUnlock", "Password", "Secret", "AuthorizePassword",
+								"SecurityToken": {
+								changes[tag] = "$encrypted$"
+								break
+							}
+							default: {
+								changes[tag] = v2.Field(i).Interface()
+							}
+							}
+						}
 					}
 				}
 			}
 			stream.Changes = changes
 		}
 	}
-
 
 	if err := db.ActivityStream().Insert(stream); err != nil {
 		logrus.WithFields(logrus.Fields{
