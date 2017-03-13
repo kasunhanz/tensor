@@ -32,6 +32,6 @@ type Notification struct {
 	Access []AccessControl `bson:"access" json:"-"`
 }
 
-func (*Notification) GetType() string {
+func (Notification) GetType() string {
 	return "notification"
 }

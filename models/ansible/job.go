@@ -78,7 +78,7 @@ type Job struct {
 	Meta  gin.H  `bson:"-" json:"meta"`
 }
 
-func (*Job) GetType() string {
+func (Job) GetType() string {
 	return "job"
 }
 

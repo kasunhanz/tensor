@@ -29,7 +29,7 @@ import (
 
 // Keys for credential related items stored in the Gin Context
 const (
-	cTerraformJobTemplate   = "terraform_job_template"
+	cTerraformJobTemplate = "terraform_job_template"
 	cTerraformJobTemplateID = "terraform_job_template_id"
 )
 
@@ -476,15 +476,11 @@ func (ctrl TJobTmplController) Delete(c *gin.Context) {
 //
 func (ctrl TJobTmplController) ActivityStream(c *gin.Context) {
 	jtemplate := c.MustGet(cTerraformJobTemplate).(terraform.JobTemplate)
-	var activities []terraform.ActivityJobTemplate
-	var act terraform.ActivityJobTemplate
-	iter := db.ActivityStream().Find(bson.M{"object1._id": jtemplate.ID}).Iter()
+	var activities []common.Activity
+	var act common.Activity
+	iter := db.ActivityStream().Find(bson.M{"object1_id": jtemplate.ID}).Iter()
 	for iter.Next(&act) {
 		metadata.ActivityJobTemplateMetadata(&act)
-		metadata.JTemplateMetadata(&act.Object1)
-		if act.Object2 != nil {
-			metadata.JTemplateMetadata(act.Object2)
-		}
 		activities = append(activities, act)
 	}
 
@@ -591,12 +587,14 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 		JobType:             template.JobType,
 		Vars:                template.Vars,
 		Parallelism:         template.Parallelism,
+		UpdateOnLaunch:      template.UpdateOnLaunch,
 		MachineCredentialID: template.MachineCredentialID,
 		JobTemplateID:       template.ID,
+		Target: 	     template.Target,
 		ProjectID:           template.ProjectID,
 		NetworkCredentialID: template.NetworkCredentialID,
 		CloudCredentialID:   template.CloudCredentialID,
-		SCMCredentialID:     nil,
+		SCMCredentialID:     template.SCMCredentialID,
 		CreatedByID:         user.ID,
 		ModifiedByID:        user.ID,
 		Created:             time.Now(),
@@ -605,6 +603,7 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 		PromptJobType:       template.PromptJobType,
 		PromptVariables:     template.PromptVariables,
 		AllowSimultaneous:   template.AllowSimultaneous,
+		Directory: template.Directory,
 	}
 
 	// if prompt is true override Job template

@@ -23,6 +23,8 @@ import (
 	"github.com/pearsonappeng/tensor/util"
 	"path/filepath"
 	"github.com/rodaine/hclencoder"
+	"io/ioutil"
+	"path"
 )
 
 // Consumer is implementation of rmq.Consumer interface
@@ -216,7 +218,7 @@ func terraformRun(j *types.TerraformJob) {
 
 	}
 
-	cmd, cleanup, err := getCmd(j, socket, pid)
+	cmd, getCmd, cleanup, err := getCmd(j, socket, pid)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -242,6 +244,19 @@ func terraformRun(j *types.TerraformJob) {
 	// Set setsid to create a new session, The new process group has no controlling
 	// terminal which disables the stdin & will skip prompts
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	getCmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	getOutput, err := getCmd.CombinedOutput()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"Error": err.Error(),
+		}).Errorln("Running terraform " + j.Job.JobType + " failed")
+		j.Job.JobExplanation = "terraform get failed"
+		j.Job.ResultStdout = string(getOutput)
+		jobFail(j)
+		return
+	}
+
 	if err := cmd.Start(); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"Error": err.Error(),
@@ -273,7 +288,7 @@ func terraformRun(j *types.TerraformJob) {
 }
 
 // runPlaybook runs a Job using ansible-playbook command
-func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, cleanup func(), err error) {
+func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, getCmd *exec.Cmd, cleanup func(), err error) {
 	// Generate directory paths and create directories
 	tmp := "/tmp/tensor_proot_" + uniuri.New() + "/"
 	j.Paths = types.JobPaths{
@@ -290,7 +305,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 	// create job directories
 	createTmpDirs(j)
 	// add proot and ansible parameters
-	pargs := []string{"-v", "0", "-r", "/",
+	args := []string{"-v", "0", "-r", "/",
 		"-b", j.Paths.Etc + ":/etc/tensor",
 		"-b", j.Paths.Tmp + ":/tmp",
 		"-b", j.Paths.VarLib + ":/var/lib/tensor",
@@ -301,53 +316,40 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 		"-b", "/var/lib/tensor:/var/lib/tensor",
 		"-w", filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 	}
-	pTerraform := []string{"terraform"}
-	pTerraform = buildParams(j, pTerraform)
-	pargs = append(pargs, pTerraform...)
-	j.Job.JobARGS = pargs
+
+	JobARGS := append(args, buildParams(j, []string{"terraform"})...)
+	j.Job.JobARGS = JobARGS
 	j.Job.JobARGS = []string{strings.Join(j.Job.JobARGS, " ")}
 	logrus.Infoln("Job Arguments", append([]string{}, j.Job.JobARGS...))
-	cmd = exec.Command("proot", pargs...)
+	cmd = exec.Command("proot", JobARGS...)
 	cmd.Dir = filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex())
 	cmd.Env = []string{
-		"TERM=xterm",
 		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 		"HOME_PATH=" + util.Config.ProjectsHome,
 		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
-		"SHLVL=1",
+		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
-		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
-		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
-		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
-		"ANSIBLE_FORCE_COLOR=True",
 		"REST_API_URL=http://localhost" + util.Config.Port,
-		"INVENTORY_HOSTVARS=True",
 		"SSH_AUTH_SOCK=" + socket,
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
 	// Assign job env here to ensure that sensitive information will
 	// not be exposed
 	j.Job.JobENV = []string{
-		"TERM=xterm",
 		"PROJECT_PATH=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 		"HOME_PATH=" + util.Config.ProjectsHome,
 		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
-		"SHLVL=1",
+		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + strings.Repeat("*", len(j.Token)),
-		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
-		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
-		"ANSIBLE_HOST_KEY_CHECKING=False",
 		"JOB_ID=" + j.Job.ID.Hex(),
-		"ANSIBLE_FORCE_COLOR=True",
 		"REST_API_URL=http://localhost" + util.Config.Port,
-		"INVENTORY_HOSTVARS=True",
 		"SSH_AUTH_SOCK=" + socket,
 		"SSH_AGENT_PID=" + strconv.Itoa(pid),
 	}
@@ -355,15 +357,30 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 	if j.Cloud.Cloud {
 		cmd.Env, f, err = misc.GetCloudCredential(cmd.Env, j.Cloud)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
+
+	// Issue a terraform get for all jobs
+	// and apply -update parameter if update on launch is true
+	tget := append(args, "terraform", "get")
+	if j.Job.UpdateOnLaunch {
+		tget = append(tget, "-update")
+	}
+	if len(j.Job.Directory) > 0 {
+		tget = append(tget, j.Job.Directory)
+	}
+
+	getCmd = exec.Command("proot", tget...)
+	getCmd.Env = cmd.Env
+	getCmd.Dir = cmd.Dir
+
 	logrus.WithFields(logrus.Fields{
 		"Dir":         cmd.Dir,
 		"Environment": append([]string{}, cmd.Env...),
 	}).Infoln("Job Directory and Environment")
 
-	return cmd, func() {
+	return cmd, getCmd, func() {
 		if f != nil {
 			if err := os.RemoveAll(f.Name()); err != nil {
 				logrus.Errorln("Unable to remove cloud credential")
@@ -382,11 +399,31 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, clean
 }
 
 func buildParams(j *types.TerraformJob, params []string) []string {
-	if j.Job.JobType == "apply" {
+	switch j.Job.JobType {
+	case "apply": {
 		params = append(params, "apply", "-input=false")
-	} else if j.Job.JobType == "plan" {
-		params = append(params, "plan", "-input=false")
+		break
 	}
+	case "plan": {
+		params = append(params, "plan", "-input=false")
+		break
+	}
+	case "destroy": {
+		params = append(params, "destroy", "-force", "-target", j.Job.Target)
+		if len(j.Job.Directory) > 0 {
+			params = append(params, j.Job.Directory)
+		}
+		return params
+	}
+	case "destroy_plan": {
+		params = append(params, "plan", "-destory")
+		if len(j.Job.Directory) > 0 {
+			params = append(params, j.Job.Directory)
+		}
+		return params
+	}
+	}
+
 	// extra variables -e EXTRA_VARS, --extra-vars=EXTRA_VARS
 	if len(j.Job.Vars) > 0 {
 		vars, err := hclencoder.Encode(j.Job.Vars)
@@ -396,8 +433,20 @@ func buildParams(j *types.TerraformJob, params []string) []string {
 			}).Errorln("Could not marshal extra vars")
 		}
 
-		params = append(params, "-var", string(vars))
+		path := path.Join(j.Paths.TmpRand, uniuri.NewLen(5) + ".tfvars")
+		if err := ioutil.WriteFile(path, vars, 0600); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"Error": err,
+			}).Errorln("Could not write extra vars to a variable file")
+		}
+
+		params = append(params, "-var-file=" + path)
 	}
+
+	if len(j.Job.Directory) > 0 {
+		params = append(params, j.Job.Directory)
+	}
+
 	return params
 }
 

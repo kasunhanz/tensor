@@ -35,7 +35,7 @@ type Host struct {
 	Meta  gin.H  `bson:"-" json:"meta"`
 }
 
-func (*Host) GetType() string {
+func (Host) GetType() string {
 	return "host"
 }
 

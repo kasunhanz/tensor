@@ -31,6 +31,6 @@ type InventorySource struct {
 	Meta  gin.H  `bson:"-" json:"meta"`
 }
 
-func (*InventorySource) GetType() string {
+func (InventorySource) GetType() string {
 	return "inventory_source"
 }

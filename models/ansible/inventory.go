@@ -44,7 +44,7 @@ type Inventory struct {
 	Roles []common.AccessControl `bson:"roles" json:"-"`
 }
 
-func (*Inventory) GetType() string {
+func (Inventory) GetType() string {
 	return "inventory"
 }
 
