@@ -24,7 +24,7 @@ const (
 	ScmType          string = "^(manual|git|hg|svn)$"
 	JobType          string = "^(run|check|scan)$"
 	ProjectKind      string = "^(ansible|terraform)$"
-	TerraformJobType string = "^(plan|apply)$"
+	TerraformJobType string = "^(plan|apply|destroy|destroy_plan)$"
 	ResourceType     string = "^(credential|organization|team|project|job_template|terraform_job_template|inventory)$"
 
 	DNSName      string = `^([a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62}){1}(\.[a-zA-Z0-9]{1}[a-zA-Z0-9_-]{1,62})*$`

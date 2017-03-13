@@ -11,7 +11,7 @@
 
 - name: "Add proot key"
   apt_key:
-    url: "http://download.opensuse.org/repositories/home:/cedric-vincent/Debian_7.0/xUbuntu_14.10/Release.key"
+    url: "http://download.opensuse.org/repositories/home:/cedric-vincent/xUbuntu_14.10/Release.key"
   when: ansible_distribution == 'Ubuntu'
 
 - name: "Add proot key debian"

@@ -25,6 +25,6 @@ type InventoryScript struct {
 	Meta  gin.H  `bson:"-" json:"meta"`
 }
 
-func (*InventoryScript) GetType() string {
+func (InventoryScript) GetType() string {
 	return "inventory_script"
 }

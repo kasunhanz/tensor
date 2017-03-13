@@ -1,3 +1,21 @@
+module OS
+  def OS.windows?
+    (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
+  end
+
+  def OS.mac?
+    (/darwin/ =~ RUBY_PLATFORM) != nil
+  end
+
+  def OS.unix?
+    !OS.windows?
+  end
+
+  def OS.linux?
+    OS.unix? and not OS.mac?
+  end
+end
+
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
@@ -22,13 +40,6 @@ Vagrant.configure("2") do |config|
     # Create a private network, which allows host-only access to the machine
     # using a specific IP.
     debian.vm.network "private_network", ip: "10.10.10.1"
-
-    # Share an additional folder to the guest VM. The first argument is
-    # the path on the host to the actual folder. The second argument is
-    # the path on the guest to mount the folder. And the optional third
-    # argument is a set of non-required options.
-    debian.vm.synced_folder '.', '/vagrant', disabled: true # doesn't work with golang
-    debian.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "sshfs", ssh_username: 'vagrant', sshfs_opts_append: "-o cache=no"
   end
 
   config.vm.define "centos" do |centos|
@@ -41,13 +52,6 @@ Vagrant.configure("2") do |config|
     # Create a private network, which allows host-only access to the machine
     # using a specific IP.
     centos.vm.network "private_network", ip: "10.10.10.2"
-
-    # Share an additional folder to the guest VM. The first argument is
-    # the path on the host to the actual folder. The second argument is
-    # the path on the guest to mount the folder. And the optional third
-    # argument is a set of non-required options.
-    centos.vm.synced_folder '.', '/vagrant', disabled: true # doesn't work with golang
-    centos.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "sshfs", ssh_username: 'vagrant', sshfs_opts_append: "-o cache=no"
   end
 
   config.vm.define "ubuntu" do |ubuntu|
@@ -60,13 +64,6 @@ Vagrant.configure("2") do |config|
     # Create a private network, which allows host-only access to the machine
     # using a specific IP.
     ubuntu.vm.network "private_network", ip: "10.10.10.3"
-
-    # Share an additional folder to the guest VM. The first argument is
-    # the path on the host to the actual folder. The second argument is
-    # the path on the guest to mount the folder. And the optional third
-    # argument is a set of non-required options.
-    ubuntu.vm.synced_folder '.', '/vagrant', disabled: true # doesn't work with golang
-    ubuntu.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "sshfs", ssh_username: 'ubuntu', sshfs_opts_append: "-o cache=no"
   end
 
   # Create a public network, which generally matched to bridged network.
@@ -86,6 +83,18 @@ Vagrant.configure("2") do |config|
 
   config.vm.provider "vmware_workstation" do |vw|
     vw.memory = "2048"
+  end
+
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  config.vm.synced_folder '.', '/vagrant', disabled: true # doesn't work with golang
+  if OS.windows?
+    config.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "smb"
+  else
+    config.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "nfs"
   end
 
   # Use local provision so that vagrant will work with windows

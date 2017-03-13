@@ -37,7 +37,7 @@ type Group struct {
 	LastJobHostSummary gin.H   `bson:"-" json:"last_job_host_summary"`
 }
 
-func (*Group) GetType() string {
+func (Group) GetType() string {
 	return "group"
 }
 
