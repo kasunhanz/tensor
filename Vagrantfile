@@ -91,11 +91,7 @@ Vagrant.configure("2") do |config|
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
   config.vm.synced_folder '.', '/vagrant', disabled: true # doesn't work with golang
-  if OS.windows?
-    config.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "smb"
-  else
-    config.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/', type: "nfs"
-  end
+  config.vm.synced_folder '.', '/go/src/github.com/pearsonappeng/tensor/'
 
   # Use local provision so that vagrant will work with windows
   config.vm.provision "ansible_local" do |ansible|

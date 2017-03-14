@@ -18,17 +18,11 @@ Use Cases
 - Security & Compliance
 - Orchestration
 
-Documentation
+Documentations
 --------------
 
-- [API Documentation](https://pearsonappeng.github.io/tensor-doc)
-- [Installation](https://github.com/pearsonappeng/tensor/wiki/Installation)
-- Database
- 1. [MongoDB Installtion (Ubuntu 16.04)](https://github.com/pearsonappeng/tensor/wiki/MongoDB-Ubuntu-16.04-Installtion)
- 2. [MongoDB Account Configuration](https://github.com/pearsonappeng/tensor/wiki/MongoDB-Accounts-Configuration)
- 3. [Configuring MongoDB Installation](https://github.com/pearsonappeng/tensor/wiki/Configuring-MongoDB-Installation)
-- [Packaging](https://github.com/pearsonappeng/tensor/wiki/Packaging)
-
+- [Documentation](https://pearsonappeng.github.io/tensor-doc)
+- [API Documentation](https://pearsonappeng.github.io/tensor-api-v1)
 
 Legal
 ------

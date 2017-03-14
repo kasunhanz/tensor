@@ -7,7 +7,9 @@ RUN groupadd -r tensor && useradd -r -g tensor tensor
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367 && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 805A0463B9370AABA2C9D3192EE7B9E9BF6D1FEE && \
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367 && \
     echo "deb http://ppa.launchpad.net/ansible/ansible/ubuntu xenial main" | tee -a /etc/apt/sources.list.d/ansible.list && \
+    echo "deb http://ppa.launchpad.net/ansible/proot/ubuntu xenial main" | tee -a /etc/apt/sources.list.d/proot.list && \
     echo "deb http://ppa.launchpad.net/gamunu/tensor/ubuntu xenial main" | tee -a /etc/apt/sources.list.d/tensor.list && \
     apt-get -q update && \
     apt-get -y -q install \
@@ -23,6 +25,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     libssl-dev \
     libffi-dev \
     python-dev \
+    proot \
     krb5-user && \
     # install python packages
     pip install -U \
