@@ -193,7 +193,7 @@ travis:
 	@rm -f codesigning.asc
 
 # Build tensor docker image and tag with current version
-docker-build:
+docker:
 	cd packaging/docker/tensor/ && docker build -t gamunu/tensor:$(VERSION) -t gamunu/tensor:latest .
 
 # Spin-up, Remove, Stop containers using docker compose file located in packaging/docker/docker-compose.yml

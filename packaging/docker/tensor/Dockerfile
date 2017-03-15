@@ -1,10 +1,8 @@
 FROM ubuntu:16.04
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r tensor && useradd -r -g tensor tensor
-
-# gcc for cgo and ansible dependencies
-RUN export DEBIAN_FRONTEND=noninteractive && \
+RUN groupadd -r tensor && useradd -r -g tensor tensor && \
+    export DEBIAN_FRONTEND=noninteractive && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367 && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 805A0463B9370AABA2C9D3192EE7B9E9BF6D1FEE && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367 && \
@@ -42,8 +40,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     requests_kerberos && \
     apt-get -q -y upgrade && apt-get -y -q --no-install-recommends install -f tensor && \
     #install terraform
-    cd /tmp/ && curl -O https://releases.hashicorp.com/terraform/0.8.7/terraform_0.8.7_linux_amd64.zip && \
-    unzip terraform_0.8.7_linux_amd64.zip -d /opt/terraform && \
+    cd /tmp/ && curl -O https://releases.hashicorp.com/terraform/0.8.8/terraform_0.8.8_linux_amd64.zip && \
+    unzip terraform_0.8.8_linux_amd64.zip -d /opt/terraform && \
     ln -s /opt/terraform/terraform /usr/bin/terraform && \
     # clean up
     apt-get --purge remove -y -q --auto-remove build-essential python-pip curl \
