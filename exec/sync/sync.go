@@ -166,7 +166,7 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 		"SHLVL=1",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
-		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
 		"ANSIBLE_CALLBACK_PLUGINS=/var/lib/tensor/plugins/callback",
 		"ANSIBLE_HOST_KEY_CHECKING=False",

@@ -51,7 +51,7 @@ func (ctrl JobController) Middleware(c *gin.Context) {
 	switch c.Request.Method {
 	case "GET":
 		{
-			if !roles.ReadByID(user, job.JobTemplateID) {
+			if len(job.JobTemplateID) == 12 && !roles.ReadByID(user, job.JobTemplateID) {
 				AbortWithError(LogFields{Context: c, Status: http.StatusUnauthorized,
 					Message: "You don't have sufficient permissions to perform this action.",
 				})

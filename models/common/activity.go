@@ -11,7 +11,6 @@ import (
 type Activity struct {
 	ID        bson.ObjectId `bson:"_id" json:"id"`
 	Type      string        `bson:"-" json:"type"`
-	URL       string        `bson:"-" json:"url"`
 	ActorID   bson.ObjectId `bson:"actor_id"`
 	Object1ID bson.ObjectId `bson:"object1_id"`
 	Object2ID bson.ObjectId   `bson:"object2_id,omitempty"`
