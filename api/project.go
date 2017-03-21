@@ -24,6 +24,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"path"
 )
 
 // Keys for project related items stored in the Gin Context
@@ -202,7 +203,7 @@ func (ctrl ProjectController) Create(c *gin.Context) {
 	req.Name = strings.Trim(req.Name, " ")
 	req.Description = strings.Trim(req.Description, " ")
 	req.ID = bson.NewObjectId()
-	req.LocalPath = util.Config.ProjectsHome + "/" + req.ID.Hex()
+	req.LocalPath = path.Join(util.Config.ProjectsHome, req.ID.Hex())
 	req.CreatedByID = user.ID
 	req.ModifiedByID = user.ID
 	req.Created = time.Now()

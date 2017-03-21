@@ -21,6 +21,7 @@ import (
 	"github.com/pearsonappeng/tensor/queue"
 	"github.com/pearsonappeng/tensor/ssh"
 	"github.com/pearsonappeng/tensor/util"
+	"path"
 )
 
 func Sync(j types.SyncJob) {
@@ -160,9 +161,9 @@ func getCmd(j *types.SyncJob, socket string, pid int) (*exec.Cmd, error) {
 
 	cmd.Env = []string{
 		"TERM=xterm",
-		"PROJECT_PATH=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
-		"HOME_PATH=" + util.Config.ProjectsHome + "/",
-		"PWD=" + util.Config.ProjectsHome + "/" + j.Project.ID.Hex(),
+		"PROJECT_PATH=" + path.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
+		"HOME_PATH=" + path.Join(util.Config.ProjectsHome, "/"),
+		"PWD=" + path.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 		"SHLVL=1",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
