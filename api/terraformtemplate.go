@@ -25,6 +25,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
+	"os"
 )
 
 // Keys for credential related items stored in the Gin Context
@@ -713,7 +714,7 @@ func (ctrl TJobTmplController) Launch(c *gin.Context) {
 		return
 	}
 
-	if runnerJob.Project.ScmUpdateOnLaunch {
+	if _, err := os.Stat(project.LocalPath); os.IsNotExist(err) || runnerJob.Project.ScmUpdateOnLaunch {
 		tj, err := sync.UpdateProject(project)
 		runnerJob.PreviousJob = tj
 		if err != nil {
