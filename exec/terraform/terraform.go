@@ -330,6 +330,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, getCm
 		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
+		"PROOT_NO_SECCOMP=1",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
 		"JOB_ID=" + j.Job.ID.Hex(),

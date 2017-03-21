@@ -379,6 +379,7 @@ func getCmd(j *types.AnsibleJob, socket string, pid int) (cmd *exec.Cmd, cleanup
 		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
 		"_=/usr/bin/tensord",
+		"PROOT_NO_SECCOMP=1",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + j.Token,
 		"ANSIBLE_PARAMIKO_RECORD_HOST_KEYS=False",
