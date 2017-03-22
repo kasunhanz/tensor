@@ -1,7 +1,7 @@
 FROM ubuntu:16.04
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r tensor && useradd -r -g tensor tensor && \
+RUN groupadd -r tensor && useradd -r -m -g tensor tensor && \
     export DEBIAN_FRONTEND=noninteractive && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 6125E2A8C77F2818FB7BD15B93C4A3FD7BB9C367 && \
     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 805A0463B9370AABA2C9D3192EE7B9E9BF6D1FEE && \
@@ -57,6 +57,8 @@ ENV TENSOR_PORT=8010 PROJECTS_HOME="/data" \
     TENSOR_DB_USER=tensor TENSOR_DB_PASSWORD=tensor TENSOR_DB_NAME=tensordb \
     TENSOR_DB_REPLICA="" TENSOR_DB_HOSTS="mongo:27017" KRB5_CONFIG="/data/krb5.conf" \
     ANSIBLE_CONFIG="/etc/ansible/ansible.cfg" TENSOR_REDIS_HOST="redis:6379"
+
+USER tensor
 
 VOLUME /data
 

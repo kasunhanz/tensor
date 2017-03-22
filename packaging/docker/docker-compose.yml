@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 services:
   mongo:
     build:
@@ -48,6 +48,9 @@ services:
       TENSOR_SALT: "8m86pie1ef8bghbq41ru!de4"
     tty: true
     stdin_open: true
+    # Security risk, apply seccomp profile here
+    security_opt:
+      - seccomp:unconfined
     networks:
       tensornet:
         aliases:

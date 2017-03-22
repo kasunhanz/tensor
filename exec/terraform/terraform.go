@@ -346,6 +346,7 @@ func getCmd(j *types.TerraformJob, socket string, pid int) (cmd *exec.Cmd, getCm
 		"PWD=" + filepath.Join(util.Config.ProjectsHome, j.Project.ID.Hex()),
 		"SHLVL=0",
 		"HOME=" + os.Getenv("HOME"),
+		"PROOT_NO_SECCOMP=1",
 		"_=/usr/bin/tensord",
 		"PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"REST_API_TOKEN=" + strings.Repeat("*", len(j.Token)),
