@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
+	"encoding/base64"
 )
 
 var InteractiveSetup bool
@@ -184,6 +185,6 @@ func init() {
 }
 
 func GenerateSalt() {
-	salt := securecookie.GenerateRandomKey(24)
-	fmt.Println("Generated Salt: ", salt)
+	salt := securecookie.GenerateRandomKey(18)
+	fmt.Println("Generated Salt: ", base64.URLEncoding.EncodeToString(salt))
 }
