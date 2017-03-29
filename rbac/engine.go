@@ -20,7 +20,7 @@ func IsOrganizationAdmin(orgID bson.ObjectId, userID bson.ObjectId) bool {
 		// since this is read it doesn't matter what permission assigned to the user
 		if count, err := db.Organizations().Find(bson.M{
 			"roles.grantee_id": userID,
-			"organization_id":  orgID,
+			"_id":  orgID,
 			"roles.role":       OrganizationAdmin,
 		}).Count(); count > 0 && err == nil {
 			return true
@@ -39,7 +39,7 @@ func HasOrganizationRead(orgID bson.ObjectId, userID bson.ObjectId) bool {
 		// since this is read it doesn't matter what permission assigned to the user
 		if count, err := db.Organizations().Find(bson.M{
 			"roles.grantee_id": userID,
-			"organization_id":  orgID,
+			"_id":  orgID,
 		}).Count(); count > 0 && err == nil {
 			return true
 		} else {
