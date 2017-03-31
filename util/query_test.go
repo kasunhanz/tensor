@@ -3,7 +3,7 @@ package util
 import (
 	"github.com/stretchr/testify/suite"
 	"testing"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/url"
 	"gopkg.in/mgo.v2/bson"

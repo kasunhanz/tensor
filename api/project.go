@@ -21,7 +21,7 @@ import (
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
 	"github.com/pearsonappeng/tensor/validate"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 	"path"

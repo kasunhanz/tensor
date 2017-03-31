@@ -5,7 +5,7 @@ import (
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
 // Create a new organization

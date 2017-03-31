@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
 // Ginrus returns a gin.HandlerFunc (middleware) that logs requests using logrus.

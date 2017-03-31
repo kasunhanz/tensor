@@ -12,7 +12,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/terraform"
 	"github.com/pearsonappeng/tensor/rbac"
 	"github.com/pearsonappeng/tensor/util"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
 

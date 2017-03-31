@@ -8,7 +8,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/validate"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/mgo.v2/bson"
 	"net/http"

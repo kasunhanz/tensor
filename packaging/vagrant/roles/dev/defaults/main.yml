@@ -2,7 +2,7 @@
 
 go_tarball: "go1.8.linux-amd64.tar.gz"
 go_tarball_checksum: "sha256:53ab94104ee3923e228a2cb2116e5e462ad3ebaeea06ff04463479d7f12d27ca"
-go_version_target: "go version go1.7.5 linux/amd64"
+go_version_target: "go version go1.8 linux/amd64"
 
 mongodb_host: "127.0.0.1:27017"
 mongodb_user: "tensor"
@@ -17,7 +17,7 @@ tensor_salt: "8m86pie1ef8bghbq41ru!de4"
 
 tensor_conf_path: /etc/tensor.conf
 
-docker_compose_version: 1.10.0
+docker_compose_version: 1.11.2
 
 epel_repo_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
 epel_repo_gpg_key_url: "http://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}"

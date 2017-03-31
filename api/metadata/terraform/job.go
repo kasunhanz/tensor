@@ -6,7 +6,7 @@ import (
 	"github.com/pearsonappeng/tensor/models/ansible"
 	"github.com/pearsonappeng/tensor/models/common"
 	"github.com/pearsonappeng/tensor/models/terraform"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
 func JobMetadata(job *terraform.Job) {

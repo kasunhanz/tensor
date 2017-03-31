@@ -3,7 +3,7 @@ package util
 import (
 	"strings"
 	"testing"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
 func newServer() *gin.Engine {

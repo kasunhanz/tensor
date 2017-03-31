@@ -1,7 +1,7 @@
 package util
 
 import (
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"math"
 	"strconv"
 )

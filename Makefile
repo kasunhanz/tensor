@@ -57,7 +57,7 @@ DEB_DIST ?= unstable
 PBUILDER_ARCH ?= amd64
 PBUILDER_CACHE_DIR = /var/cache/pbuilder
 PBUILDER_BIN ?= pbuilder
-PBUILDER_OPTS ?= --debootstrapopts --variant=buildd --architecture $(PBUILDER_ARCH) --debbuildopts -b
+PBUILDER_OPTS ?= --debootstrapopts --variant=build --architecture $(PBUILDER_ARCH) --debbuildopts -b
 
 # RPM build parameters
 RPMSPECDIR= packaging/rpm

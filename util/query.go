@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
 

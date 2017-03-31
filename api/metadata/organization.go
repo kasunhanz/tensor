@@ -4,7 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/pearsonappeng/tensor/db"
 	"github.com/pearsonappeng/tensor/models/common"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 	"gopkg.in/mgo.v2/bson"
 )
 
