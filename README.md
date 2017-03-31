@@ -27,14 +27,11 @@ Documentations
 Legal
 ------
 
-* Brought to you courtesy of our legal counsel. For more context,
-please see the [NOTICE](https://github.com/pearsonappeng/tensor/blob/master/NOTICE) document in this repo.*
+*Brought to you courtesy of our legal counsel. For more context, please see the [NOTICE](https://github.com/pearsonappeng/tensor/blob/master/NOTICE) document in this repo.*
 
-Use and transfer of Tensor may be subject to certain restrictions by the
-United States and other governments.
+Use and transfer of Tensor may be subject to certain restrictions by the United States and other governments.
 
-It is your responsibility to ensure that your use and/or transfer does not
-violate applicable laws.
+It is your responsibility to ensure that your use and/or transfer does not violate applicable laws.
 
 For more information, please see https://www.bis.doc.gov
 
