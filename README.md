@@ -2,7 +2,7 @@
   <img src="packaging/img/logo-tensor.png?raw=true" alt="Tensor: An Automation Platform" width="226">
   <br>
   <a href="https://travis-ci.org/pearsonappeng/tensor"><img src="https://travis-ci.org/pearsonappeng/tensor.svg?branch=master" alt="Build Status"></a>
-  <a href="https://codecov.io/gh/pearsonappeng/tensor"><img src="https://codecov.io/gh/pearsonappeng/tensor/branch/master/graph/badge.svg?token=EaMChWx6yl" alt="Codecov"></a>
+  <a href="https://codecov.io/gh/pearsonappeng/tensor"><img src="https://codecov.io/gh/pearsonappeng/tensor/branch/master/graph/badge.svg" alt="Codecov"></a>
   <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/release/pearsonappeng/tensor.svg" alt="Releases"></a>
   <a href="https://github.com/pearsonappeng/tensor/releases/latest"><img src="https://img.shields.io/github/issues/pearsonappeng/tensor.svg" alt="Issues"></a>
 </p>
