@@ -178,7 +178,7 @@ travis:
 		fi; \
 	done
 	@if [ "$$OFFICIAL" = 'yes' ]; then \
-		openssl aes-256-cbc -K $encrypted_6b996d8977fa_key -iv $encrypted_6b996d8977fa_iv -in codesigning.asc.enc -out codesigning.asc -d; \
+		openssl aes-256-cbc -K $$encrypted_6b996d8977fa_key -iv $$encrypted_6b996d8977fa_iv -in codesigning.asc.enc -out codesigning.asc -d; \
 		gpg --fast-import codesigning.asc; \
 	fi;
 	$(MAKE) DEB_DIST='xenial trusty precise' DEB_OS='Ubuntu' deb-src
